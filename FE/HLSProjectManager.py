@@ -1,6 +1,9 @@
+#! /usr/bin/python3.6
+
 import logging
 import re
 from os.path import isfile, isdir
+from collections import defaultdict
 
 class HLSProjectManager:
   def __init__(
@@ -11,8 +14,10 @@ class HLSProjectManager:
     self.top_func_name = top_func_name
     self.hls_prj_path = hls_prj_path
     self.hls_solution_name = hls_solution_name
-
+    self.area_map = {} # name -> area
     self.checker()
+
+    self.getAreaOfAllInst()
 
   def checker(self):
     # rtl name should contain not the file extension
@@ -20,17 +25,17 @@ class HLSProjectManager:
 
   def getCsynthReportDir(self):
     ans = f'{self.hls_prj_path}/{self.hls_solution_name}/syn/report/'
-    assert isdir(ans)
+    assert isdir(ans), ans
     return ans
 
   def getScheReportDir(self):
     ans =  f'{self.hls_prj_path}/{self.hls_solution_name}/.autopilot/db/'
-    assert isdir(ans)
+    assert isdir(ans), ans
     return ans
 
   def getRTLDir(self):
     ans = f'{self.hls_prj_path}/{self.hls_solution_name}/syn/verilog/'
-    assert isdir(ans)
+    assert isdir(ans), ans
     return ans
 
   def getTopRTLPath(self):
@@ -44,38 +49,97 @@ class HLSProjectManager:
       assert False, f'cannot find the RTL file for {self.top_func_name}'    
 
 
-  def getScheReportFromModuleName(self, mod_name):
-    opt1 = self.getScheReportDir() + f'/{mod_name}' + '.verbose.sched.rpt'
-    opt2 = self.getScheReportDir() + f'/{mod_name[len(self.top_func_name)+1:]}' + '.verbose.sched.rpt'
+  def getScheReportFromModuleType(self, mod_type):
+    opt1 = self.getScheReportDir() + f'/{mod_type}' + '.verbose.sched.rpt'
+    opt2 = self.getScheReportDir() + f'/{mod_type[len(self.top_func_name)+1:]}' + '.verbose.sched.rpt'
     
     if isfile(opt1):
       return opt1
     elif isfile(opt2):
       return opt2
     else:
-      assert False, f'cannot find the schedule report for {mod_name}'
+      assert False, f'cannot find the schedule report for {mod_type}'
 
-  def getHLSReportFromModuleName(self, mod_name):
-    opt1 = self.getCsynthReportDir() + f'/{mod_name}' + '_csynth.rpt'
-    opt2 = self.getCsynthReportDir() + f'/{mod_name[len(self.top_func_name)+1:]}' + '_csynth.rpt'
+  def getHLSReportFromModuleType(self, mod_type):
+    opt1 = self.getCsynthReportDir() + f'/{mod_type}' + '_csynth.rpt'
+    opt2 = self.getCsynthReportDir() + f'/{mod_type[len(self.top_func_name)+1:]}' + '_csynth.rpt'
     
     if isfile(opt1):
       return opt1
     elif isfile(opt2):
       return opt2
     else:
-      assert False, f'cannot find the HLS report for {mod_name}'    
+      assert False, f'cannot find the HLS report for {mod_type}'    
 
-  def getAreaFromModuleName(self, mod_name):
+  def getAreaOfAllInst(self):
+    top_rpt_addr = self.getHLSReportFromModuleType(self.top_func_name)
+    rpt = open(top_rpt_addr, 'r')
+    line = ''
 
-    rpt_addr = self.getHLSReportFromModuleName(mod_name)
+    while r'Utilization Estimates' not in line:
+      line = rpt.readline()
+
+    # ......
+    # + Detail: 
+    # * Instance: 
+    # +-------------------------------------+------------------------------------+---------+-------+------+------+-----+
+    # |               Instance              |               Module               | BRAM_18K| DSP48E|  FF  |  LUT | URAM|
+    # +-------------------------------------+------------------------------------+---------+-------+------+------+-----+
+    # |A_IO_L1_in_0_0_U0                    |A_IO_L1_in_0_0_s                    |        0|      0|   429|   334|    0|
+    # |A_IO_L1_in_0_10_U0                   |A_IO_L1_in_0_10_s                   |        0|      0|   425|   334|    0|
+    # ......
+
+    while r'+ Detail:' not in line:
+      line = rpt.readline()
+
+    line = rpt.readline()   # * Instance: 
+    assert r'* Instance:' in line, line
+    line = rpt.readline()   # +-------------
+    assert r'+-------' in line, line
+    line = rpt.readline()   # |               Instance  
+    assert re.search(r'[| ]*Instance[ ]*[| ]*Module[ ]*[| ]*BRAM_18K[ |]+DSP48E[ |]+FF[ |]+LUT[ |]+URAM', line), line
+    line = rpt.readline()   # +----------
+    assert r'+-------' in line, line
+
+    line = rpt.readline()   # +----------
+    while r'+-------' not in line:
+      #                   |   (inst )     |    (mod )     |    (bram)   |    (dsp)    |    (ff )    |   (lut)     |    (uram)
+      match = re.search(r'[| ]*([^ ]+)[ ]*[| ]*([^ ]+)[ ]*[| ]*(\d+)[ ]*[| ]*(\d+)[ ]*[| ]*(\d+)[ ]*[| ]*(\d+)[ ]*[| ]*(\d+)', line)
+      assert match, line
+
+      inst_name = match.group(1)
+      mod_type = match.group(2)
+      bram = int(match.group(3))
+      dsp  = int(match.group(4))
+      ff   = int(match.group(5))
+      lut  = int(match.group(6))
+      uram = int(match.group(7))
+      self.area_map[mod_type] = {'BRAM':bram, 'DSP':dsp, 'FF':ff, 'LUT':lut, 'URAM':uram}
+
+      line = rpt.readline() 
+    rpt.close()
+    
+  def getAreaFromModuleType(self, mod_type):
+    if '_axi' in mod_type:
+      if mod_type not in self.area_map:
+        assert re.search(f'{self.top_func_name}_{self.top_func_name}', mod_type)
+        mod_type = mod_type[len(self.top_func_name)+1:]
+    
+    if mod_type in self.area_map: 
+      return self.area_map[mod_type]
+    else:
+      return self.getAreaBasedOnIndividualReport(mod_type)
+
+  def getAreaBasedOnIndividualReport(self, mod_type):
+
+    rpt_addr = self.getHLSReportFromModuleType(mod_type)
     rpt = open(rpt_addr, 'r')
 
     for line in rpt:
       if ('Utilization Estimates' in line):
         for line in rpt:
           if ('Name' in line):
-            assert re.match(r'BRAM_18K[ |]+DSP48E[ |]+FF[ |]+LUT[ |]+URAM', line), 'HLS has changed the item order in reports!'
+            assert re.search(r'BRAM[_]18K[ |]*DSP48E[ |]*FF[ |]*LUT[ |]*URAM', line), f'HLS has changed the item order in reports! {rpt_addr} : {line}'
 
           if ('Total' in line):
             x = re.findall(r'\d+', line)

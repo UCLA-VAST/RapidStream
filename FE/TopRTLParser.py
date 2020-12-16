@@ -18,20 +18,23 @@ class TopRTLParser:
 
     self.mod_to_fifo_in = defaultdict(list)
     self.mod_to_fifo_out = defaultdict(list)
-    self.initFIFOListOfModuleInst()
 
     self.fifo_to_src_mod = {}
     self.fifo_to_dst_mod = {}
-    self.initSrcAndDstOfFIFO()
+    self.wire_to_fifo_map = {} # str -> str
+
+    self.initWireToFIFOMapping()
+    self.initFIFOListOfModuleInst()
 
   # 1. no start_for FIFOs
   # 2.
   def checker(self):
-    for node in self.DFS(self.top_module_ast, lambda x : True):
-      assert 'start_for' not in node.name, 'Found start FIFOs. Must use disable_start_propagation' 
+    for node in self.DFS(self.top_module_ast, lambda node : isinstance(node, ast.Instance)):
+      assert 'start_for' not in node.name, f'Found start FIFOs: {self.top_rtl_path} : {node.name}' 
 
   def DFS(self, node, filter_func):
     if filter_func(node):
+      logging.debug(f'visit node {node.name}')
       yield node
     for c in node.children():
       yield from self.DFS(c, filter_func)
@@ -56,80 +59,57 @@ class TopRTLParser:
         # note that 'dout' is the output side of FIFO, thus the input side for the vertex
         if '_dout' in formal_raw:
           assert '_dout' in actual_raw
-          fifo_name = re.search(TopRTLParser.fifo_dout_format, actual_raw).group(1)
+          fifo_name = self.wire_to_fifo_map[actual_raw]
           self.mod_to_fifo_in[v_node.name].append(fifo_name) 
 
         elif '_din' in formal_raw:
           assert '_din' in actual_raw
-          fifo_name = re.search(TopRTLParser.fifo_din_format, actual_raw).group(1)
+          fifo_name = self.wire_to_fifo_map[actual_raw]
           self.mod_to_fifo_out[v_node.name].append(fifo_name) 
           
         else:
           continue
 
-  def initSrcAndDstOfFIFO(self):
+  def initWireToFIFOMapping(self):
     for e_node in self.traverseEdgeInAST():
-      # extract wire name
-      # augment vertices with edge info
       for portarg in e_node.portlist:
         # filter constant ports
         if(not isinstance(portarg.argname, ast.Identifier)):
           continue
-
-        formal_raw = portarg.portname
+        # formal_raw = portarg.portname
         actual_raw = portarg.argname.name
 
-        formal_raw = portarg.portname
-        actual_raw = portarg.argname.name
-        
-        # each fifo xxx -> xxx_din & xxx_dout, each maps to a vertex
-        # note that 'dout' is the output side of FIFO, thus the input side for the vertex
-        if '_dout' in formal_raw:
-          assert '_dout' in actual_raw
-          fifo_name = re.search(TopRTLParser.fifo_dout_format, actual_raw).group(1)
-          self.fifo_to_dst_mod[e_node.name] = fifo_name
+        self.wire_to_fifo_map[actual_raw] = e_node.name
 
-        elif '_din' in formal_raw:
-          assert '_din' in actual_raw
-          fifo_name = re.search(TopRTLParser.fifo_din_format, actual_raw).group(1)
-          self.fifo_to_src_mod[e_node.name] = fifo_name
+  def getInFIFOsOfModuleInst(self, inst_name):
+    return self.mod_to_fifo_in[inst_name]
 
-
-  def getInFIFOsOfModuleInst(self, mod_name):
-    return self.mod_to_fifo_in[mod_name]
-
-  def getOutFIFOsOfModuleInst(self, mod_name):
-    return self.mod_to_fifo_out[mod_name]
+  def getOutFIFOsOfModuleInst(self, inst_name):
+    return self.mod_to_fifo_out[inst_name]
         
 
   # xxx_dout -> xxx
-  def getFIFONameFromDataPort(self, data_port:str):
-
-
-    if ('_dout' in data_port):
-      return re.search(TopRTLParser.fifo_dout_format, data_port).group(1)
-    elif ('_din' in data_port):
-      return re.search(TopRTLParser.fifo_din_format,  data_port).group(1)
-    else:
-      assert False, f'{data_port} is not a FIFO data port'   
+  def getFIFONameFromWire(self, fifo_data_wire:str):
+    assert '_dout' in fifo_data_wire or '_din' in fifo_data_wire, f'{fifo_data_wire} is not a FIFO data wire'   
+    return self.wire_to_fifo_map[fifo_data_wire]
 
   # fifo_w32_d2_A xxx -> 32
-  def getFIFOWidthFromHLSNaming(self, fifo_inst_name):
-    match = re.search(r'_w(\d+)_d(\d+)_', fifo_inst_name)
-    assert match, f'wrong FIFO instance name: {fifo_inst_name}'
+  def getFIFOWidthFromFIFOType(self, fifo_type):
+    match = re.search(r'_w(\d+)_d(\d+)_', fifo_type)
+    assert match, f'wrong FIFO instance name: {fifo_type}'
     return int(match.group(1)) # group 111111
 
   # fifo_w32_d2_A xxx -> 2
-  def getFIFODepthFromHLSNaming(self, fifo_inst_name):
-    match = re.search(r'_w(\d+)_d(\d+)_', fifo_inst_name)
-    assert match, f'wrong FIFO instance name: {fifo_inst_name}'
+  def getFIFODepthFromFIFOType(self, fifo_type):
+    match = re.search(r'_w(\d+)_d(\d+)_', fifo_type)
+    assert match, f'wrong FIFO instance name: {fifo_type}'
     return int(match.group(2)) # group 222222
     
   def isVertexNode(self, node):
-    return isinstance(node, ast.Instance) and 'fifo' not in node.top_module_ast
+    return isinstance(node, ast.Instance) and 'fifo' not in node.module
 
   def isEdgeNode(self, node):
-    return isinstance(node, ast.Instance) and 'fifo' not in node.top_module_ast
+    return isinstance(node, ast.Instance) and 'fifo' in node.module
 
   
   # FIXME: what is InstanceList?

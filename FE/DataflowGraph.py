@@ -44,12 +44,14 @@ class DataflowGraph:
     for e_node in self.top_rtl_parser.traverseEdgeInAST():
       self.initEdges(e_node)
 
+    self.linkEdgeAndVertex()
+    
   def initVertices(self, v_node):
 
     v = Vertex(v_node.module, v_node.name)
 
     # get area
-    v.area = self.hls_prj_manager.getArea(v.type)
+    v.area = self.hls_prj_manager.getAreaFromModuleType(v.type)
     
     v.in_edge_names = self.top_rtl_parser.getInFIFOsOfModuleInst(v.name)
     v.out_edge_names = self.top_rtl_parser.getOutFIFOsOfModuleInst(v.name)
@@ -61,25 +63,22 @@ class DataflowGraph:
     e = Edge(e_node.name)
 
     # extract width
-    e.width = self.top_rtl_parser.getFIFOWidthFromHLSNaming(e_node)
-    e.depth = self.top_rtl_parser.getFIFODepthFromHLSNaming(e_node)
+    e.width = self.top_rtl_parser.getFIFOWidthFromFIFOType(e_node.module)
+    e.depth = self.top_rtl_parser.getFIFODepthFromFIFOType(e_node.module)
     e.addr_width = int(math.log2(e.depth)+1)
 
     self.edges[e_node.name] = e
 
   def linkEdgeAndVertex(self):
-    for e in self.edges.values():
-      src_name = self.top_rtl_parser.getSrcModuleOfFIFO(e.name)
-      dst_name = self.top_rtl_parser.getDstModuleOfFIFO(e.name)
-      e.src = self.vertices[src_name]
-      e.dst = self.vertices[dst_name]
-      e.src.out_edges.append(e)
-      e.dst.in_edges.append(e)
-
-    # safe check
     for v in self.vertices.values():
-      assert len(v.in_edges) == len(v.in_edge_names)
-      assert len(v.out_edges) == len(v.out_edge_name)
+      for fifo_in_name in v.in_edge_names:
+        fifo_in = self.edges[fifo_in_name]
+        fifo_in.dst = v
+        v.in_edges.append(fifo_in)
+      for fifo_out_name in v.out_edge_names:
+        fifo_out = self.edges[fifo_out_name]
+        fifo_out.src = v
+        v.out_edges.append(fifo_out)
 
   def printVertices(self):
     for v in self.vertices.values():
