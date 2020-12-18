@@ -3,8 +3,7 @@ from collections import defaultdict
 class DeviceU250:
 
   # SLR level
-  SLR_CNT = 4
-  NUM_PER_SLR_HORIZONTAL = 4
+  SLR_NUM = 4
 
   SLR_AREA = defaultdict(lambda: defaultdict(list))
   SLR_AREA['BRAM'][0] = 768
@@ -29,9 +28,12 @@ class DeviceU250:
   SLR_AREA_DDR['LUT'][1] = 122800
 
   LAGUNA_PER_CR = 480
+  def getLagunaPositionY(self):
+    return [3, 4, 7, 8, 11, 12]
 
   CR_NUM_HORIZONTAL = 8  
   CR_NUM_VERTICAL = 16  
+  CR_NUM_VERTICAL_PER_SLR = 4 # each die has 4 CRs vertically
 
   # Clock Region level
   CR_AREA = [defaultdict(defaultdict) for i in range(CR_NUM_HORIZONTAL)]
@@ -87,8 +89,7 @@ class DeviceU250:
     return Slot(DeviceU250, 0, 0, DeviceU250.CR_NUM_HORIZONTAL-1, DeviceU250.CR_NUM_VERTICAL-1)
 
 class DeviceU280:
-  SLR_CNT = 3
-  NUM_PER_SLR_HORIZONTAL = 4
+  SLR_NUM = 3
   
   SLR_AREA = defaultdict(lambda: defaultdict(list))
   SLR_AREA['BRAM'][0] = 768
