@@ -128,6 +128,7 @@ class HLSProjectManager:
     if mod_type in self.area_map: 
       return self.area_map[mod_type]
     else:
+      logging.warning(f'Area information of instance {mod_type} not found in report for the top func, but has its own report.')
       return self.getAreaBasedOnIndividualReport(mod_type)
 
   def getAreaBasedOnIndividualReport(self, mod_type):

@@ -30,8 +30,10 @@ class DeviceU250:
 
   LAGUNA_PER_CR = 480
 
-  # Clock Region level
   CR_NUM_HORIZONTAL = 8  
+  CR_NUM_VERTICAL = 16  
+
+  # Clock Region level
   CR_AREA = [defaultdict(defaultdict) for i in range(CR_NUM_HORIZONTAL)]
   CR_AREA[0]['BRAM'] = 48
   CR_AREA[0]['DSP'] = 96
@@ -81,6 +83,9 @@ class DeviceU250:
   CR_AREA[7]['LUT'] = 12000
   CR_AREA[7]['URAM'] = 0
 
+  def getInitialSlot(self):
+    return Slot(DeviceU250, 0, 0, DeviceU250.CR_NUM_HORIZONTAL-1, DeviceU250.CR_NUM_VERTICAL-1)
+
 class DeviceU280:
   SLR_CNT = 3
   NUM_PER_SLR_HORIZONTAL = 4
@@ -96,56 +101,3 @@ class DeviceU280:
   SLR_AREA['FF'][1] = 330240
   SLR_AREA['LUT'][1] = 165120  
 
-class Slot:
-  def __init__(self, board, down_left_x, down_left_y, up_right_x, up_right_y):
-    self.board = board
-
-    self.down_left_x = down_left_x
-    self.down_left_y = down_left_y
-    self.up_right_x = up_right_x
-    self.up_right_y = up_right_y
-    
-    self.area = {}
-    self.initArea()
-
-  def initArea(self):
-    for item in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
-      self.area[item] = 0
-      for i in range(self.down_left_x, self.up_right_x+1):
-        self.area[item] += self.board.CR_AREA[i][item]
-      
-      self.area[item] *= (self.up_right_y - self.down_left_y + 1)
-    
-    self.area['LAGUNA'] = 0
-    for i in [3, 4, 7, 8, 11, 12]:
-      if self.down_left_y <= i <= self.up_right_y:
-        self.area['LAGUNA'] += self.board.LAGUNA_PER_CR
-
-  def getArea(self):
-    return self.area
-  
-  def getPositionX(self):
-    return (self.down_left_x + self.up_right_x) / 2
-
-  def getPositionY(self):
-    return (self.down_left_y + self.up_right_y) / 2
-
-  def getUpperAndLowerSplit(self):
-    assert self.down_left_x != self.up_right_x or \
-      self.down_left_y != self.up_right_y, 'Cannot split a single CR'
-    mid_y = int(self.down_left_y + self.up_right_y) / 2
-
-    upper = Slot(self.board, self.down_left_x, mid_y,            self.up_right_x, self.up_right_y)
-    lower = Slot(self.board, self.down_left_x, self.down_left_y, self.up_right_x, mid_y)
-
-    return upper, lower
-
-  def getLeftAndRightSlit(self):
-    assert self.down_left_x != self.up_right_x or \
-      self.down_left_y != self.up_right_y, 'Cannot split a single CR'
-    mid_x = int(self.down_left_x + self.up_right_x) / 2
-
-    left =  Slot(self.board, self.down_left_x, self.down_left_y, mid_x,           self.up_right_y)
-    right = Slot(self.board, mid_x,            self.down_left_y, self.up_right_x, self.up_right_y)
-
-    return left, right

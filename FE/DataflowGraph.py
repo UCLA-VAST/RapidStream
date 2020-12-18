@@ -29,6 +29,9 @@ class Vertex():
     self.horizontal_cut = []
 
     logging.info(f'[Init vertex] create vertix {self.name} of type {self.type}')
+  
+  def getEdgeNames(self):
+    return self.in_edge_names + self.out_edge_names
 
 class DataflowGraph:
   def __init__(self, hls_prj_manager : HLSProjectManager, top_rtl_parser : TopRTLParser):
@@ -82,14 +85,24 @@ class DataflowGraph:
 
   def printVertices(self):
     for v in self.vertices.values():
-      print(f'{v.name}: {v.area}')
+      logging.debug(f'{v.name}: {v.area}')
       for e in v.in_edges:
-        print(f'  <- {e.name}')
+        logging.debug(f'  <- {e.name}')
       for e in v.out_edges:
-        print(f'  -> {e.name}')
+        logging.debug(f'  -> {e.name}')
 
   def printEdges(self):
     for e in self.edges.values():
-      print(f'{e.name}: {e.src.name} -> {e.dst.name}')
+      logging.debug(f'{e.name}: {e.src.name} -> {e.dst.name}')
 
-   
+  def getAllVertices(self):
+    return self.vertices.values()
+
+  def getAllEdges(self):
+    return self.edges.valuse()
+
+  def getNameToVertexMap(self):
+    return self.vertices
+
+  def getNameToEdgeMap(self):
+    return self.edges
