@@ -28,7 +28,7 @@ class DeviceU250:
   SLR_AREA_DDR['LUT'][1] = 122800
 
   LAGUNA_PER_CR = 480
-  def getLagunaPositionY(self):
+  def getLagunaPositionY():
     return [3, 4, 7, 8, 11, 12]
 
   CR_NUM_HORIZONTAL = 8  
@@ -85,9 +85,6 @@ class DeviceU250:
   CR_AREA[7]['LUT'] = 12000
   CR_AREA[7]['URAM'] = 0
 
-  def getInitialSlot(self):
-    return Slot(DeviceU250, 0, 0, DeviceU250.CR_NUM_HORIZONTAL-1, DeviceU250.CR_NUM_VERTICAL-1)
-
 class DeviceU280:
   SLR_NUM = 3
   
@@ -102,3 +99,14 @@ class DeviceU280:
   SLR_AREA['FF'][1] = 330240
   SLR_AREA['LUT'][1] = 165120  
 
+class DeviceManager:
+  def __init__(self, board_name):
+    if board_name == 'U250':
+      self.board = DeviceU250
+    elif board_name == 'U280':
+      self.board = DeviceU280
+    else:
+      assert False, f'unsupported device: {board_name}'
+
+  def getBoard(self):
+    return self.board

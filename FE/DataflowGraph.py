@@ -14,6 +14,12 @@ class Edge:
     self.addr_width = -1
     self.name = name
 
+  def __hash__(self):
+    return hash(self.name)
+
+  def __eq__(self, other):
+    return self.name == other.name
+
 class Vertex():
   def __init__(self, type:str, name : str):
     self.in_edges = [] # stores Edge objects
@@ -22,6 +28,7 @@ class Vertex():
     self.out_edge_names = []
     self.type = type
     self.name = name
+    self.id = self.type + self.name
     self.area = {} # str_name -> count
     self.sub_vertices = {} # pp id -> sub vertex
     self.actual_to_sub = {} # map actual edge name -> sub vertex
@@ -29,9 +36,18 @@ class Vertex():
     self.horizontal_cut = []
 
     logging.info(f'[Init vertex] create vertix {self.name} of type {self.type}')
-  
+
+  def __hash__(self):
+    return hash(self.id)
+
+  def __eq__(self, other):
+    return self.id == other.id
+
   def getEdgeNames(self):
     return self.in_edge_names + self.out_edge_names
+
+  def getEdges(self):
+    return self.in_edges + self.out_edges
 
 class DataflowGraph:
   def __init__(self, hls_prj_manager : HLSProjectManager, top_rtl_parser : TopRTLParser):
@@ -49,6 +65,14 @@ class DataflowGraph:
 
     self.linkEdgeAndVertex()
     
+    self.checker()
+
+  def checker(self):
+    v_name_list = [v.type + v.name for v in self.getAllVertices()]
+    e_name_list = [e.name for e in self.getAllEdges()]
+    assert len(v_name_list) == len(set(v_name_list)), 'Find repeated modules'
+    assert len(e_name_list) == len(set(e_name_list))
+
   def initVertices(self, v_node):
 
     v = Vertex(v_node.module, v_node.name)
@@ -99,10 +123,13 @@ class DataflowGraph:
     return self.vertices.values()
 
   def getAllEdges(self):
-    return self.edges.valuse()
+    return self.edges.values()
 
   def getNameToVertexMap(self):
     return self.vertices
 
   def getNameToEdgeMap(self):
     return self.edges
+
+  def getVertex(self, v_name):
+    return self.vertices[v_name]
