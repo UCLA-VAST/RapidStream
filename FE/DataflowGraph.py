@@ -14,6 +14,8 @@ class Edge:
     self.addr_width = -1
     self.name = name
 
+    logging.debug(f'create edge {self.name} of width {self.width} and depth {self.depth}')
+
   def __hash__(self):
     return hash(self.name)
 
@@ -35,7 +37,7 @@ class Vertex():
     self.vertical_cut = []
     self.horizontal_cut = []
 
-    logging.info(f'[Init vertex] create vertix {self.name} of type {self.type}')
+    logging.debug(f'create vertix {self.name} of type {self.type}')
 
   def __hash__(self):
     return hash(self.id)

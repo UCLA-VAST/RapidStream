@@ -33,7 +33,7 @@ class Slot:
           str(self.down_left_y).zfill(3) + \
           str(self.up_right_x).zfill(3) + \
           str(self.up_right_y).zfill(3)
-    logging.warning(f'Using customized hash function for Slot ({self.down_left_x}, {self.down_left_y}, {self.up_right_x}, {self.up_right_y}) with id {id}')
+    logging.debug(f'Using customized hash function for Slot ({self.down_left_x}, {self.down_left_y}, {self.up_right_x}, {self.up_right_y}) with id {id}')
 
     return hash(id)
 

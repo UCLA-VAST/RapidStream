@@ -21,11 +21,27 @@ class Floorplanner:
     for v in self.user_constraint_v2s.keys():
       assert v in self.graph.getAllVertices(), f'{v.name} is not a valid RTL module'
       
+  def printFloorplan(self, s2v):
+    for s, v_group in s2v.items():
+      logging.info(f'{s.getName()}:')
+      for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
+        used = sum([v.area[r] for v in v_group])
+        avail = s.getArea()[r]
+        logging.info(f'[{r}]: {used} / {avail} = {used/avail}')
+      for v in v_group:
+        logging.info(f'  {v.name}')
+
   def coarseGrainedFloorplan(self):
     init_s2v, init_v2s = self.getInitialSlotToVerticesMapping()
     iter1_s2v, iter1_v2s = self.partitionGivenSlotsByHalf(init_s2v, init_v2s, 'HORIZONTAL') # based on die boundary
+    # self.printFloorplan(iter1_s2v)
+
     iter2_s2v, iter2_v2s = self.partitionGivenSlotsByHalf(iter1_s2v, iter1_v2s, 'HORIZONTAL') # based on die boundary
+    # self.printFloorplan(iter2_s2v)
+
     iter3_s2v, iter3_v2s = self.partitionGivenSlotsByHalf(iter2_s2v, iter2_v2s, 'VERTICAL') # based on ddr ctrl in the middle
+    self.printFloorplan(iter3_s2v)
+
     return iter3_s2v, iter3_v2s
 
   # map all vertices to the initial slot (the whole device)
@@ -41,11 +57,11 @@ class Floorplanner:
 
   def addAreaConstraints(self, m, curr_s2v, v2var, dir):
     name2v = self.graph.getNameToVertexMap()
-    for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
-      for s, v_group in curr_s2v.items():
-        bottom_or_left, up_or_right = s.partitionByHalf(dir)
-        assert up_or_right.up_right_x >= bottom_or_left.down_left_x
-
+    for s, v_group in curr_s2v.items():
+      bottom_or_left, up_or_right = s.partitionByHalf(dir)
+      assert up_or_right.up_right_x >= bottom_or_left.down_left_x
+  
+      for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
         # for the up/right child slot (if mod_x is assigned 1)
         cmd = 'm += 0'
         for v in v_group:
@@ -161,6 +177,7 @@ class Floorplanner:
   def partitionGivenSlotsByHalf(self, curr_s2v : Dict, curr_v2s : Dict, dir : str, external_v2s : Dict = {}):
     assert set(map(type, curr_s2v.keys())) == {Slot}
     assert set(map(type, curr_v2s.keys())) == {Vertex}
+    logging.info('Start partitioning routine')
 
     m = Model()
 
@@ -173,6 +190,7 @@ class Floorplanner:
 
     self.addUserConstraints(m, curr_v2s=curr_v2s, v2var=v2var, dir=dir)
     
+    logging.info('Start ILP solver')
     m.write('Coarse-Grained-Floorplan.lp')
     m.optimize(max_seconds=self.max_search_time)
 

@@ -28,7 +28,7 @@ class Manager:
     self.ddr_enable_bitmap = ddr_enable_bitmap
     self.max_search_time = max_search_time
     self.enable_loop_level_balance = enable_loop_level_balance     # only utilize the dataflow-process-level topology. Do not analyze the internal FSM
-    logging.basicConfig(filename='ap.log', filemode='w', level=logging.DEBUG, format="[%(funcName)25s() ] %(message)s")
+    logging.basicConfig(filename='ap.log', filemode='w', level=logging.INFO, format="[%(funcName)25s() ] %(message)s")
 
     self.device_manager = DeviceManager(board_name)
     self.hls_prj_manager = HLSProjectManager(self.top_rtl_name, self.hls_prj_path, hls_solution_name)
@@ -38,15 +38,11 @@ class Manager:
     graph.printVertices()
 
     self.fp = Floorplanner(graph, self.user_constraint_v2s, self.device_manager.getBoard())
-    coarse_s2v, coarse_v2s = self.fp.coarseGrainedFloorplan()
-    for s, v_group in coarse_s2v.items():
-      logging.debug(f'{s.getName()} contains:')
-      for v in v_group:
-        logging.debug(f'{v}')
+    self.fp.coarseGrainedFloorplan()
 
 if __name__ == "__main__":
   m = Manager(
-    hls_prj_path='/home/einsx7/pr/application/lu_dcompose/12x12/orig_u250/kernel0',
+    hls_prj_path='/home/einsx7/pr/application/lu_dcompose/16x16/orig_u250/kernel0',
     top_rtl_name='kernel0')
     
 
