@@ -2,6 +2,7 @@
 from collections import defaultdict
 from pyverilog.vparser.parser import parse as rtl_parse
 import pyverilog.vparser.ast as ast
+from pyverilog.ast_code_generator.codegen import ASTCodeGenerator
 import re
 import logging
 
@@ -22,19 +23,31 @@ class TopRTLParser:
     self.fifo_to_src_mod = {}
     self.fifo_to_dst_mod = {}
     self.wire_to_fifo_map = {} # str -> str
+    self.inst_to_rtl = {}
 
     self.initWireToFIFOMapping()
     self.initFIFOListOfModuleInst()
+    self.getRTLOfAllInsts()
 
   # 1. no start_for FIFOs
-  # 2.
+  # 2. each inst has different name
   def checker(self):
     for node in self.DFS(self.top_module_ast, lambda node : isinstance(node, ast.Instance)):
       assert 'start_for' not in node.name, f'Found start FIFOs: {self.top_rtl_path} : {node.name}' 
 
+    names = set()
+    for node in self.DFS(self.top_module_ast, lambda node : isinstance(node, ast.Instance)):
+      if node.name not in names:
+        names.add(node.name)
+      else:
+        assert False, f'Found duplicated name for instance {node.name}'
+
   def DFS(self, node, filter_func):
     if filter_func(node):
-      logging.debug(f'visit node {node.name}')
+      try:
+        logging.debug(f'visit node {node.name}')
+      except:
+        logging.debug(f'node in line {node.lineno} has no name')
       yield node
     for c in node.children():
       yield from self.DFS(c, filter_func)
@@ -45,6 +58,25 @@ class TopRTLParser:
   def traverseEdgeInAST(self):
     yield from self.DFS(self.top_module_ast, self.isEdgeNode)
   
+  def getRTLOfAllInsts(self):
+    codegen = ASTCodeGenerator()
+    for v_inst_list in self.DFS(self.top_module_ast, self.isVertexInstanceList):
+      assert len(v_inst_list.instances) == 1, f'unsupported RTL coding style at line {v_inst_list.lineno}'
+      v_node = v_inst_list.instances[0]
+      self.inst_to_rtl[v_node.name] = codegen.visit(v_inst_list)
+
+    for e_inst_list in self.DFS(self.top_module_ast, self.isEdgeInstanceList):
+      assert len(e_inst_list.instances) == 1, f'unsupported RTL coding style at line {e_inst_list.lineno}'
+      e_node = e_inst_list.instances[0]
+      self.inst_to_rtl[e_node.name] = codegen.visit(e_inst_list)
+
+  def printRTLOfInsts(self):
+    for name, rtl in self.inst_to_rtl.items():
+      logging.info('\n'+rtl)
+
+  def getRTLOfInst(self, inst_name):
+    return self.inst_to_rtl[inst_name]
+
   def initFIFOListOfModuleInst(self):
     for v_node in self.traverseVertexInAST():
       for portarg in v_node.portlist:
@@ -111,9 +143,10 @@ class TopRTLParser:
   def isEdgeNode(self, node):
     return isinstance(node, ast.Instance) and 'fifo' in node.module
 
+  def isVertexInstanceList(self, node):
+    return isinstance(node, ast.InstanceList) and 'fifo' not in node.module
   
-  # FIXME: what is InstanceList?
-  def isFIFOInstanceList(self, node):
+  def isEdgeInstanceList(self, node):
     return isinstance(node, ast.InstanceList) and 'fifo' in node.module
   
   def getFIFONameFromInstanceList(self, node):
