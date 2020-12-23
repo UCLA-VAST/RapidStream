@@ -33,13 +33,13 @@ class Floorplanner:
 
   def coarseGrainedFloorplan(self):
     init_s2v, init_v2s = self.getInitialSlotToVerticesMapping()
-    iter1_s2v, iter1_v2s = self.partitionGivenSlotsByHalf(init_s2v, init_v2s, 'HORIZONTAL') # based on die boundary
+    iter1_s2v, iter1_v2s = self.twoWayPartition(init_s2v, init_v2s, 'HORIZONTAL') # based on die boundary
     # self.printFloorplan(iter1_s2v)
 
-    iter2_s2v, iter2_v2s = self.partitionGivenSlotsByHalf(iter1_s2v, iter1_v2s, 'HORIZONTAL') # based on die boundary
+    iter2_s2v, iter2_v2s = self.twoWayPartition(iter1_s2v, iter1_v2s, 'HORIZONTAL') # based on die boundary
     # self.printFloorplan(iter2_s2v)
 
-    iter3_s2v, iter3_v2s = self.partitionGivenSlotsByHalf(iter2_s2v, iter2_v2s, 'VERTICAL') # based on ddr ctrl in the middle
+    iter3_s2v, iter3_v2s = self.twoWayPartition(iter2_s2v, iter2_v2s, 'VERTICAL') # based on ddr ctrl in the middle
     self.printFloorplan(iter3_s2v)
 
     return iter3_s2v, iter3_v2s
@@ -54,6 +54,29 @@ class Floorplanner:
     init_s2v = {init_slot : self.graph.getAllVertices()}
     init_v2s = {v : init_slot for v in self.graph.getAllVertices()}
     return init_s2v, init_v2s
+
+  # obtain the edges that are inside the given slots and the edges between the given slots and the other slots
+  def getIntraAndInterEdges(self, v_group):
+    second_visited_edges = set()
+    first_visited_edges = set()
+
+    # if an edge is visited twice, then it is entirely within the target slots
+    # if an edge is visited only once, then it is between the target slots and the remaining slots
+    for v in v_group:
+      for e in v.getEdges():
+        if e in first_visited_edges:
+          second_visited_edges.add(e)
+          first_visited_edges.remove(e)
+        else:
+          first_visited_edges.add(e)
+          
+          # double check that an edge will not be visited a 3rd time
+          assert e not in second_visited_edges
+
+    interface_edges = list(first_visited_edges)
+    intra_edges = list(second_visited_edges) 
+
+    return intra_edges, interface_edges
 
   def addAreaConstraints(self, m, curr_s2v, v2var, dir):
     for s, v_group in curr_s2v.items():
@@ -103,31 +126,8 @@ class Floorplanner:
       else:
         assert False
 
-    # obtain the edges that are inside the given slots and the edges between the given slots and the other slots
-    def classifyEdges():
-      second_visited_edges = set()
-      first_visited_edges = set()
-
-      # if an edge is visited twice, then it is entirely within the target slots
-      # if an edge is visited only once, then it is between the target slots and the remaining slots
-      for v in curr_v2s.keys():
-        for e in v.getEdges():
-          if e in first_visited_edges:
-            second_visited_edges.add(e)
-            first_visited_edges.remove(e)
-          else:
-            first_visited_edges.add(e)
-            
-            # double check that an edge will not be visited a 3rd time
-            assert e not in second_visited_edges
-
-      interface_edges = list(first_visited_edges)
-      intra_edges = list(second_visited_edges) 
-
-      return intra_edges, interface_edges
-
     # get all involved edges. Differentiate internal edges and boundary edges
-    intra_edges, interface_edges = classifyEdges()
+    intra_edges, interface_edges = self.getIntraAndInterEdges(curr_v2s.keys())
 
     # cost function.
     edge_costs = [m.add_var(var_type=INTEGER, name=f'intra_{e.name}') for e in intra_edges] \
@@ -145,13 +145,15 @@ class Floorplanner:
     next_s2v = defaultdict(list)
     next_v2s = {}
 
-    # map from slot to sub-slot
     for s, v_group in curr_s2v.items():
       bottom_or_left, up_or_right = s.partitionByHalf(dir)
       for v in v_group:
+        # if v is assigned to 0-half
         if v2var[v].x == 0:
           next_s2v[bottom_or_left].append(v)
           next_v2s[v] = bottom_or_left
+        
+        # if v is assigned to 1-half
         elif v2var[v].x == 1:
           next_s2v[up_or_right].append(v)
           next_v2s[v] = up_or_right
@@ -160,21 +162,22 @@ class Floorplanner:
 
     return next_s2v, next_v2s
 
-  def initILPVariables(self, m, curr_v2s):
+  def createILPVariables(self, m, curr_v2s):
     v2var = {} # str -> [mip_var]
     for v in curr_v2s.keys():
       v2var[v] = m.add_var(var_type=BINARY, name=f'{v.name}_x') 
     
     return v2var
 
-  def partitionGivenSlotsByHalf(self, curr_s2v : Dict, curr_v2s : Dict, dir : str, external_v2s : Dict = {}):
+  # use iterative 2-way partitioning when there are lots of small functions
+  def twoWayPartition(self, curr_s2v : Dict, curr_v2s : Dict, dir : str, external_v2s : Dict = {}):
     assert set(map(type, curr_s2v.keys())) == {Slot}
     assert set(map(type, curr_v2s.keys())) == {Vertex}
-    logging.info('Start partitioning routine')
+    logging.info('Start 2-way partitioning routine')
 
     m = Model()
 
-    v2var = self.initILPVariables(m, curr_v2s=curr_v2s)
+    v2var = self.createILPVariables(m, curr_v2s=curr_v2s)
 
     self.addOptGoal(m, curr_v2s=curr_v2s, external_v2s=external_v2s, v2var=v2var, dir=dir)
     
@@ -188,6 +191,3 @@ class Floorplanner:
     m.optimize(max_seconds=self.max_search_time)
 
     return self.getPartitionResult(curr_s2v=curr_s2v, v2var=v2var, dir=dir)
-
-
-     

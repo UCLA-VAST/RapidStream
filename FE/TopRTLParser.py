@@ -20,15 +20,18 @@ class TopRTLParser:
     self.mod_to_fifo_in = defaultdict(list)
     self.mod_to_fifo_out = defaultdict(list)
 
-    self.fifo_to_src_mod = {}
-    self.fifo_to_dst_mod = {}
-    self.wire_to_fifo_map = {} # str -> str
-    self.inst_to_rtl = {}
+    self.wire_to_fifo_name = {} # str -> str
+    self.fifo_name_to_wires = defaultdict(list) # fifo -> interface wires
+    self.inst_name_to_rtl = {}
+    self.reg_wire_decl_list = [] # all wire and reg declaration 
+    self.io_decl_list_with_comma = []
+    self.codegen = ASTCodeGenerator()
 
     self.initWireToFIFOMapping()
     self.initFIFOListOfModuleInst()
-    self.getRTLOfAllInsts()
-
+    self.initRTLOfAllInsts()
+    self.initDeclList()
+    
   # 1. no start_for FIFOs
   # 2. each inst has different name
   def checker(self):
@@ -58,24 +61,25 @@ class TopRTLParser:
   def traverseEdgeInAST(self):
     yield from self.DFS(self.top_module_ast, self.isEdgeNode)
   
-  def getRTLOfAllInsts(self):
-    codegen = ASTCodeGenerator()
+  def initRTLOfAllInsts(self):
     for v_inst_list in self.DFS(self.top_module_ast, self.isVertexInstanceList):
       assert len(v_inst_list.instances) == 1, f'unsupported RTL coding style at line {v_inst_list.lineno}'
       v_node = v_inst_list.instances[0]
-      self.inst_to_rtl[v_node.name] = codegen.visit(v_inst_list)
+      self.inst_name_to_rtl[v_node.name] = self.codegen.visit(v_inst_list)
 
     for e_inst_list in self.DFS(self.top_module_ast, self.isEdgeInstanceList):
       assert len(e_inst_list.instances) == 1, f'unsupported RTL coding style at line {e_inst_list.lineno}'
       e_node = e_inst_list.instances[0]
-      self.inst_to_rtl[e_node.name] = codegen.visit(e_inst_list)
+      self.inst_name_to_rtl[e_node.name] = self.codegen.visit(e_inst_list)
 
-  def printRTLOfInsts(self):
-    for name, rtl in self.inst_to_rtl.items():
-      logging.info('\n'+rtl)
+  def initDeclList(self):
 
-  def getRTLOfInst(self, inst_name):
-    return self.inst_to_rtl[inst_name]
+    for decl in self.DFS(self.top_module_ast, lambda node : isinstance(node, ast.Decl)):
+      decl = self.codegen.visit(decl)
+      if re.search(r'^input', decl) or re.search(r'^output', decl):
+        self.io_decl_list_with_comma.append(decl)
+      else:
+        self.reg_wire_decl_list.append(decl.replace(';', ','))
 
   def initFIFOListOfModuleInst(self):
     for v_node in self.traverseVertexInAST():
@@ -84,19 +88,19 @@ class TopRTLParser:
         if(not isinstance(portarg.argname, ast.Identifier)):
           continue
 
-        formal_raw = portarg.portname
-        actual_raw = portarg.argname.name
+        port_name = portarg.portname
+        wire_name = portarg.argname.name
         
         # each fifo xxx -> xxx_din & xxx_dout, each maps to a vertex
         # note that 'dout' is the output side of FIFO, thus the input side for the vertex
-        if '_dout' in formal_raw:
-          assert '_dout' in actual_raw
-          fifo_name = self.wire_to_fifo_map[actual_raw]
+        if '_dout' in port_name:
+          assert '_dout' in wire_name
+          fifo_name = self.wire_to_fifo_name[wire_name]
           self.mod_to_fifo_in[v_node.name].append(fifo_name) 
 
-        elif '_din' in formal_raw:
-          assert '_din' in actual_raw
-          fifo_name = self.wire_to_fifo_map[actual_raw]
+        elif '_din' in port_name:
+          assert '_din' in wire_name
+          fifo_name = self.wire_to_fifo_name[wire_name]
           self.mod_to_fifo_out[v_node.name].append(fifo_name) 
           
         else:
@@ -108,22 +112,25 @@ class TopRTLParser:
         # filter constant ports
         if(not isinstance(portarg.argname, ast.Identifier)):
           continue
-        # formal_raw = portarg.portname
-        actual_raw = portarg.argname.name
 
-        self.wire_to_fifo_map[actual_raw] = e_node.name
+        wire_name = portarg.argname.name
+        self.wire_to_fifo_name[wire_name] = e_node.name
+        self.fifo_name_to_wires[e_node.name].append(wire_name)
+
+  def getRegAndWireDeclList(self):
+    return self.reg_wire_decl_list
+
+  def getRTLOfInst(self, inst_name):
+    return self.inst_name_to_rtl[inst_name]
+
+  def getIODeclListWithComma(self):
+    return self.io_decl_list_with_comma
 
   def getInFIFOsOfModuleInst(self, inst_name):
     return self.mod_to_fifo_in[inst_name]
 
   def getOutFIFOsOfModuleInst(self, inst_name):
     return self.mod_to_fifo_out[inst_name]
-        
-
-  # xxx_dout -> xxx
-  def getFIFONameFromWire(self, fifo_data_wire:str):
-    assert '_dout' in fifo_data_wire or '_din' in fifo_data_wire, f'{fifo_data_wire} is not a FIFO data wire'   
-    return self.wire_to_fifo_map[fifo_data_wire]
 
   # fifo_w32_d2_A xxx -> 32
   def getFIFOWidthFromFIFOType(self, fifo_type):
