@@ -56,27 +56,20 @@ class Floorplanner:
     return init_s2v, init_v2s
 
   def addAreaConstraints(self, m, curr_s2v, v2var, dir):
-    name2v = self.graph.getNameToVertexMap()
     for s, v_group in curr_s2v.items():
       bottom_or_left, up_or_right = s.partitionByHalf(dir)
       assert up_or_right.up_right_x >= bottom_or_left.down_left_x
   
       for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
-        # for the up/right child slot (if mod_x is assigned 1)
-        cmd = 'm += 0'
-        for v in v_group:
-          cmd += f' + v2var[name2v["{v.name}"]] * {v.area[r]}'
-        cmd += f'<= {up_or_right.getArea()[r]}'
-        logging.debug(cmd)
-        exec(cmd) 
+        v_var_list = [v2var[v] for v in v_group]
+        area_list = [v.area[r] for v in v_group]
+        I = range(len(v_group))
 
-        # for the down/left child slot (if mod_x is assigned 0)
-        cmd = 'm += 0'
-        for v in v_group:
-          cmd += f' + (1 - v2var[name2v["{v.name}"]]) * {v.area[r]}'
-        cmd += f'<= {bottom_or_left.getArea()[r]}'
-        logging.debug(cmd)
-        exec(cmd)     
+        # for the up/right child slot (if mod_x is assigned 1)
+        m += xsum( v_var_list[i] * area_list[i] for i in I ) <= up_or_right.getArea()[r] 
+        
+        # for the down/left child slot (if mod_x is assigned 0)        
+        m += xsum( (1-v_var_list[i]) * area_list[i] for i in I ) <= bottom_or_left.getArea()[r]
 
   def addUserConstraints(self, m, curr_v2s, v2var, dir):
     for v, expect_slot in self.user_constraint_v2s.items():
