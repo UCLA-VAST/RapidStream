@@ -22,12 +22,15 @@ class TopRTLParser:
 
     self.wire_to_fifo_name = {} # str -> str
     self.fifo_name_to_wires = defaultdict(list) # fifo -> interface wires
+    self.wire_to_v_name = {} # str -> str
+    self.v_name_to_wires = defaultdict(list) # vertex -> interface wires
     self.inst_name_to_rtl = {}
     self.reg_wire_decl_list = [] # all wire and reg declaration 
     self.io_decl_list_with_comma = []
     self.codegen = ASTCodeGenerator()
 
     self.initWireToFIFOMapping()
+    self.initWireToVertexMapping()
     self.initFIFOListOfModuleInst()
     self.initRTLOfAllInsts()
     self.initDeclList()
@@ -116,6 +119,24 @@ class TopRTLParser:
         wire_name = portarg.argname.name
         self.wire_to_fifo_name[wire_name] = e_node.name
         self.fifo_name_to_wires[e_node.name].append(wire_name)
+
+  def initWireToVertexMapping(self):
+    for v_node in self.traverseVertexInAST():
+      for portarg in v_node.portlist:
+        # filter constant ports
+        if(not isinstance(portarg.argname, ast.Identifier)):
+          continue
+
+        wire_name = portarg.argname.name
+        self.wire_to_v_name[wire_name] = v_node.name
+        self.v_name_to_wires[v_node.name].append(wire_name)
+
+  # get the interface wires of vertex or edges
+  def getWiresOfFIFOName(self, inst_name) -> list:
+    return self.fifo_name_to_wires[inst_name]
+
+  def getWiresOfVertexName(self, v_name) -> list:
+    return self.v_name_to_wires[v_name]
 
   def getRegAndWireDeclList(self):
     return self.reg_wire_decl_list

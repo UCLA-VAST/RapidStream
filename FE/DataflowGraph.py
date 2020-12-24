@@ -13,7 +13,6 @@ class Edge:
     self.depth = -1
     self.addr_width = -1
     self.name = name
-    self.rtl = ''
 
     logging.debug(f'create edge {self.name} of width {self.width} and depth {self.depth}')
 
@@ -37,7 +36,6 @@ class Vertex():
     self.actual_to_sub = {} # map actual edge name -> sub vertex
     self.vertical_cut = []
     self.horizontal_cut = []
-    self.rtl = ''
 
     logging.debug(f'create vertix {self.name} of type {self.type}')
 
@@ -52,6 +50,12 @@ class Vertex():
 
   def getEdges(self):
     return self.in_edges + self.out_edges
+  
+  def getInEdges(self):
+    return self.in_edges
+  
+  def getOutEdges(self):
+    return self.out_edges
 
 class DataflowGraph:
   def __init__(self, hls_prj_manager : HLSProjectManager, top_rtl_parser : TopRTLParser):
@@ -89,8 +93,6 @@ class DataflowGraph:
 
     self.vertices[v_node.name] = v
 
-    v.rtl = self.top_rtl_parser.getRTLOfInst(v.name)
-
   def initEdges(self, e_node):
 
     e = Edge(e_node.name)
@@ -101,7 +103,6 @@ class DataflowGraph:
     e.addr_width = int(math.log2(e.depth)+1)
 
     self.edges[e_node.name] = e
-    e.rtl = self.top_rtl_parser.getRTLOfInst(e.name)
 
   def linkEdgeAndVertex(self):
     for v in self.vertices.values():
