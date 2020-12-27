@@ -9,10 +9,10 @@ from mip import *
 
 class Floorplanner:
 
-  def __init__(self, graph : DataflowGraph, user_constraint_v2s : Dict, board=DeviceU250, max_search_time=600):
+  def __init__(self, graph : DataflowGraph, user_constraint_s2v : Dict, board=DeviceU250, max_search_time=600):
     self.board = board
     self.graph = graph
-    self.user_constraint_v2s = user_constraint_v2s
+    self.user_constraint_s2v = user_constraint_s2v
     self.max_search_time = max_search_time
     self.s2v = defaultdict(list)
     self.v2s = {}
@@ -21,8 +21,9 @@ class Floorplanner:
     self.__checker()
 
   def __checker(self):
-    for v in self.user_constraint_v2s.keys():
-      assert v in self.graph.getAllVertices(), f'{v.name} is not a valid RTL module'
+    for v_group in self.user_constraint_s2v.values():
+      for v in v_group:
+        assert v in self.graph.getAllVertices(), f'{v.name} is not a valid RTL module'
 
   def __initCoarseSlotToEdges(self):
     for s, v_group in self.s2v.items():
@@ -64,15 +65,16 @@ class Floorplanner:
         m += xsum( (1-v_var_list[i]) * area_list[i] for i in I ) <= bottom_or_left.getArea()[r]
 
   def __addUserConstraints(self, m, curr_v2s, v2var, dir):
-    for v, expect_slot in self.user_constraint_v2s.items():
-      curr_slot = curr_v2s[v.name]
-      bottom_or_left, up_or_right = curr_slot.partitionByHalf(dir)
-      if bottom_or_left.containsChildSlot(expect_slot):
-        m += v2var[v.name] == 0
-      elif up_or_right.containsChildSlot(expect_slot):
-        m += v2var[v.name] == 1
-      else:
-        assert False, f'Wrong constraints from user on {v.name}'
+    for expect_slot, v_group in self.user_constraint_s2v.items():
+      for v in v_group:
+        curr_slot = curr_v2s[v]
+        bottom_or_left, up_or_right = curr_slot.partitionByHalf(dir)
+        if bottom_or_left.containsChildSlot(expect_slot):
+          m += v2var[v] == 0
+        elif up_or_right.containsChildSlot(expect_slot):
+          m += v2var[v] == 1
+        else:
+          logging.warning(f'Potential wrong constraints from user: {v.name} -> {expect_slot.getName()}')
 
   def __addOptGoal(self, m, curr_v2s, external_v2s, v2var, dir):
     def getVertexPosInChildSlot(v : Vertex):
@@ -161,8 +163,8 @@ class Floorplanner:
 
     return self.__getPartitionResult(curr_s2v=curr_s2v, v2var=v2var, dir=dir)
 
-  def printFloorplan(self, s2v):
-    for s, v_group in s2v.items():
+  def printFloorplan(self):
+    for s, v_group in self.s2v.items():
       logging.info(f'{s.getName()}:')
       for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
         used = sum([v.area[r] for v in v_group])
