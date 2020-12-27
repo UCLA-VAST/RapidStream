@@ -14,7 +14,7 @@ class TopRTLParser:
   def __init__(self, top_rtl_path):
     self.top_rtl_path = top_rtl_path
     self.top_module_ast, directives = rtl_parse([top_rtl_path]) 
-    self.checker()
+    self.__checker()
 
     self.mod_to_fifo_in = defaultdict(list)
     self.mod_to_fifo_out = defaultdict(list)
@@ -29,26 +29,26 @@ class TopRTLParser:
     self.io_name_to_dir = {}
     self.codegen = ASTCodeGenerator()
 
-    self.initWireToFIFOMapping()
-    self.initWireToVertexMapping()
-    self.initFIFOListOfModuleInst()
-    self.initRTLOfAllInsts()
-    self.initDeclList()
+    self.__initWireToFIFOMapping()
+    self.__initWireToVertexMapping()
+    self.__initFIFOListOfModuleInst()
+    self.__initRTLOfAllInsts()
+    self.__initDeclList()
     
   # 1. no start_for FIFOs
   # 2. each inst has different name
-  def checker(self):
-    for node in self.DFS(self.top_module_ast, lambda node : isinstance(node, ast.Instance)):
+  def __checker(self):
+    for node in self.__DFS(self.top_module_ast, lambda node : isinstance(node, ast.Instance)):
       assert 'start_for' not in node.name, f'Found start FIFOs: {self.top_rtl_path} : {node.name}' 
 
     names = set()
-    for node in self.DFS(self.top_module_ast, lambda node : isinstance(node, ast.Instance)):
+    for node in self.__DFS(self.top_module_ast, lambda node : isinstance(node, ast.Instance)):
       if node.name not in names:
         names.add(node.name)
       else:
         assert False, f'Found duplicated name for instance {node.name}'
 
-  def DFS(self, node, filter_func):
+  def __DFS(self, node, filter_func):
     if filter_func(node):
       try:
         logging.debug(f'visit node {node.name}')
@@ -56,29 +56,23 @@ class TopRTLParser:
         logging.debug(f'node in line {node.lineno} has no name')
       yield node
     for c in node.children():
-      yield from self.DFS(c, filter_func)
+      yield from self.__DFS(c, filter_func)
 
-  def traverseVertexInAST(self):
-    yield from self.DFS(self.top_module_ast, self.isVertexNode)
-  
-  def traverseEdgeInAST(self):
-    yield from self.DFS(self.top_module_ast, self.isEdgeNode)
-  
-  def initRTLOfAllInsts(self):
-    for v_inst_list in self.DFS(self.top_module_ast, self.isVertexInstanceList):
+  def __initRTLOfAllInsts(self):
+    for v_inst_list in self.__DFS(self.top_module_ast, self.__isVertexInstanceList):
       assert len(v_inst_list.instances) == 1, f'unsupported RTL coding style at line {v_inst_list.lineno}'
       v_node = v_inst_list.instances[0]
       self.inst_name_to_rtl[v_node.name] = self.codegen.visit(v_inst_list)
 
-    for e_inst_list in self.DFS(self.top_module_ast, self.isEdgeInstanceList):
+    for e_inst_list in self.__DFS(self.top_module_ast, self.__isEdgeInstanceList):
       assert len(e_inst_list.instances) == 1, f'unsupported RTL coding style at line {e_inst_list.lineno}'
       e_node = e_inst_list.instances[0]
       self.inst_name_to_rtl[e_node.name] = self.codegen.visit(e_inst_list)
 
   # get mapping from reg/wire/io name to width/direction
-  def initDeclList(self):
+  def __initDeclList(self):
 
-    for decl_node in self.DFS(self.top_module_ast, lambda node : isinstance(node, ast.Decl)):
+    for decl_node in self.__DFS(self.top_module_ast, lambda node : isinstance(node, ast.Decl)):
       assert len(decl_node.children()) == 1
       content = decl_node.children()[0]
       name = content.name
@@ -107,7 +101,7 @@ class TopRTLParser:
       else:
         logging.debug(f'unrecorded Decl statement: {name} @ line {decl_node.lineno}')
 
-  def initFIFOListOfModuleInst(self):
+  def __initFIFOListOfModuleInst(self):
     for v_node in self.traverseVertexInAST():
       for portarg in v_node.portlist:
         # filter out constant ports
@@ -132,7 +126,7 @@ class TopRTLParser:
         else:
           continue
 
-  def initWireToFIFOMapping(self):
+  def __initWireToFIFOMapping(self):
     for e_node in self.traverseEdgeInAST():
       for portarg in e_node.portlist:
         # filter constant ports
@@ -143,7 +137,7 @@ class TopRTLParser:
         self.wire_to_fifo_name[wire_name] = e_node.name
         self.fifo_name_to_wires[e_node.name].append(wire_name)
 
-  def initWireToVertexMapping(self):
+  def __initWireToVertexMapping(self):
     for v_node in self.traverseVertexInAST():
       for portarg in v_node.portlist:
         # filter constant ports
@@ -153,7 +147,29 @@ class TopRTLParser:
         wire_name = portarg.argname.name
         self.wire_to_v_name[wire_name] = v_node.name
         self.v_name_to_wires[v_node.name].append(wire_name)
+  
+  def __isVertexNode(self, node):
+    return isinstance(node, ast.Instance) and 'fifo' not in node.module
 
+  def __isEdgeNode(self, node):
+    return isinstance(node, ast.Instance) and 'fifo' in node.module
+
+  def __isVertexInstanceList(self, node):
+    return isinstance(node, ast.InstanceList) and 'fifo' not in node.module
+  
+  def __isEdgeInstanceList(self, node):
+    return isinstance(node, ast.InstanceList) and 'fifo' in node.module
+  
+  #                                                 #
+  # ---------------- Public Methods --------------- #
+  #                                                 #
+
+  def traverseVertexInAST(self):
+    yield from self.__DFS(self.top_module_ast, self.__isVertexNode)
+  
+  def traverseEdgeInAST(self):
+    yield from self.__DFS(self.top_module_ast, self.__isEdgeNode)
+  
   # get the interface wires of vertex or edges
   def getWiresOfFIFOName(self, inst_name) -> list:
     return self.fifo_name_to_wires[inst_name]
@@ -190,22 +206,7 @@ class TopRTLParser:
     match = re.search(r'_w(\d+)_d(\d+)_', fifo_type)
     assert match, f'wrong FIFO instance name: {fifo_type}'
     return int(match.group(2)) # group 222222
-    
-  def isVertexNode(self, node):
-    return isinstance(node, ast.Instance) and 'fifo' not in node.module
 
-  def isEdgeNode(self, node):
-    return isinstance(node, ast.Instance) and 'fifo' in node.module
-
-  def isVertexInstanceList(self, node):
-    return isinstance(node, ast.InstanceList) and 'fifo' not in node.module
-  
-  def isEdgeInstanceList(self, node):
-    return isinstance(node, ast.InstanceList) and 'fifo' in node.module
-  
   def getFIFONameFromInstanceList(self, node):
     assert(len(node.instances) == 1)
     return node.instances[0].name
-
-  def isInstanceList(self, node):
-    return isinstance(node, ast.InstanceList)
