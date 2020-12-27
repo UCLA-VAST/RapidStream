@@ -1,5 +1,7 @@
 from collections import defaultdict
+import copy
 
+# TODO: calibrate resource when DDRs are enabled
 class DeviceU250:
 
   # SLR level
@@ -85,6 +87,13 @@ class DeviceU250:
   CR_AREA[7]['LUT'] = 12000
   CR_AREA[7]['URAM'] = 0
 
+  TOTAL_AREA = {}
+  TOTAL_AREA['BRAM'] = 5376
+  TOTAL_AREA['DSP'] = 12288
+  TOTAL_AREA['FF'] = 3456000
+  TOTAL_AREA['LUT'] = 1728000
+  TOTAL_AREA['URAM'] = 1280
+  
 class DeviceU280:
   SLR_NUM = 3
   

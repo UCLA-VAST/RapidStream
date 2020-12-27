@@ -4,19 +4,23 @@ from collections import defaultdict
 from typing import Dict
 from DeviceManager import *
 from DataflowGraph import *
+from HLSProjectManager import HLSProjectManager
 from Slot import Slot
 from mip import *
 
 class Floorplanner:
 
-  def __init__(self, graph : DataflowGraph, user_constraint_s2v : Dict, board=DeviceU250, max_search_time=600):
+  def __init__(self, graph : DataflowGraph, user_constraint_s2v : Dict, hls_prj_manager : HLSProjectManager, board=DeviceU250, max_search_time=600):
     self.board = board
     self.graph = graph
     self.user_constraint_s2v = user_constraint_s2v
+    self.hls_prj_manager = hls_prj_manager
     self.max_search_time = max_search_time
     self.s2v = defaultdict(list)
     self.v2s = {}
     self.s2e = defaultdict(list)
+
+    self.max_usage_ratio = self.__getResourceUsageLimit()
 
     self.__checker()
 
@@ -24,6 +28,18 @@ class Floorplanner:
     for v_group in self.user_constraint_s2v.values():
       for v in v_group:
         assert v in self.graph.getAllVertices(), f'{v.name} is not a valid RTL module'
+
+  def __getResourceUsageLimit(self):
+    total_usage = self.hls_prj_manager.getTotalArea()
+    total_avail = self.board.TOTAL_AREA
+
+    ratio = 0.7
+    for item in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
+      usage = total_usage[item] / total_avail[item]
+      ratio = max(usage, ratio)
+
+    logging.info(f'Maximum resource usage ratio set as: {ratio}')
+    return ratio
 
   def __initCoarseSlotToEdges(self):
     for s, v_group in self.s2v.items():
@@ -59,10 +75,10 @@ class Floorplanner:
         I = range(len(v_group))
 
         # for the up/right child slot (if mod_x is assigned 1)
-        m += xsum( v_var_list[i] * area_list[i] for i in I ) <= up_or_right.getArea()[r] 
+        m += xsum( v_var_list[i] * area_list[i] for i in I ) <= up_or_right.getArea()[r] * self.max_usage_ratio
         
         # for the down/left child slot (if mod_x is assigned 0)        
-        m += xsum( (1-v_var_list[i]) * area_list[i] for i in I ) <= bottom_or_left.getArea()[r]
+        m += xsum( (1-v_var_list[i]) * area_list[i] for i in I ) <= bottom_or_left.getArea()[r] * self.max_usage_ratio
 
   def __addUserConstraints(self, m, curr_v2s, v2var, dir):
     for expect_slot, v_group in self.user_constraint_s2v.items():

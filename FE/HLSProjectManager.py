@@ -146,3 +146,6 @@ class HLSProjectManager:
             return {'BRAM':int(x[0]), 'DSP':int(x[1]), 'FF':int(x[2]), 'LUT':int(x[3]), 'URAM':int(x[4])}
 
     assert False, 'Error in parsing the HLS report'
+
+  def getTotalArea(self):
+    return self.getAreaBasedOnIndividualReport(self.top_func_name)
