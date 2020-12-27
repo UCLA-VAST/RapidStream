@@ -15,11 +15,11 @@ class HLSProjectManager:
     self.hls_prj_path = hls_prj_path
     self.hls_solution_name = hls_solution_name
     self.area_map = {} # name -> area
-    self.checker()
+    self.__checker()
 
     self.getAreaOfAllInst()
 
-  def checker(self):
+  def __checker(self):
     # rtl name should contain not the file extension
     assert self.top_func_name[-2:] != '.v'
 
@@ -47,7 +47,6 @@ class HLSProjectManager:
       return opt2
     else:
       assert False, f'cannot find the RTL file for {self.top_func_name}'    
-
 
   def getScheReportFromModuleType(self, mod_type):
     opt1 = self.getScheReportDir() + f'/{mod_type}' + '.verbose.sched.rpt'

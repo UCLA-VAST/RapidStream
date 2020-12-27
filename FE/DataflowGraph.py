@@ -66,22 +66,22 @@ class DataflowGraph:
     self.edges = {} # name -> Edge
 
     for v_node in self.top_rtl_parser.traverseVertexInAST():
-      self.initVertices(v_node)
+      self.__initVertices(v_node)
 
     for e_node in self.top_rtl_parser.traverseEdgeInAST():
-      self.initEdges(e_node)
+      self.__initEdges(e_node)
 
-    self.linkEdgeAndVertex()
+    self.__linkEdgeAndVertex()
     
-    self.checker()
+    self.__checker()
 
-  def checker(self):
+  def __checker(self):
     v_name_list = [v.type + v.name for v in self.getAllVertices()]
     e_name_list = [e.name for e in self.getAllEdges()]
     assert len(v_name_list) == len(set(v_name_list)), 'Find repeated modules'
     assert len(e_name_list) == len(set(e_name_list))
 
-  def initVertices(self, v_node):
+  def __initVertices(self, v_node):
 
     v = Vertex(v_node.module, v_node.name)
 
@@ -93,7 +93,7 @@ class DataflowGraph:
 
     self.vertices[v_node.name] = v
 
-  def initEdges(self, e_node):
+  def __initEdges(self, e_node):
 
     e = Edge(e_node.name)
 
@@ -104,7 +104,7 @@ class DataflowGraph:
 
     self.edges[e_node.name] = e
 
-  def linkEdgeAndVertex(self):
+  def __linkEdgeAndVertex(self):
     for v in self.vertices.values():
       for fifo_in_name in v.in_edge_names:
         fifo_in = self.edges[fifo_in_name]
