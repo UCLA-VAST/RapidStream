@@ -14,6 +14,9 @@ class Floorplanner:
     self.graph = graph
     self.user_constraint_v2s = user_constraint_v2s
     self.max_search_time = max_search_time
+    self.s2v = defaultdict(list)
+    self.v2s = {}
+    self.s2e = defaultdict(list)
 
     self.checker()
 
@@ -34,15 +37,24 @@ class Floorplanner:
   def coarseGrainedFloorplan(self):
     init_s2v, init_v2s = self.getInitialSlotToVerticesMapping()
     iter1_s2v, iter1_v2s = self.twoWayPartition(init_s2v, init_v2s, 'HORIZONTAL') # based on die boundary
-    # self.printFloorplan(iter1_s2v)
 
     iter2_s2v, iter2_v2s = self.twoWayPartition(iter1_s2v, iter1_v2s, 'HORIZONTAL') # based on die boundary
-    # self.printFloorplan(iter2_s2v)
 
-    iter3_s2v, iter3_v2s = self.twoWayPartition(iter2_s2v, iter2_v2s, 'VERTICAL') # based on ddr ctrl in the middle
-    self.printFloorplan(iter3_s2v)
+    self.s2v, self.v2s = self.twoWayPartition(iter2_s2v, iter2_v2s, 'VERTICAL') # based on ddr ctrl in the middle
 
-    return iter3_s2v, iter3_v2s
+    self.initCoarseSlotToEdges()    
+
+  def initCoarseSlotToEdges(self):
+    for s, v_group in self.s2v.items():
+      intra_edges, inter_edges = self.getIntraAndInterEdges(v_group)
+      self.s2e[s] += intra_edges
+
+      # for the FIFO connecting two different slots, it should be assigned to the destination side
+      v_set = set(v_group)
+      for e in inter_edges:
+        if e.dst in v_set:
+          self.s2e[s].append(e)
+          logging.debug(f'{e.name} is assigned with {e.dst.name}')
 
   # map all vertices to the initial slot (the whole device)
   def getInitialSlotToVerticesMapping(self):
@@ -191,3 +203,9 @@ class Floorplanner:
     m.optimize(max_seconds=self.max_search_time)
 
     return self.getPartitionResult(curr_s2v=curr_s2v, v2var=v2var, dir=dir)
+
+  def getSlotToVertices(self):
+    return self.s2v
+
+  def getSlotToEdges(self):
+    return self.s2e
