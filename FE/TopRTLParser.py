@@ -6,7 +6,6 @@ from pyverilog.ast_code_generator.codegen import ASTCodeGenerator
 import re
 import logging
 
-
 class TopRTLParser:
 
   fifo_dout_format = '([^ ]*[^_])_+dout'
@@ -25,8 +24,9 @@ class TopRTLParser:
     self.wire_to_v_name = {} # str -> str
     self.v_name_to_wires = defaultdict(list) # vertex -> interface wires
     self.inst_name_to_rtl = {}
-    self.reg_wire_decl_list = [] # all wire and reg declaration 
-    self.io_decl_list_with_comma = []
+    self.reg_wire_name_to_width = {} # from name to full declaration (with width, etc) 
+    self.io_name_to_width = {}
+    self.io_name_to_dir = {}
     self.codegen = ASTCodeGenerator()
 
     self.initWireToFIFOMapping()
@@ -75,14 +75,37 @@ class TopRTLParser:
       e_node = e_inst_list.instances[0]
       self.inst_name_to_rtl[e_node.name] = self.codegen.visit(e_inst_list)
 
+  # get mapping from reg/wire/io name to width/direction
   def initDeclList(self):
 
-    for decl in self.DFS(self.top_module_ast, lambda node : isinstance(node, ast.Decl)):
-      decl = self.codegen.visit(decl)
-      if re.search(r'^input', decl) or re.search(r'^output', decl):
-        self.io_decl_list_with_comma.append(decl)
+    for decl_node in self.DFS(self.top_module_ast, lambda node : isinstance(node, ast.Decl)):
+      assert len(decl_node.children()) == 1
+      content = decl_node.children()[0]
+      name = content.name
+
+      # filter out ast.Parameter
+      if isinstance(content, ast.Parameter):
+        continue
+      
+      width_node = content.width
+      if width_node:
+        width = self.codegen.visit(width_node)
       else:
-        self.reg_wire_decl_list.append(decl.replace(';', ','))
+        width = ''
+
+      if isinstance(content, ast.Input):
+        self.io_name_to_dir[name] = 'input'
+        self.io_name_to_width[name] = width
+
+      elif isinstance(content, ast.Output):
+        self.io_name_to_dir[name] = 'output'
+        self.io_name_to_width[name] = width
+
+      elif isinstance(content, ast.Wire) or isinstance(content, ast.Reg):
+        self.reg_wire_name_to_width[name] = width
+
+      else:
+        logging.debug(f'unrecorded Decl statement: {name} @ line {decl_node.lineno}')
 
   def initFIFOListOfModuleInst(self):
     for v_node in self.traverseVertexInAST():
@@ -138,14 +161,17 @@ class TopRTLParser:
   def getWiresOfVertexName(self, v_name) -> list:
     return self.v_name_to_wires[v_name]
 
-  def getRegAndWireDeclList(self):
-    return self.reg_wire_decl_list
+  def getWidthOfRegOrWire(self, name):
+    return self.reg_wire_name_to_width[name]
 
   def getRTLOfInst(self, inst_name):
     return self.inst_name_to_rtl[inst_name]
 
-  def getIODeclListWithComma(self):
-    return self.io_decl_list_with_comma
+  def getWidthOfIO(self, io_name):
+    return self.io_name_to_width[io_name]
+
+  def getDirOfIO(self, io_name):
+    return self.io_name_to_dir[io_name]
 
   def getInFIFOsOfModuleInst(self, inst_name):
     return self.mod_to_fifo_in[inst_name]
