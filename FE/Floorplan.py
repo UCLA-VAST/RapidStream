@@ -18,33 +18,13 @@ class Floorplanner:
     self.v2s = {}
     self.s2e = defaultdict(list)
 
-    self.checker()
+    self.__checker()
 
-  def checker(self):
+  def __checker(self):
     for v in self.user_constraint_v2s.keys():
       assert v in self.graph.getAllVertices(), f'{v.name} is not a valid RTL module'
-      
-  def printFloorplan(self, s2v):
-    for s, v_group in s2v.items():
-      logging.info(f'{s.getName()}:')
-      for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
-        used = sum([v.area[r] for v in v_group])
-        avail = s.getArea()[r]
-        logging.info(f'[{r}]: {used} / {avail} = {used/avail}')
-      for v in v_group:
-        logging.info(f'  {v.name}')
 
-  def coarseGrainedFloorplan(self):
-    init_s2v, init_v2s = self.getInitialSlotToVerticesMapping()
-    iter1_s2v, iter1_v2s = self.twoWayPartition(init_s2v, init_v2s, 'HORIZONTAL') # based on die boundary
-
-    iter2_s2v, iter2_v2s = self.twoWayPartition(iter1_s2v, iter1_v2s, 'HORIZONTAL') # based on die boundary
-
-    self.s2v, self.v2s = self.twoWayPartition(iter2_s2v, iter2_v2s, 'VERTICAL') # based on ddr ctrl in the middle
-
-    self.initCoarseSlotToEdges()    
-
-  def initCoarseSlotToEdges(self):
+  def __initCoarseSlotToEdges(self):
     for s, v_group in self.s2v.items():
       intra_edges, inter_edges = self.getIntraAndInterEdges(v_group)
       self.s2e[s] += intra_edges
@@ -57,7 +37,7 @@ class Floorplanner:
           logging.debug(f'{e.name} is assigned with {e.dst.name}')
 
   # map all vertices to the initial slot (the whole device)
-  def getInitialSlotToVerticesMapping(self):
+  def __getInitialSlotToVerticesMapping(self):
 
     def getInitialSlot():
       return Slot(self.board, f'CLOCKREGION_X0Y0:CLOCKREGION_X{self.board.CR_NUM_HORIZONTAL-1}Y{self.board.CR_NUM_VERTICAL-1}')
@@ -67,30 +47,7 @@ class Floorplanner:
     init_v2s = {v : init_slot for v in self.graph.getAllVertices()}
     return init_s2v, init_v2s
 
-  # obtain the edges that are inside the given slots and the edges between the given slots and the other slots
-  def getIntraAndInterEdges(self, v_group):
-    second_visited_edges = set()
-    first_visited_edges = set()
-
-    # if an edge is visited twice, then it is entirely within the target slots
-    # if an edge is visited only once, then it is between the target slots and the remaining slots
-    for v in v_group:
-      for e in v.getEdges():
-        if e in first_visited_edges:
-          second_visited_edges.add(e)
-          first_visited_edges.remove(e)
-        else:
-          first_visited_edges.add(e)
-          
-          # double check that an edge will not be visited a 3rd time
-          assert e not in second_visited_edges
-
-    interface_edges = list(first_visited_edges)
-    intra_edges = list(second_visited_edges) 
-
-    return intra_edges, interface_edges
-
-  def addAreaConstraints(self, m, curr_s2v, v2var, dir):
+  def __addAreaConstraints(self, m, curr_s2v, v2var, dir):
     for s, v_group in curr_s2v.items():
       bottom_or_left, up_or_right = s.partitionByHalf(dir)
       assert up_or_right.up_right_x >= bottom_or_left.down_left_x
@@ -106,7 +63,7 @@ class Floorplanner:
         # for the down/left child slot (if mod_x is assigned 0)        
         m += xsum( (1-v_var_list[i]) * area_list[i] for i in I ) <= bottom_or_left.getArea()[r]
 
-  def addUserConstraints(self, m, curr_v2s, v2var, dir):
+  def __addUserConstraints(self, m, curr_v2s, v2var, dir):
     for v, expect_slot in self.user_constraint_v2s.items():
       curr_slot = curr_v2s[v.name]
       bottom_or_left, up_or_right = curr_slot.partitionByHalf(dir)
@@ -117,7 +74,7 @@ class Floorplanner:
       else:
         assert False, f'Wrong constraints from user on {v.name}'
 
-  def addOptGoal(self, m, curr_v2s, external_v2s, v2var, dir):
+  def __addOptGoal(self, m, curr_v2s, external_v2s, v2var, dir):
     def getVertexPosInChildSlot(v : Vertex):
       def getChildSlotPositionX(v):
         if v in external_v2s:
@@ -152,7 +109,7 @@ class Floorplanner:
 
     m.objective = minimize(xsum(edge_costs[i] * edge.width for i, edge in enumerate(all_edges) ) )
 
-  def getPartitionResult(self, curr_s2v, v2var, dir):
+  def __getPartitionResult(self, curr_s2v, v2var, dir):
     # create new mapping
     next_s2v = defaultdict(list)
     next_v2s = {}
@@ -174,7 +131,7 @@ class Floorplanner:
 
     return next_s2v, next_v2s
 
-  def createILPVariables(self, m, curr_v2s):
+  def __createILPVariables(self, m, curr_v2s):
     v2var = {} # str -> [mip_var]
     for v in curr_v2s.keys():
       v2var[v] = m.add_var(var_type=BINARY, name=f'{v.name}_x') 
@@ -182,27 +139,70 @@ class Floorplanner:
     return v2var
 
   # use iterative 2-way partitioning when there are lots of small functions
-  def twoWayPartition(self, curr_s2v : Dict, curr_v2s : Dict, dir : str, external_v2s : Dict = {}):
+  def __twoWayPartition(self, curr_s2v : Dict, curr_v2s : Dict, dir : str, external_v2s : Dict = {}):
     assert set(map(type, curr_s2v.keys())) == {Slot}
     assert set(map(type, curr_v2s.keys())) == {Vertex}
     logging.info('Start 2-way partitioning routine')
 
     m = Model()
 
-    v2var = self.createILPVariables(m, curr_v2s=curr_v2s)
+    v2var = self.__createILPVariables(m, curr_v2s=curr_v2s)
 
-    self.addOptGoal(m, curr_v2s=curr_v2s, external_v2s=external_v2s, v2var=v2var, dir=dir)
+    self.__addOptGoal(m, curr_v2s=curr_v2s, external_v2s=external_v2s, v2var=v2var, dir=dir)
     
     # area constraints for each child slot
-    self.addAreaConstraints(m, curr_s2v=curr_s2v, v2var=v2var, dir=dir)
+    self.__addAreaConstraints(m, curr_s2v=curr_s2v, v2var=v2var, dir=dir)
 
-    self.addUserConstraints(m, curr_v2s=curr_v2s, v2var=v2var, dir=dir)
+    self.__addUserConstraints(m, curr_v2s=curr_v2s, v2var=v2var, dir=dir)
     
     logging.info('Start ILP solver')
     m.write('Coarse-Grained-Floorplan.lp')
     m.optimize(max_seconds=self.max_search_time)
 
-    return self.getPartitionResult(curr_s2v=curr_s2v, v2var=v2var, dir=dir)
+    return self.__getPartitionResult(curr_s2v=curr_s2v, v2var=v2var, dir=dir)
+
+  def printFloorplan(self, s2v):
+    for s, v_group in s2v.items():
+      logging.info(f'{s.getName()}:')
+      for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
+        used = sum([v.area[r] for v in v_group])
+        avail = s.getArea()[r]
+        logging.info(f'[{r}]: {used} / {avail} = {used/avail}')
+      for v in v_group:
+        logging.info(f'  {v.name}')
+
+  # obtain the edges that are inside the given slots and the edges between the given slots and the other slots
+  def getIntraAndInterEdges(self, v_group):
+    second_visited_edges = set()
+    first_visited_edges = set()
+
+    # if an edge is visited twice, then it is entirely within the target slots
+    # if an edge is visited only once, then it is between the target slots and the remaining slots
+    for v in v_group:
+      for e in v.getEdges():
+        if e in first_visited_edges:
+          second_visited_edges.add(e)
+          first_visited_edges.remove(e)
+        else:
+          first_visited_edges.add(e)
+          
+          # double check that an edge will not be visited a 3rd time
+          assert e not in second_visited_edges
+
+    interface_edges = list(first_visited_edges)
+    intra_edges = list(second_visited_edges)
+
+    return intra_edges, interface_edges
+
+  def coarseGrainedFloorplan(self):
+    init_s2v, init_v2s = self.__getInitialSlotToVerticesMapping()
+    iter1_s2v, iter1_v2s = self.__twoWayPartition(init_s2v, init_v2s, 'HORIZONTAL') # based on die boundary
+
+    iter2_s2v, iter2_v2s = self.__twoWayPartition(iter1_s2v, iter1_v2s, 'HORIZONTAL') # based on die boundary
+
+    self.s2v, self.v2s = self.__twoWayPartition(iter2_s2v, iter2_v2s, 'VERTICAL') # based on ddr ctrl in the middle
+
+    self.__initCoarseSlotToEdges()
 
   def getSlotToVertices(self):
     return self.s2v
