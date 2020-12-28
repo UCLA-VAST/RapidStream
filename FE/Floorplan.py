@@ -187,7 +187,9 @@ class Floorplanner:
         avail = s.getArea()[r]
         logging.info(f'[{r}]: {used} / {avail} = {used/avail}')
       for v in v_group:
-        logging.info(f'  {v.name}')
+        logging.info(f'  Kernel: {v.name}')
+      for e in self.s2e[s]:
+        logging.info(f'  FIFO: {e.name}')
 
   # obtain the edges that are inside the given slots and the edges between the given slots and the other slots
   def getIntraAndInterEdges(self, v_group):

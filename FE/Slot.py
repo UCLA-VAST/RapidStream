@@ -7,6 +7,10 @@ import re
 class Slot:
   def __init__(self, board, pblock : str):
     self.board = board
+
+    if 'COARSE_' in pblock:
+      pblock = self.__convertCoarseRegionToClockRegion(pblock)
+
     match = re.search(r'^CLOCKREGION_X(\d+)Y(\d+)[ ]*:[ ]*CLOCKREGION_X(\d+)Y(\d+)$', pblock)
     assert match, f'incorrect pblock {pblock}'
 
@@ -17,11 +21,29 @@ class Slot:
     self.up_right_y = int(int(match.group(4))+1)
 
     self.area = {}
-    self.initArea()
+    self.__initArea()
+
+  def __convertCoarseRegionToClockRegion(self, coarse_loc):
+    match = re.search(r'COARSE_X(\d+)Y(\d+)', coarse_loc)
+    assert match
+
+    x = int(match.group(1))
+    y = int(match.group(2))
+    CR_NUM_HORIZONTAL_PER_COARSE = int(0.5 * self.board.CR_NUM_HORIZONTAL)
+    CR_NUM_VERTICAL_PER_COARSE = int(self.board.CR_NUM_VERTICAL_PER_SLR)
+
+    left_bottom_x = x * CR_NUM_HORIZONTAL_PER_COARSE
+    left_bottom_y = y * CR_NUM_VERTICAL_PER_COARSE
+    right_up_x = left_bottom_x + CR_NUM_HORIZONTAL_PER_COARSE - 1
+    right_up_y = left_bottom_y + CR_NUM_VERTICAL_PER_COARSE - 1
+    return f'CLOCKREGION_X{left_bottom_x}Y{left_bottom_y} : CLOCKREGION_X{right_up_x}Y{right_up_y}'
 
   def getName(self):
     # need to convert back to CR coordinates
     return f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y}:CLOCKREGION_X{self.up_right_x-1}Y{self.up_right_y-1}'
+
+  def getRTLModuleName(self):
+    return f'CR_X{self.down_left_x}Y{self.down_left_y}_2_CR_X{self.up_right_x-1}Y{self.up_right_y-1}'
 
   def __hash__(self):
     assert self.down_left_x < 100
@@ -38,7 +60,7 @@ class Slot:
     return hash(id)
 
   # calculate the available resources of this slot
-  def initArea(self):
+  def __initArea(self):
     for item in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
       self.area[item] = 0
       for i in range(self.down_left_x, self.up_right_x):

@@ -27,6 +27,7 @@ class TopRTLParser:
     self.reg_wire_name_to_width = {} # from name to full declaration (with width, etc) 
     self.io_name_to_width = {}
     self.io_name_to_dir = {}
+    self.all_decl_except_io = []
     self.codegen = ASTCodeGenerator()
 
     self.__initWireToFIFOMapping()
@@ -72,6 +73,16 @@ class TopRTLParser:
   # get mapping from reg/wire/io name to width/direction
   def __initDeclList(self):
 
+    # get a copy of all delcaration
+    for decl_node in self.__DFS(self.top_module_ast, lambda node : isinstance(node, ast.Decl)):
+      assert len(decl_node.children()) == 1
+      content = decl_node.children()[0]
+      name = content.name
+
+      if not isinstance(content, ast.Input) and not isinstance(content, ast.Output):
+        self.all_decl_except_io.append(self.codegen.visit(decl_node))
+
+    # initialize various mappings
     for decl_node in self.__DFS(self.top_module_ast, lambda node : isinstance(node, ast.Decl)):
       assert len(decl_node.children()) == 1
       content = decl_node.children()[0]
@@ -180,11 +191,17 @@ class TopRTLParser:
   def getWidthOfRegOrWire(self, name):
     return self.reg_wire_name_to_width[name]
 
-  def getRTLOfInst(self, inst_name):
+  def getRTLOfInst(self, inst_name : str):
     return self.inst_name_to_rtl[inst_name]
 
   def getWidthOfIO(self, io_name):
     return self.io_name_to_width[io_name]
+
+  def getAllDeclExceptIO(self):
+    return self.all_decl_except_io
+
+  def isIO(self, io_name):
+    return io_name in self.io_name_to_width
 
   def getDirOfIO(self, io_name):
     return self.io_name_to_dir[io_name]
