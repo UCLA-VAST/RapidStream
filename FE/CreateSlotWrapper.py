@@ -8,7 +8,8 @@ class CreateSlotWrapper:
     self.graph = graph
     self.top_rtl_parser = top_rtl_parser
     self.floorplan = floorplan
-
+    self.ap_done_v_name_to_wire = top_rtl_parser.getApDoneVNameToWire()
+    self.ap_ready_v_name_to_wire = top_rtl_parser.getApReadyVNameToWire()
     self.s2v = floorplan.getSlotToVertices()
     self.s2e = floorplan.getSlotToEdges()
 
@@ -17,19 +18,19 @@ class CreateSlotWrapper:
       f = open(s.getRTLModuleName()+'.v', 'w')
       f.write('\n'.join(wrapper))
 
-  def getWireDecl(self, slot : Slot) -> str:
+  def __getWireDecl(self, slot : Slot) -> str:
     return self.top_rtl_parser.getAllDeclExceptIO()
 
-  def getVertexInstances(self, slot : Slot):
+  def __getVertexInstances(self, slot : Slot):
     v_list = self.s2v[slot]
     return [self.top_rtl_parser.getRTLOfInst(v.name) for v in v_list]
 
-  def getEdgeInstances(self, slot : Slot):
+  def __getEdgeInstances(self, slot : Slot):
     e_list = self.s2e[slot]
     return [self.top_rtl_parser.getRTLOfInst(e.name) for e in e_list]
 
   def getHeader(self, slot : Slot):
-    io_decl = self.getIODecl(slot)
+    io_decl = self.__getIODecl(slot)
     io_decl_with_comma = [io.replace(';', ',') for io in io_decl]
     io_header = [re.sub(r'input[ ]*|output[ ]*', '', io) for io in io_decl_with_comma]
     io_header = [re.sub(r'[ ]*\[.*\][ ]*', '', io) for io in io_header]
@@ -44,17 +45,16 @@ class CreateSlotWrapper:
 
     return io_header
 
-  def getEnding(self):
+  def __getEnding(self):
     return ['endmodule']
 
   # 1. inter-slot edges
   # 2. top-level IOs
-  def getIODecl(self, slot : Slot):
+  def __getIODecl(self, slot : Slot):
     IO_section = []
 
     # inbound wires of inter-slot edges become IOs
     intra_edges, inter_edges = self.floorplan.getIntraAndInterEdges(self.s2v[slot])
-          
     for e in inter_edges:
       for wire in self.top_rtl_parser.getWiresOfFIFOName(e.name):
         if '_din' in wire or '_write' in wire:
@@ -69,54 +69,146 @@ class CreateSlotWrapper:
           if self.top_rtl_parser.isIO(wire):
             IO_section.append(f'{self.top_rtl_parser.getDirOfIO(wire)} {self.top_rtl_parser.getWidthOfIO(wire)} {wire};')
 
-    if any('s_axi' in v.name for v in self.s2v[slot]):
-      IO_section.append('output ap_start;')
-      IO_section.append('input  ap_done;')
-      IO_section.append('input  ap_idle;')
-      IO_section.append('input  ap_ready;')
-    else:
-      IO_section.append('input  ap_start;')
-      IO_section.append('output ap_done;')
-      IO_section.append('output ap_idle;')
-      IO_section.append('output ap_ready;')      
-      IO_section.append('input  ap_continue;')
-
+    # control signals
+    IO_section.append('input  ap_start;')
+    IO_section.append('output ap_done;')
+    IO_section.append('output ap_idle;')
+    IO_section.append('output ap_ready;')
+    IO_section.append('input  ap_continue;')
     IO_section.append('input ap_clk;')
     IO_section.append('input ap_rst;')
     # simultaneous set rst and rst_n in case different modules have different choices
     # the last IO decl does not have ',' at the end
     IO_section.append('input ap_rst_n;') 
 
+    # TODO: change the wiring to the s_axi_control
+    if any('s_axi' in v.name for v in self.s2v[slot]):
+      IO_section.append('output ap_start_orig;')
+      IO_section.append('input  ap_done_final;')
+      IO_section.append('input  ap_idle_final;')
+      IO_section.append('input  ap_ready_final;')
+
     return IO_section
 
-  # TODO fix ap signals
-  def createSlotWrapper(self, slot : Slot):
-    def addIndent(sec):
-      return ['  ' + line for line in sec]
+  # pipeline every ap_start signal
+  def __setApStart(self, decl, v_insts, stmt):
+    v_insts[:] = [re.sub(r'\.ap_start[ ]*\(.*\)', '.ap_start(ap_start_pipe)', line) for line in v_insts]
 
-    def filterUnusedDecl(decl, v_insts, e_insts):
-      insts = v_insts + e_insts
-      decl_filter = []
-      ap_signals = ['ap_start', 'ap_done', 'ap_ready', 'ap_idle']
-      for d in decl:
-        if any(re.search(f' {signal}', d) for signal in ap_signals):
-          continue
-        
-        name = re.search(r' ([^ ]*);', d).group(1)
-        # if name == 'L':
-        #   import pdb; pdb.set_trace()
-        if any([name in line for line in insts]):
-          decl_filter.append(d)
+    decl.append('// pipeline ap_start')
+    decl.append('(* shreg_extract = "no" *) ap_start_p1')
+    decl.append('(* shreg_extract = "no" *) ap_start_p2')
+    decl.append('(* shreg_extract = "no" *) ap_start_pipe')
+
+    stmt.append('// pipeline ap_start')
+    stmt.append('initial begin')
+    stmt.append('  #0 ap_start_p1 = 1\'b0;')
+    stmt.append('  #0 ap_start_p2 = 1\'b0;')
+    stmt.append('  #0 ap_start_pipe = 1\'b0;')
+    stmt.append('end')
+    stmt.append('always @ posedge (ap_clk) begin')
+    stmt.append('  ap_start_p1 <= ap_start;')
+    stmt.append('  ap_start_p2 <= ap_start_p1;')
+    stmt.append('  ap_start_pipe <= ap_start_p2;')
+    stmt.append('end')
+
+  # set ap_continue = 1
+  def __setApContinue(self, v_insts):
+    v_insts[:] = [re.sub(r'\.ap_continue[ ]*\(.*\)', '.ap_continue(1\'b1)', line) for line in v_insts]
+
+  # only collect valid ap_done signals
+  def __setApDone(self, decl, slot, stmt):
+    ap_done_wires = []
+    for v in self.s2v[slot]:
+      try: ap_done_wires.append(self.ap_done_v_name_to_wire[v.name])
+      except: pass
+
+    # if the slot does not contain valid ap_ready modules:
+    if not ap_done_wires:
+      stmt.append('assign ap_done = 1\'bx;')
+      return
+
+    decl.append('// pipeline ap_done')
+    for ap_done in ap_done_wires:
+      decl.append(f'(* shreg_extract = "no" *) reg {ap_done}_p1;')
+      decl.append(f'(* shreg_extract = "no" *) reg {ap_done}_p2;')
+      decl.append(f'(* shreg_extract = "no" *) reg {ap_done}_pipe;')
+
+    stmt.append('// pipeline ap_done')
+    for ap_done in ap_done_wires:
+      stmt.append(f'always @ posedge (ap_clk) begin')
+      stmt.append(f'  {ap_done}_p1 <= {ap_done};')
+      stmt.append(f'  {ap_done}_p2 <= {ap_done}_p1;')
+      stmt.append(f'  {ap_done}_pipe <= {ap_done}_p2;')
+      stmt.append(f'end')
+    assignment = 'assign ap_done = ' + '&'.join(f'{ap_done}_pipe' for ap_done in ap_done_wires) + ';'
+    stmt.append(assignment)
+
+  # only collect valid ap_ready signals
+  def __setApReady(self, decl, slot, stmt):
+    ap_ready_wires = []
+    for v in self.s2v[slot]:
+      try: ap_ready_wires.append(self.ap_ready_v_name_to_wire[v.name])
+      except: pass
+
+    # if the slot does not contain valid ap_ready modules:
+    if not ap_ready_wires:
+      stmt.append('assign ap_ready = 1\'bx;')
+      return
+
+    decl.append('// pipeline ap_ready')
+    for ap_ready in ap_ready_wires:
+      decl.append(f'(* shreg_extract = "no" *) reg {ap_ready}_p1;')
+      decl.append(f'(* shreg_extract = "no" *) reg {ap_ready}_p2;')
+      decl.append(f'(* shreg_extract = "no" *) reg {ap_ready}_pipe;')
+
+    stmt.append('// pipeline ap_ready')
+    for ap_ready in ap_ready_wires:
+      stmt.append(f'always @ posedge (ap_clk) begin')
+      stmt.append(f'  {ap_ready}_p1 <= {ap_ready};')
+      stmt.append(f'  {ap_ready}_p2 <= {ap_ready}_p1;')
+      stmt.append(f'  {ap_ready}_pipe <= {ap_ready}_p2;')
+      stmt.append(f'end')
+    assignment = 'assign ap_ready = ' + '&'.join(f'{ap_ready}_pipe' for ap_ready in ap_ready_wires) + ';'
+    stmt.append(assignment)
+
+  # no modification to the ap_idle signals
+  def __setApIdle(self):
+    pass
+
+  # remove unused wire/reg declarations
+  def __filterUnusedDecl(self, decl, v_insts, e_insts):
+    insts = v_insts + e_insts
+    decl_filter = []
+    ap_signals = ['ap_start', 'ap_done', 'ap_ready', 'ap_idle']
+    for d in decl:
+      if any(re.search(f' {signal}', d) for signal in ap_signals):
+        continue
       
-      return decl_filter
+      name = re.search(r' ([^ ]*);', d).group(1)
+      if any([name in line for line in insts]):
+        decl_filter.append(d)
 
+    decl[:] = decl_filter
+
+  def __addIndent(self, *sections):
+    for sec in sections:
+      sec = ['  ' + line for line in sec]
+
+  def createSlotWrapper(self, slot : Slot):
     header = self.getHeader(slot)
-    decl = addIndent(self.getWireDecl(slot))
-    io_decl = addIndent(self.getIODecl(slot))
-    v_insts = addIndent(self.getVertexInstances(slot))
-    e_insts = addIndent(self.getEdgeInstances(slot))
-    ending = self.getEnding()
+    decl = self.__getWireDecl(slot)
+    io_decl = self.__getIODecl(slot)
+    v_insts = self.__getVertexInstances(slot)
+    e_insts = self.__getEdgeInstances(slot)
+    stmt = []
+    ending = self.__getEnding()
 
-    decl = filterUnusedDecl(decl, v_insts, e_insts)
+    self.__filterUnusedDecl(decl, v_insts, e_insts)
+    self.__setApStart(decl, v_insts, stmt)
+    self.__setApContinue(v_insts)
+    self.__setApDone(decl, slot, stmt)
+    self.__setApReady(decl, slot, stmt)
+    self.__setApIdle()
+    self.__addIndent(decl, io_decl, v_insts, e_insts, stmt)
 
-    return header + decl + io_decl + v_insts + e_insts + ending
+    return header + decl + io_decl + v_insts + e_insts + stmt + ending

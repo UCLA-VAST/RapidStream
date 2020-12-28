@@ -29,13 +29,20 @@ class TopRTLParser:
     self.io_name_to_dir = {}
     self.all_decl_except_io = []
     self.codegen = ASTCodeGenerator()
+    self.ap_done_v_name_to_wire = {} # ap_done module name -> wire name
+    self.ap_ready_v_name_to_wire = {}
 
     self.__initWireToFIFOMapping()
     self.__initWireToVertexMapping()
     self.__initFIFOListOfModuleInst()
     self.__initRTLOfAllInsts()
     self.__initDeclList()
+    self.__initApDoneSources()
+    self.__initApReadySources()
     
+    # for mod, ap_done in self.ap_done_v_name_to_wire.items():
+    #   print(f'{ap_done} -> {mod}')
+
   # 1. no start_for FIFOs
   # 2. each inst has different name
   def __checker(self):
@@ -158,7 +165,30 @@ class TopRTLParser:
         wire_name = portarg.argname.name
         self.wire_to_v_name[wire_name] = v_node.name
         self.v_name_to_wires[v_node.name].append(wire_name)
-  
+
+  def __initApDoneSources(self):
+    f = open(self.top_rtl_path, 'r')
+    for line in f:
+      if re.search(r'assign[ ]*ap_sync_done', line):
+        line = re.sub(r'assign[ ]*ap_sync_done[ ]*=[ ]*', '', line)
+        line = re.sub(r'[() ;\n]', '', line)
+        ap_dones = line.split('&'); assert len(ap_dones)
+        self.ap_done_v_name_to_wire = {self.wire_to_v_name[ap_done] : ap_done for ap_done in ap_dones}
+        return
+    assert False, 'ap_done signal in unexpected format'
+
+  def __initApReadySources(self):
+    f = open(self.top_rtl_path, 'r')
+    for line in f:
+      if re.search(r'assign[ ]*ap_ready', line):
+        line = re.sub(r'assign[ ]*ap_ready[ ]*=[ ]*', '', line)
+        line = re.sub(r'[() ;\n]', '', line)
+        ap_readies = line.split('&'); assert len(ap_readies)
+        self.ap_ready_v_name_to_wire = {self.wire_to_v_name[ap_ready] : ap_ready for ap_ready in ap_readies}
+        return
+    assert False, 'ap_ready signal in unexpected format'
+
+
   def __isVertexNode(self, node):
     return isinstance(node, ast.Instance) and 'fifo' not in node.module
 
@@ -170,7 +200,8 @@ class TopRTLParser:
   
   def __isEdgeInstanceList(self, node):
     return isinstance(node, ast.InstanceList) and 'fifo' in node.module
-  
+
+
   #                                                 #
   # ---------------- Public Methods --------------- #
   #                                                 #
@@ -227,3 +258,9 @@ class TopRTLParser:
   def getFIFONameFromInstanceList(self, node):
     assert(len(node.instances) == 1)
     return node.instances[0].name
+
+  def getApDoneVNameToWire(self):
+    return self.ap_done_v_name_to_wire
+
+  def getApReadyVNameToWire(self):
+    return self.ap_ready_v_name_to_wire
