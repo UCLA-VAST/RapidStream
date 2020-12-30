@@ -61,7 +61,8 @@ class TopRTLParser:
       try:
         logging.debug(f'visit node {node.name}')
       except:
-        logging.debug(f'node in line {node.lineno} has no name')
+        pass
+        # logging.debug(f'node in line {node.lineno} has no name')
       yield node
     for c in node.children():
       yield from self.__DFS(c, filter_func)

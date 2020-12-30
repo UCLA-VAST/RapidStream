@@ -23,6 +23,8 @@ class Slot:
     self.area = {}
     self.__initArea()
 
+    logging.debug(f'Using customized hash function for Slot ({self.down_left_x}, {self.down_left_y}, {self.up_right_x}, {self.up_right_y}) with id {id}')
+
   def __convertCoarseRegionToClockRegion(self, coarse_loc):
     match = re.search(r'COARSE_X(\d+)Y(\d+)', coarse_loc)
     assert match
@@ -55,7 +57,6 @@ class Slot:
           str(self.down_left_y).zfill(3) + \
           str(self.up_right_x).zfill(3) + \
           str(self.up_right_y).zfill(3)
-    logging.debug(f'Using customized hash function for Slot ({self.down_left_x}, {self.down_left_y}, {self.up_right_x}, {self.up_right_y}) with id {id}')
 
     return hash(id)
 
