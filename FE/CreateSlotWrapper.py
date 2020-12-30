@@ -57,15 +57,27 @@ class CreateSlotWrapper:
   # 2. top-level IOs
   def __getIODecl(self, slot : Slot):
     IO_section = []
+    v_set = set(self.s2v[slot])
 
     # inbound wires of inter-slot edges become IOs
     intra_edges, inter_edges = self.floorplan.getIntraAndInterEdges(self.s2v[slot])
     for e in inter_edges:
-      for wire in self.top_rtl_parser.getWiresOfFIFOName(e.name):
-        if '_din' in wire or '_write' in wire:
-          IO_section.append(f'input {self.top_rtl_parser.getWidthOfRegOrWire(wire)} {wire};')
-        elif '_full_n' in wire:
-          IO_section.append(f'output {self.top_rtl_parser.getWidthOfRegOrWire(wire)} {wire};')
+      if e.dst in v_set:
+        assert e.src not in v_set 
+        for wire in self.top_rtl_parser.getWiresOfFIFOName(e.name):
+          if '_din' in wire or '_write' in wire:
+            IO_section.append(f'input {self.top_rtl_parser.getWidthOfRegOrWire(wire)} {wire};')
+          elif '_full_n' in wire:
+            IO_section.append(f'output {self.top_rtl_parser.getWidthOfRegOrWire(wire)} {wire};')
+      elif e.src in v_set:
+        assert e.dst not in v_set
+        for wire in self.top_rtl_parser.getWiresOfFIFOName(e.name):
+          if '_din' in wire or '_write' in wire:
+            IO_section.append(f'output {self.top_rtl_parser.getWidthOfRegOrWire(wire)} {wire};')
+          elif '_full_n' in wire:
+            IO_section.append(f'input {self.top_rtl_parser.getWidthOfRegOrWire(wire)} {wire};')        
+      else:
+        assert False
 
     # if any vertex is an AXI module, it will contain top-level IO
     for v in self.s2v[slot]:
@@ -82,11 +94,8 @@ class CreateSlotWrapper:
     IO_section.append('input  ap_continue;')
     IO_section.append('input ap_clk;')
     IO_section.append('input ap_rst;')
-    # simultaneous set rst and rst_n in case different modules have different choices
-    # the last IO decl does not have ',' at the end
-    IO_section.append('input ap_rst_n;') 
+    IO_section.append('input ap_rst_n;') # simultaneous set rst and rst_n in case different modules have different choices
 
-    # TODO: change the wiring to the s_axi_control
     if any('s_axi' in v.name for v in self.s2v[slot]):
       IO_section.append('output ap_start_orig;')
       IO_section.append('input  ap_done_final;')
@@ -181,7 +190,7 @@ class CreateSlotWrapper:
     pass
 
   # remove unused wire/reg declarations
-  def __filterUnusedDecl(self, decl, v_insts, e_insts):
+  def __filterUnusedDecl(self, decl, v_insts, e_insts, io_decl):
     insts = v_insts + e_insts
     decl_filter = []
     ap_signals = ['ap_start', 'ap_done', 'ap_ready', 'ap_idle']
@@ -190,6 +199,12 @@ class CreateSlotWrapper:
         continue
       
       name = re.search(r' ([^ ]*);', d).group(1)
+      
+      # we do not want redundant wire and IO declaration
+      if any([name in line for line in io_decl]):
+        continue
+      
+      # if a wire is used & it is not an IO
       if any([name in line for line in insts]):
         decl_filter.append(d)
 
@@ -218,7 +233,7 @@ class CreateSlotWrapper:
     stmt = []
     ending = self.__getEnding()
 
-    self.__filterUnusedDecl(decl, v_insts, e_insts)
+    self.__filterUnusedDecl(decl, v_insts, e_insts, io_decl)
     self.__setApStart(decl, v_insts, stmt)
     self.__setApContinue(v_insts)
     self.__setApDone(decl, slot, stmt)
