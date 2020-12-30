@@ -29,19 +29,24 @@ class CreateSlotWrapper:
     e_list = self.s2e[slot]
     return [self.top_rtl_parser.getRTLOfInst(e.name) for e in e_list]
 
-  def getHeader(self, slot : Slot):
+  def __getHeader(self, slot : Slot):
+    """
+    note the difference between getHeader and getIOSec:
+    getHeader -> module xxx (a, b, c, ...)
+    getIOSec  -> input a; output [1:0] b, ...
+    """
     io_decl = self.__getIODecl(slot)
     io_decl_with_comma = [io.replace(';', ',') for io in io_decl]
     io_header = [re.sub(r'input[ ]*|output[ ]*', '', io) for io in io_decl_with_comma]
     io_header = [re.sub(r'[ ]*\[.*\][ ]*', '', io) for io in io_header]
-    io_header[-1].replace(';', '') # the last io does not have comma
+    io_header[-1] = io_header[-1].replace(',', '') # the last io does not have comma
 
     # add indentation
     io_header = ['  '+io for io in io_header]
 
     beg = ['`timescale 1 ns / 1 ps', f'module {slot.getRTLModuleName()} (']
     io_header = beg + io_header
-    io_header.append(')')
+    io_header.append(');')
 
     return io_header
 
@@ -95,9 +100,9 @@ class CreateSlotWrapper:
     v_insts[:] = [re.sub(r'\.ap_start[ ]*\(.*\)', '.ap_start(ap_start_pipe)', line) for line in v_insts]
 
     decl.append('// pipeline ap_start')
-    decl.append('(* shreg_extract = "no" *) ap_start_p1')
-    decl.append('(* shreg_extract = "no" *) ap_start_p2')
-    decl.append('(* shreg_extract = "no" *) ap_start_pipe')
+    decl.append('(* shreg_extract = "no" *) ap_start_p1;')
+    decl.append('(* shreg_extract = "no" *) ap_start_p2;')
+    decl.append('(* shreg_extract = "no" *) ap_start_pipe;')
 
     stmt.append('// pipeline ap_start')
     stmt.append('initial begin')
@@ -105,7 +110,7 @@ class CreateSlotWrapper:
     stmt.append('  #0 ap_start_p2 = 1\'b0;')
     stmt.append('  #0 ap_start_pipe = 1\'b0;')
     stmt.append('end')
-    stmt.append('always @ posedge (ap_clk) begin')
+    stmt.append('always @ (posedge ap_clk) begin')
     stmt.append('  ap_start_p1 <= ap_start;')
     stmt.append('  ap_start_p2 <= ap_start_p1;')
     stmt.append('  ap_start_pipe <= ap_start_p2;')
@@ -135,7 +140,7 @@ class CreateSlotWrapper:
 
     stmt.append('// pipeline ap_done')
     for ap_done in ap_done_wires:
-      stmt.append(f'always @ posedge (ap_clk) begin')
+      stmt.append(f'always @ (posedge ap_clk) begin')
       stmt.append(f'  {ap_done}_p1 <= {ap_done};')
       stmt.append(f'  {ap_done}_p2 <= {ap_done}_p1;')
       stmt.append(f'  {ap_done}_pipe <= {ap_done}_p2;')
@@ -163,7 +168,7 @@ class CreateSlotWrapper:
 
     stmt.append('// pipeline ap_ready')
     for ap_ready in ap_ready_wires:
-      stmt.append(f'always @ posedge (ap_clk) begin')
+      stmt.append(f'always @ (posedge ap_clk) begin')
       stmt.append(f'  {ap_ready}_p1 <= {ap_ready};')
       stmt.append(f'  {ap_ready}_p2 <= {ap_ready}_p1;')
       stmt.append(f'  {ap_ready}_pipe <= {ap_ready}_p2;')
@@ -194,8 +199,18 @@ class CreateSlotWrapper:
     for sec in sections:
       sec = ['  ' + line for line in sec]
 
+  def __setSAxiCtrl(self, v_insts):
+    for i, v_inst in enumerate(v_insts):
+      if 's_axi_control' in v_inst:
+        v_inst = re.sub(r'\.ap_start[ ]*\(.*\)', '.ap_start(ap_start_orig)', v_inst)
+        v_inst = re.sub(r'\.ap_ready[ ]*\(.*\)', '.ap_ready(ap_ready_final)', v_inst)
+        v_inst = re.sub(r'\.ap_done[ ]*\(.*\)', '.ap_done(ap_done_final)', v_inst)
+        v_inst = re.sub(r'\.ap_idle[ ]*\(.*\)', '.ap_idle(ap_idle_final)', v_inst)
+        v_insts[i] = v_inst
+        return
+
   def createSlotWrapper(self, slot : Slot):
-    header = self.getHeader(slot)
+    header = self.__getHeader(slot)
     decl = self.__getWireDecl(slot)
     io_decl = self.__getIODecl(slot)
     v_insts = self.__getVertexInstances(slot)
@@ -209,6 +224,7 @@ class CreateSlotWrapper:
     self.__setApDone(decl, slot, stmt)
     self.__setApReady(decl, slot, stmt)
     self.__setApIdle()
+    self.__setSAxiCtrl(v_insts)
     self.__addIndent(decl, io_decl, v_insts, e_insts, stmt)
 
     return header + decl + io_decl + v_insts + e_insts + stmt + ending
