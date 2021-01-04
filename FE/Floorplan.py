@@ -10,11 +10,11 @@ from mip import *
 
 class Floorplanner:
 
-  def __init__(self, graph : DataflowGraph, user_constraint_s2v : Dict, hls_prj_manager : HLSProjectManager, board=DeviceU250, max_search_time=600):
+  def __init__(self, graph : DataflowGraph, user_constraint_s2v : Dict, total_usage : dict, board=DeviceU250, max_search_time=600):
     self.board = board
     self.graph = graph
     self.user_constraint_s2v = user_constraint_s2v
-    self.hls_prj_manager = hls_prj_manager
+    self.total_usage = total_usage
     self.max_search_time = max_search_time
     self.s2v = defaultdict(list)
     self.v2s = {}
@@ -30,12 +30,11 @@ class Floorplanner:
         assert v in self.graph.getAllVertices(), f'{v.name} is not a valid RTL module'
 
   def __getResourceUsageLimit(self):
-    total_usage = self.hls_prj_manager.getTotalArea()
     total_avail = self.board.TOTAL_AREA
 
     ratio = 0.7
     for item in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
-      usage = total_usage[item] / total_avail[item]
+      usage = self.total_usage[item] / total_avail[item] + 0.05
       ratio = max(usage, ratio)
 
     logging.info(f'Maximum resource usage ratio set as: {ratio}')
