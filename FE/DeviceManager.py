@@ -108,6 +108,71 @@ class DeviceU280:
   SLR_AREA['FF'][1] = 330240
   SLR_AREA['LUT'][1] = 165120  
 
+  LAGUNA_PER_CR = 480
+  def getLagunaPositionY():
+    return [3, 4, 7, 8, 11, 12]
+
+  CR_NUM_HORIZONTAL = 8
+  CR_NUM_VERTICAL = 16
+  CR_NUM_VERTICAL_PER_SLR = 4 # each die has 4 CRs vertically
+
+  TOTAL_AREA = {}
+  TOTAL_AREA['BRAM'] = 4032
+  TOTAL_AREA['DSP'] = 9024
+  TOTAL_AREA['FF'] = 2607360
+  TOTAL_AREA['LUT'] = 1303680
+  TOTAL_AREA['URAM'] = 960
+
+  # Clock Region level
+  CR_AREA = [defaultdict(defaultdict) for i in range(CR_NUM_HORIZONTAL)]
+  CR_AREA[0]['BRAM'] = 48
+  CR_AREA[0]['DSP']  = 72
+  CR_AREA[0]['FF']   = 29760
+  CR_AREA[0]['LUT']  = 14880
+  CR_AREA[0]['URAM'] = 0
+
+  CR_AREA[1]['BRAM'] = 48
+  CR_AREA[1]['DSP']  = 72
+  CR_AREA[1]['FF']   = 24960
+  CR_AREA[1]['LUT']  = 12480
+  CR_AREA[1]['URAM'] = 16
+
+  CR_AREA[2]['BRAM'] = 72
+  CR_AREA[2]['DSP']  = 90
+  CR_AREA[2]['FF']   = 36480
+  CR_AREA[2]['LUT']  = 18240
+  CR_AREA[2]['URAM'] = 0
+
+  CR_AREA[3]['BRAM'] = 24
+  CR_AREA[3]['DSP']  = 54
+  CR_AREA[3]['FF']   = 21120
+  CR_AREA[3]['LUT']  = 10560
+  CR_AREA[3]['URAM'] = 16
+
+  CR_AREA[4]['BRAM'] = 48
+  CR_AREA[4]['DSP']  = 72
+  CR_AREA[4]['FF']   = 27840
+  CR_AREA[4]['LUT']  = 13920
+  CR_AREA[4]['URAM'] = 16
+
+  CR_AREA[5]['BRAM'] = 24
+  CR_AREA[5]['DSP']  = 90
+  CR_AREA[5]['FF']   = 28800
+  CR_AREA[5]['LUT']  = 14400
+  CR_AREA[5]['URAM'] = 16
+
+  CR_AREA[6]['BRAM'] = 24
+  CR_AREA[6]['DSP']  = 90
+  CR_AREA[6]['FF']   = 28800
+  CR_AREA[6]['LUT']  = 14400
+  CR_AREA[6]['URAM'] = 16
+
+  CR_AREA[7]['BRAM'] = 48
+  CR_AREA[7]['DSP']  = 36
+  CR_AREA[7]['FF']   = 25920
+  CR_AREA[7]['LUT']  = 12960
+  CR_AREA[7]['URAM'] = 0
+
 class DeviceManager:
   def __init__(self, board_name):
     if board_name == 'U250':
