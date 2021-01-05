@@ -35,9 +35,15 @@ class TapaManager:
 
     user_constraint_s2v = self.parseUserConstraints()
     
-    fp = Floorplanner(self.graph, user_constraint_s2v, total_usage=self.program_json_manager.getVertexTotalArea(), board=self.board)
-    fp.coarseGrainedFloorplan()
-    TAPAConstraintGen.generateTAPAConstraints(fp.getSlotToVertices())
+    self.fp = Floorplanner(self.graph, user_constraint_s2v, total_usage=self.program_json_manager.getVertexTotalArea(), board=self.board)
+    self.fp.coarseGrainedFloorplan()
+    self.generateTAPAConstraints()
+    
+  def generateTAPAConstraints(self):
+    s2v = self.fp.getSlotToVertices()
+    output = {slot.getName() : [v.name for v in v_group] for slot, v_group in s2v.items()}
+    f = open('tapa_constraint.json', 'w')
+    f.write(json.dumps(output, indent=2))
 
   def parseUserConstraints(self):
     user_fp_json = self.config['Floorplan']
