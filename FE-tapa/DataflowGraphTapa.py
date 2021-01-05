@@ -2,9 +2,9 @@
 import sys
 sys.path.append('../FE')
 
-from DataflowGraph import DataflowGraph, Vertex, Edge
+from DataflowGraph import Vertex, Edge
 from ProgramJsonManager import ProgramJsonManager
-from HLSProjectManager import HLSProjectManager
+from AXIConnectionParser import AXIConnectionParser
 import logging
 import re
 import math
@@ -12,8 +12,9 @@ import json
 
 class DataflowGraphTapa ():
 
-  def __init__(self, program_json_manager : ProgramJsonManager):
+  def __init__(self, program_json_manager : ProgramJsonManager, axi_parser : AXIConnectionParser):
     self.program_json_manager = program_json_manager
+    self.axi_parser = axi_parser
 
     self.vertices = {} # name -> Vertex
     self.edges = {} # name -> Edge
@@ -21,6 +22,7 @@ class DataflowGraphTapa ():
     self.__initEdges()
 
     self.__initVertices()
+    self.__initAXIVertices()
 
     self.__linkEdgeAndVertex()
     
@@ -53,6 +55,12 @@ class DataflowGraphTapa ():
           
       self.vertices[v_name] = v
 
+  def __initAXIVertices(self):
+    axi_modules = self.axi_parser.getAXIModules()
+    for v_module, v_name in axi_modules:
+      v = Vertex(v_module, v_name)
+      v.area = self.program_json_manager.getAreaOfModule(v_module)
+      self.vertices[v_name] = v
 
   def __linkEdgeAndVertex(self):
     for v in self.vertices.values():
