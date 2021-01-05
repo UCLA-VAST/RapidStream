@@ -20,6 +20,11 @@ class Slot:
     self.up_right_x = int(int(match.group(3))+1)
     self.up_right_y = int(int(match.group(4))+1)
 
+    assert self.down_left_x < 100
+    assert self.down_left_y < 100
+    assert self.up_right_x < 100
+    assert self.up_right_y < 100
+
     self.area = {}
     self.__initArea()
 
@@ -51,18 +56,19 @@ class Slot:
   def getRTLModuleName(self):
     return f'CR_X{self.down_left_x}Y{self.down_left_y}_To_CR_X{self.up_right_x-1}Y{self.up_right_y-1}'
 
+  def __key(self):
+    return (str(self.down_left_x).zfill(3),
+          str(self.down_left_y).zfill(3),
+          str(self.up_right_x).zfill(3),
+          str(self.up_right_y).zfill(3))
+
   def __hash__(self):
-    assert self.down_left_x < 100
-    assert self.down_left_y < 100
-    assert self.up_right_x < 100
-    assert self.up_right_y < 100
+    return hash(self.__key())
 
-    id =  str(self.down_left_x).zfill(3) + \
-          str(self.down_left_y).zfill(3) + \
-          str(self.up_right_x).zfill(3) + \
-          str(self.up_right_y).zfill(3)
-
-    return hash(id)
+  def __eq__(self, other):
+    if isinstance(other, Slot):
+      return self.__key() == other.__key()
+    assert False, 'comparing Slot to a different class'
 
   # calculate the available resources of this slot
   def __initArea(self):
