@@ -81,10 +81,17 @@ class DeviceU250:
   CR_AREA[6]['LUT'] = 13440
   CR_AREA[6]['URAM'] = 16
 
-  CR_AREA[7]['BRAM'] = 48
-  CR_AREA[7]['DSP'] = 48
-  CR_AREA[7]['FF'] = 24000
-  CR_AREA[7]['LUT'] = 12000
+  # CR_AREA[7]['BRAM'] = 48
+  # CR_AREA[7]['DSP'] = 48
+  # CR_AREA[7]['FF'] = 24000
+  # CR_AREA[7]['LUT'] = 12000
+  # CR_AREA[7]['URAM'] = 0
+
+  # consumed by Vitis IP
+  CR_AREA[7]['BRAM'] = 0
+  CR_AREA[7]['DSP'] = 0
+  CR_AREA[7]['FF'] = 0
+  CR_AREA[7]['LUT'] = 0
   CR_AREA[7]['URAM'] = 0
 
   TOTAL_AREA = {}
@@ -167,10 +174,17 @@ class DeviceU280:
   CR_AREA[6]['LUT']  = 14400
   CR_AREA[6]['URAM'] = 16
 
-  CR_AREA[7]['BRAM'] = 48
-  CR_AREA[7]['DSP']  = 36
-  CR_AREA[7]['FF']   = 25920
-  CR_AREA[7]['LUT']  = 12960
+  # CR_AREA[7]['BRAM'] = 48
+  # CR_AREA[7]['DSP']  = 36
+  # CR_AREA[7]['FF']   = 25920
+  # CR_AREA[7]['LUT']  = 12960
+  # CR_AREA[7]['URAM'] = 0
+
+  # consumed by Vitis IP
+  CR_AREA[7]['BRAM'] = 0
+  CR_AREA[7]['DSP']  = 0
+  CR_AREA[7]['FF']   = 0
+  CR_AREA[7]['LUT']  = 0
   CR_AREA[7]['URAM'] = 0
 
 class DeviceManager:
