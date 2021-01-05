@@ -34,7 +34,7 @@ class TapaManager:
 
     user_constraint_s2v = self.parseUserConstraints()
     
-    fp = Floorplanner(self.graph, user_constraint_s2v={}, total_usage=self.program_json_manager.getVertexTotalArea(), board=self.board)
+    fp = Floorplanner(self.graph, user_constraint_s2v, total_usage=self.program_json_manager.getVertexTotalArea(), board=self.board)
     fp.coarseGrainedFloorplan()
     fp.printFloorplan()
 
