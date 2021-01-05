@@ -44,6 +44,10 @@ class Slot:
     # need to convert back to CR coordinates
     return f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y}:CLOCKREGION_X{self.up_right_x-1}Y{self.up_right_y-1}'
 
+  def getNameConsiderVitisIP(self):
+    up_right_x_update = 7 if self.up_right_x == 8 else self.up_right_x
+    return f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y}:CLOCKREGION_X{up_right_x_update-1}Y{self.up_right_y-1}'
+
   def getRTLModuleName(self):
     return f'CR_X{self.down_left_x}Y{self.down_left_y}_To_CR_X{self.up_right_x-1}Y{self.up_right_y-1}'
 
