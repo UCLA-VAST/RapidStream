@@ -1,0 +1,20 @@
+{
+  "CompiledBy" : "TAPA",
+  "Board" : "U250",
+  "ProjectPath" : "/home/einsx7/auto-parallel/src/benchmark/SSSP-tapa",
+  "TopName" : "SSSP",
+
+  "Floorplan" : {
+    "COARSE_X0Y0" : [
+      "heap_array",
+      "heap_index"
+    ],
+    "COARSE_X0Y1" : [
+      "vertices_0",
+      "vertices_1", 
+      "metadata",
+      "edges_0",
+      "edges_1"
+    ]
+  }
+}
