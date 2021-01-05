@@ -12,6 +12,7 @@ class AXIConnectionParser:
     self.top_rtl_path = top_rtl_path
     self.top_module_ast, directives = rtl_parse([top_rtl_path]) 
     self.top_m_axi_port_to_io_module = self.__getPortToModule()
+    self.s_axi_module = self.__initSAXIModule()
     # print(json.dumps(self.top_m_axi_port_to_io_module, indent=2))
 
   def __getTopMAXIs(self):
@@ -55,12 +56,25 @@ class AXIConnectionParser:
     assert len(top_m_axi_port_to_io_module) == len(m_axi_list)
     return top_m_axi_port_to_io_module
 
-  def getIOModuleOfAXI(self, axi_name):
+  def getIOModuleNameOfAXI(self, axi_name):
     return self.top_m_axi_port_to_io_module[axi_name][1] # get name 
 
-  def getAXIModules(self):
-    return self.top_m_axi_port_to_io_module.values()
-    
+  def getAllAXIModules(self) -> list:
+    axi_modules = list(self.top_m_axi_port_to_io_module.values())
+    axi_modules.append(self.s_axi_module)
+
+    return axi_modules
+  
+  def __initSAXIModule(self) -> list:
+    for v_node in self.traverseVertexInAST():
+      for portarg in v_node.portlist:
+        if not isinstance(portarg.argname, ast.Identifier): continue
+        if 's_axi_control' in portarg.argname.name:
+          return (v_node.module, v_node.name)
+
+  def getSAXIName(self):
+    return self.s_axi_module[1]
+
 if __name__ == '__main__':
   top_rtl_path = '/home/einsx7/auto-parallel/src/benchmark/SSSP-tapa/hdl/SSSP_SSSP.v'
   AXIConnectionParser(top_rtl_path)

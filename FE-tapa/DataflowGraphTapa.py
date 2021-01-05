@@ -56,7 +56,8 @@ class DataflowGraphTapa ():
       self.vertices[v_name] = v
 
   def __initAXIVertices(self):
-    axi_modules = self.axi_parser.getAXIModules()
+    axi_modules = self.axi_parser.getAllAXIModules()
+
     for v_module, v_name in axi_modules:
       v = Vertex(v_module, v_name)
       v.area = self.program_json_manager.getAreaOfModule(v_module)

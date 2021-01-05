@@ -8,6 +8,7 @@ from DeviceManager import DeviceManager
 from Floorplan import Floorplanner
 from Slot import Slot
 from AXIConnectionParser import AXIConnectionParser
+import TAPAConstraintGen
 
 import logging
 import json
@@ -36,18 +37,24 @@ class TapaManager:
     
     fp = Floorplanner(self.graph, user_constraint_s2v, total_usage=self.program_json_manager.getVertexTotalArea(), board=self.board)
     fp.coarseGrainedFloorplan()
-    fp.printFloorplan()
+    TAPAConstraintGen.generateTAPAConstraints(fp.getSlotToVertices())
 
   def parseUserConstraints(self):
     user_fp_json = self.config['Floorplan']
 
     user_constraint_s2v = defaultdict(list)
+
+    # for m_axi modules
     for region, axi_group in user_fp_json.items():
       slot = Slot(self.board, region)
       for axi_name in axi_group:
-        io_module_name = self.axi_parser.getIOModuleOfAXI(axi_name)
+        io_module_name = self.axi_parser.getIOModuleNameOfAXI(axi_name)
         user_constraint_s2v[slot].append(self.graph.getVertex(io_module_name))
 
+    # for s_axi_control
+    slot = Slot(self.board, 'COARSE_X1Y0')
+    s_axi_ctrl_name = self.axi_parser.getSAXIName()
+    user_constraint_s2v[slot].append(self.graph.getVertex(s_axi_ctrl_name))
     return user_constraint_s2v
 
   def __setupLogging(self, level):
