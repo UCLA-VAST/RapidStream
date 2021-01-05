@@ -30,8 +30,6 @@ class ProgramJsonManager:
 
     self.__initVertexMapping()
 
-    self.__initAreaMapping() 
-
   def __DFS(self, node, filter_func):
     if filter_func(node):
       try:
@@ -112,19 +110,6 @@ class ProgramJsonManager:
             return {'BRAM':int(x[0]), 'DSP':int(x[1]), 'FF':int(x[2]), 'LUT':int(x[3]), 'URAM':int(x[4])}
 
     assert False, 'Error in parsing the HLS report'
-
-  def __initAreaMapping(self):
-    fifos_dict = self.getFIFOSection()
-
-    # init dict
-    for e_name, info in fifos_dict.items():
-      src_type = info['produced_by'][0]
-      dst_type = info['consumed_by'][0]
-      self.v_module_to_area[src_type] = {}
-      self.v_module_to_area[dst_type] = {}
-
-    for v_module in self.v_module_to_area.keys():
-      self.v_module_to_area[v_module] = self.__getAreaBasedOnIndividualReport(v_module)
   
   def __updateFIFOSection(self, fifo_sec_new):
     self.program['tasks'][self.top_name]['fifos'] = fifo_sec_new
@@ -136,7 +121,7 @@ class ProgramJsonManager:
     return self.v_name_to_v_module
   
   def getAreaOfModule(self, v_module):
-    return self.v_module_to_area[v_module]
+    return self.__getAreaBasedOnIndividualReport(v_module)
 
   def getVertexTotalArea(self):
     v_name_to_v_area = {v_name: self.getAreaOfModule(v_module)
