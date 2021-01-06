@@ -4,6 +4,7 @@ from autoparallel.FE.tapa.DataflowGraphTapa import DataflowGraphTapa
 from autoparallel.FE.tapa.ProgramJsonManager import ProgramJsonManager
 from autoparallel.FE.DeviceManager import DeviceManager
 from autoparallel.FE.Floorplan import Floorplanner
+from autoparallel.FE.Slot import Topology
 from autoparallel.FE.AXIConnectionParser import AXIConnectionParser
 from autoparallel.FE.SlotManager import SlotManager
 
@@ -39,7 +40,12 @@ class TapaManager:
 
   def generateTAPAConstraints(self):
     s2v = self.fp.getSlotToVertices()
-    output = {slot.getNameConsiderVitisIP() : [v.name for v in v_group] for slot, v_group in s2v.items()}
+    topology = Topology(s2v)
+    output = {
+        slot.pblock_name:
+        [v.name for v in v_group] + [topology.getTopologyOf(slot)]
+        for slot, v_group in s2v.items()
+    }
     f = open('tapa_constraint.json', 'w')
     f.write(json.dumps(output, indent=2))
 
