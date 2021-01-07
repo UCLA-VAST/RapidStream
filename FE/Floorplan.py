@@ -10,12 +10,13 @@ from mip import *
 
 class Floorplanner:
 
-  def __init__(self, graph : DataflowGraph, user_constraint_s2v : Dict, total_usage : dict, board=DeviceU250, max_search_time=600):
+  def __init__(self, graph : DataflowGraph, user_constraint_s2v : Dict, total_usage : dict, board=DeviceU250, max_search_time=600, grouping_constrants=[]):
     self.board = board
     self.graph = graph
     self.user_constraint_s2v = user_constraint_s2v
     self.total_usage = total_usage
     self.max_search_time = max_search_time
+    self.grouping_constrants = grouping_constrants # dict of dict
     self.s2v = defaultdict(list)
     self.v2s = {}
     self.s2e = defaultdict(list)
@@ -82,14 +83,27 @@ class Floorplanner:
   def __addUserConstraints(self, m, curr_v2s, v2var, dir):
     for expect_slot, v_group in self.user_constraint_s2v.items():
       for v in v_group:
+        assert v in curr_v2s, f'ERROR: user has forced the location of a non-existing module {v.name}'
+        
         curr_slot = curr_v2s[v]
         bottom_or_left, up_or_right = curr_slot.partitionByHalf(dir)
         if bottom_or_left.containsChildSlot(expect_slot):
+          logging.debug(f'[user constraint] {v.name} assigned to bottom/left')
           m += v2var[v] == 0
         elif up_or_right.containsChildSlot(expect_slot):
+          logging.debug(f'[user constraint] {v.name} assigned to up/right')
           m += v2var[v] == 1
         else:
           logging.warning(f'Potential wrong constraints from user: {v.name} -> {expect_slot.getName()}')
+
+  # specify which modules must be assigned to the same slot
+  def __addGroupingConstraints(self, m, curr_v2s, v2var, dir):
+    curr_v_set = set(curr_v2s.keys())
+    for grouping in self.grouping_constrants:
+      common = list(curr_v_set & set(grouping))
+      assert len(common) > 1
+      for i in range(1, len(common)):
+        m += v2var[common[0]] == v2var[common[i]]
 
   def __addOptGoal(self, m, curr_v2s, external_v2s, v2var, dir):
     def getVertexPosInChildSlot(v : Vertex):
@@ -171,6 +185,8 @@ class Floorplanner:
     self.__addAreaConstraints(m, curr_s2v=curr_s2v, v2var=v2var, dir=dir)
 
     self.__addUserConstraints(m, curr_v2s=curr_v2s, v2var=v2var, dir=dir)
+
+    self.__addGroupingConstraints(m, curr_v2s=curr_v2s, v2var=v2var, dir=dir)
     
     logging.info('Start ILP solver')
     m.write('Coarse-Grained-Floorplan.lp')
