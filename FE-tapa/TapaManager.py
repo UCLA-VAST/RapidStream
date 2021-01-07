@@ -45,12 +45,12 @@ class TapaManager:
     f.write(json.dumps(output, indent=2))
 
   def parseUserConstraints(self):
-    user_fp_json = self.config['Floorplan']
+    port_bining = self.config['ExternalPortBinding']
 
     user_constraint_s2v = defaultdict(list)
 
     # for m_axi modules
-    for region, axi_group in user_fp_json.items():
+    for region, axi_group in port_bining.items():
       slot = Slot(self.board, region)
       for axi_name in axi_group:
         io_module_name = self.axi_parser.getIOModuleNameOfAXI(axi_name)
@@ -60,6 +60,14 @@ class TapaManager:
     slot = Slot(self.board, 'COARSE_X1Y0')
     s_axi_ctrl_name = self.axi_parser.getSAXIName()
     user_constraint_s2v[slot].append(self.graph.getVertex(s_axi_ctrl_name))
+
+    # for optional module constraints
+    module_fp = self.config['OptionalFloorplan']
+    for region, module_group in module_fp.items():
+      slot = Slot(self.board, region)
+      for mod_name in module_group:
+        user_constraint_s2v[slot].append(self.graph.getVertex(mod_name))
+
     return user_constraint_s2v
 
   def __setupLogging(self, level):

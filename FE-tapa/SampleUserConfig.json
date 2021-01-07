@@ -1,10 +1,10 @@
 {
   "CompiledBy" : "TAPA",
-  "Board" : "U250",
+  "Board" : "U280",
   "ProjectPath" : "/home/einsx7/auto-parallel/src/benchmark/SSSP-tapa",
   "TopName" : "SSSP",
 
-  "Floorplan" : {
+  "ExternalPortBinding" : {
     "COARSE_X0Y0" : [
       "heap_array",
       "heap_index"
@@ -15,6 +15,12 @@
       "metadata",
       "edges_0",
       "edges_1"
+    ]
+  },
+
+  "OptionalFloorplan" : {
+    "COARSE_X1Y0" : [
+      "EdgeMem_0"
     ]
   }
 }
