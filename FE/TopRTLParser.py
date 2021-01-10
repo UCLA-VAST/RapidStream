@@ -31,11 +31,13 @@ class TopRTLParser:
     self.codegen = ASTCodeGenerator()
     self.ap_done_v_name_to_wire = {} # ap_done module name -> wire name
     self.ap_ready_v_name_to_wire = {}
+    self.param_to_value_str = {}
 
     self.__initWireToFIFOMapping()
     self.__initWireToVertexMapping()
     self.__initFIFOListOfModuleInst()
     self.__initRTLOfAllInsts()
+    self.__initParamToValueStr()
     self.__initDeclList()
     self.__initApDoneSources()
     self.__initApReadySources()
@@ -80,6 +82,16 @@ class TopRTLParser:
 
   # get mapping from reg/wire/io name to width/direction
   def __initDeclList(self):
+    # replace the parameters in 
+    def replaceParamByValue(width : str):
+      tokens = re.findall(r'[A-Za-z0-9_]+', width)
+      while any(t in self.param_to_value_str for t in tokens):
+        for t in tokens:
+          if t in self.param_to_value_str:
+            width = width.replace(t, self.param_to_value_str[t] )
+            logging.debug(f'replace {t} by {self.param_to_value_str[t]}')
+        tokens = re.findall(r'[A-Za-z0-9_]+', width)
+      return width.replace(' ', '') # must remove the spaces because later steps will partition expressions based on space
 
     # get a copy of all delcaration
     for decl_node in self.__DFS(self.top_module_ast, lambda node : isinstance(node, ast.Decl)):
@@ -103,6 +115,7 @@ class TopRTLParser:
       width_node = content.width
       if width_node:
         width = self.codegen.visit(width_node)
+        width = replaceParamByValue(width)
       else:
         width = ''
 
@@ -119,6 +132,14 @@ class TopRTLParser:
 
       else:
         logging.debug(f'unrecorded Decl statement: {name} @ line {decl_node.lineno}')
+
+  def __initParamToValueStr(self):
+    for decl_node in self.__DFS(self.top_module_ast, lambda node : isinstance(node, ast.Decl)):
+      assert len(decl_node.children()) == 1
+      content = decl_node.children()[0]
+      
+      if isinstance(content, ast.Parameter):
+        self.param_to_value_str[content.name] = self.codegen.visit(content.value)
 
   def __initFIFOListOfModuleInst(self):
     for v_node in self.traverseVertexInAST():
@@ -221,7 +242,9 @@ class TopRTLParser:
     return self.v_name_to_wires[v_name]
 
   def getWidthOfRegOrWire(self, name):
-    return self.reg_wire_name_to_width[name]
+    width = self.reg_wire_name_to_width[name]
+    assert ' ' not in width, 'Spaces in width express will result in error in getSlotToIO()'
+    return width
 
   def getRTLOfInst(self, inst_name : str):
     return self.inst_name_to_rtl[inst_name]
@@ -265,3 +288,6 @@ class TopRTLParser:
 
   def getApReadyVNameToWire(self):
     return self.ap_ready_v_name_to_wire
+
+  def getParamValueStr(self, param_name):
+    return self.param_to_value_str[param_name]
