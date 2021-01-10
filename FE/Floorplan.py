@@ -244,3 +244,15 @@ class Floorplanner:
 
   def getSlotToEdges(self):
     return self.s2e
+
+  def getSlotNameToVertexNames(self):
+    s_name_2_v_names = {}
+    for slot, v_group in self.s2v.items():
+      s_name_2_v_names[slot.getName()] = [v.name for v in v_group]
+    return s_name_2_v_names
+  
+  def getSlotNameToEdgeNames(self):
+    s_name_2_e_names = {}
+    for slot, e_group in self.s2e.items():
+      s_name_2_e_names[slot.getName()] = [e.name for e in e_group]
+    return s_name_2_e_names

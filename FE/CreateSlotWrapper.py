@@ -14,11 +14,6 @@ class CreateSlotWrapper:
     self.s2v = floorplan.getSlotToVertices()
     self.s2e = floorplan.getSlotToEdges()
 
-    for s in self.s2e.keys():
-      wrapper = self.createSlotWrapper(s)
-      f = open(s.getRTLModuleName()+'.v', 'w')
-      f.write('\n'.join(wrapper))
-
   def __getWireDeclCopy(self, slot : Slot) -> str:
     # note that each slot will filter out different wire declarations
     return copy.deepcopy(self.top_rtl_parser.getAllDeclExceptIO())
@@ -311,3 +306,19 @@ class CreateSlotWrapper:
     self.__addIndent(decl, io_decl, v_insts, e_insts, stmt)
 
     return header + decl + io_decl + v_insts + e_insts + stmt + ending
+
+  def createSlotWrapperForAll(self):
+    for s in self.s2e.keys():
+      wrapper = self.createSlotWrapper(s)
+      f = open(s.getRTLModuleName()+'.v', 'w')
+      f.write('\n'.join(wrapper))
+
+  def getSlotToIO(self):
+    slot_2_io = {}
+    for slot in self.s2e.keys():
+      io_decl = self.__getIODecl(slot)
+      io_decl = [io.replace(';', '') for io in io_decl]
+      io_decl = [io.split() for io in io_decl] # ensure that no space in width, e.g., [1+2:0]
+      
+      slot_2_io[slot.getName()] = io_decl
+    return slot_2_io
