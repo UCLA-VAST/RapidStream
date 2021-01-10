@@ -254,9 +254,9 @@ class CreateSlotWrapper:
     ap_rst, ap_rst_n, ap_rst_n_inv, reset, ARESET,
     """
     v_insts[:] = [re.sub(r'\.ap_rst[ ]*\(.*\)', '.ap_rst(ap_rst_pipe)', inst) for inst in v_insts]
-    v_insts[:] = [re.sub(r'\.ap_rst_n[ ]*\(.*\)', '.ap_rst(ap_rst_n_pipe)', inst) for inst in v_insts]
-    v_insts[:] = [re.sub(r'\.reset[ ]*\(.*\)', '.ap_rst(ap_rst_pipe)', inst) for inst in v_insts]
-    v_insts[:] = [re.sub(r'\.ARESET[ ]*\(.*\)', '.ap_rst(ap_rst_pipe)', inst) for inst in v_insts]
+    v_insts[:] = [re.sub(r'\.ap_rst_n[ ]*\(.*\)', '.ap_rst_n(ap_rst_n_pipe)', inst) for inst in v_insts]
+    v_insts[:] = [re.sub(r'\.reset[ ]*\(.*\)', '.reset(ap_rst_pipe)', inst) for inst in v_insts]
+    v_insts[:] = [re.sub(r'\.ARESET[ ]*\(.*\)', '.ARESET(ap_rst_pipe)', inst) for inst in v_insts]
 
     decl.append('// pipeline ap_rst_n')
     decl.append('(* shreg_extract = "no" *) reg ap_rst_p1;')
