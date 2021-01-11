@@ -7,43 +7,63 @@ from DataflowGraph import DataflowGraph
 from TopRTLParser import TopRTLParser
 from Floorplan import Floorplanner
 from Slot import Slot
+from CreateSlotWrapper import CreateSlotWrapper
+from CreateResultJson import CreateResultJson
 
 import logging
+import json
+import re
+import os
 
 class Manager:
 
   def __init__(
       self,
-      hls_prj_path,
-      top_rtl_name,
-      user_constraint_v2s = {},
-      ddr_enable_bitmap=[0, 0, 0, 0],
-      board_name='U250',
-      hls_solution_name='solution',
-      max_search_time = 600,
-      enable_loop_level_balance = False):
-    self.hls_prj_path = hls_prj_path
-    self.top_rtl_name = top_rtl_name
-    self.user_constraint_v2s = user_constraint_v2s
-    self.ddr_enable_bitmap = ddr_enable_bitmap
-    self.max_search_time = max_search_time
-    self.enable_loop_level_balance = enable_loop_level_balance     # only utilize the dataflow-process-level topology. Do not analyze the internal FSM
-    logging.basicConfig(filename='ap.log', filemode='w', level=logging.INFO, format="[%(funcName)25s() ] %(message)s")
+      config_file_path):
+    assert os.path.isfile(config_file_path)
+    self.config = json.loads(open(config_file_path, 'r').read())
 
-    self.device_manager = DeviceManager(board_name)
-    self.hls_prj_manager = HLSProjectManager(self.top_rtl_name, self.hls_prj_path, hls_solution_name)
+    self.__setupLogging()
+
+    self.device_manager = DeviceManager(self.config["Board"])
+    self.board = self.device_manager.getBoard()
+
+    self.top_rtl_name = self.config["TopName"]
+    self.hls_prj_path = self.config["HLSProjectPath"]
+    self.hls_solution_name = self.config["HLSSolutionName"]
+
+    self.hls_prj_manager = HLSProjectManager(self.top_rtl_name, self.hls_prj_path, self.hls_solution_name)
     self.top_rtl_parser = TopRTLParser(self.hls_prj_manager.getTopRTLPath())
+    self.graph = DataflowGraph(self.hls_prj_manager, self.top_rtl_parser)
 
-    graph = DataflowGraph(self.hls_prj_manager, self.top_rtl_parser)
-    graph.printVertices()
+    user_constraint_s2v = self.parseUserConstraints()
 
-    self.fp = Floorplanner(graph, self.user_constraint_v2s, self.device_manager.getBoard())
-    self.fp.coarseGrainedFloorplan()
+    fp = Floorplanner(self.graph, user_constraint_s2v, total_usage=self.hls_prj_manager.getTotalArea(), board=self.device_manager.getBoard())
+    fp.coarseGrainedFloorplan()
+    fp.printFloorplan()
+
+    wrapper_creater = CreateSlotWrapper(self.graph, self.top_rtl_parser, fp)
+    wrapper_creater.createSlotWrapperForAll()
+
+    json_creater = CreateResultJson(fp, wrapper_creater)
+    json_creater.createResultJson()
+
+  def __setupLogging(self):
+    logging.basicConfig(filename='auto-parallel.log', filemode='w', level=logging.DEBUG, format="[%(levelname)s: %(funcName)25s() ] %(message)s")
+
+  def parseUserConstraints(self):
+    user_constraint_s2v = defaultdict(list)
+    user_fp_json = self.config["Floorplan"]
+    for region, v_name_group in user_fp_json.items():
+      slot = Slot(self.board, region)
+      for v_name in v_name_group:
+        user_constraint_s2v[slot].append(self.graph.getVertex(v_name))
+
+    return user_constraint_s2v
+
 
 if __name__ == "__main__":
-  m = Manager(
-    hls_prj_path='/home/einsx7/pr/application/lu_dcompose/16x16/orig_u250/kernel0',
-    top_rtl_name='kernel0')
+  m = Manager('SampleUserConfig.json')
     
 
 
