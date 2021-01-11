@@ -1,0 +1,7 @@
+*.log
+*.lp
+*.v
+parse*
+__*
+*temp*
+*trash*
