@@ -58,17 +58,18 @@ class CreateSlotWrapper:
     IO_section = []
     v_set = set(self.s2v[slot])
 
-    # inbound wires of inter-slot edges become IOs
+    # wires of inter-slot edges become IOs. Differentiate in-bound and out-bound edges
+    # note that for both sides the interface is the out-bound side of the FIFO
     intra_edges, inter_edges = self.floorplan.getIntraAndInterEdges(self.s2v[slot])
     for e in inter_edges:
-      if e.dst in v_set:
+      if e.dst in v_set: # e is a part of this slot
         assert e.src not in v_set 
         for wire in self.top_rtl_parser.getWiresOfFIFOName(e.name):
           if '_din' in wire or '_write' in wire:
             IO_section.append(f'input {self.top_rtl_parser.getWidthOfRegOrWire(wire)} {wire};')
           elif '_full_n' in wire:
             IO_section.append(f'output {self.top_rtl_parser.getWidthOfRegOrWire(wire)} {wire};')
-      elif e.src in v_set:
+      elif e.src in v_set: # e is not a part of this slot
         assert e.dst not in v_set
         for wire in self.top_rtl_parser.getWiresOfFIFOName(e.name):
           if '_din' in wire or '_write' in wire:
@@ -320,5 +321,5 @@ class CreateSlotWrapper:
       io_decl = [io.replace(';', '') for io in io_decl]
       io_decl = [io.split() for io in io_decl] # ensure that no space in width, e.g., [1+2:0]
       
-      slot_2_io[slot.getName()] = io_decl
+      slot_2_io[slot.getRTLModuleName()] = io_decl
     return slot_2_io
