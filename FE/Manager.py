@@ -9,6 +9,7 @@ from Floorplan import Floorplanner
 from Slot import Slot
 from CreateSlotWrapper import CreateSlotWrapper
 from CreateResultJson import CreateResultJson
+from GlobalRouting import GlobalRouting
 
 import logging
 import json
@@ -32,32 +33,34 @@ class Manager:
     self.hls_prj_path = self.config["HLSProjectPath"]
     self.hls_solution_name = self.config["HLSSolutionName"]
 
-    self.hls_prj_manager = HLSProjectManager(self.top_rtl_name, self.hls_prj_path, self.hls_solution_name)
-    self.top_rtl_parser = TopRTLParser(self.hls_prj_manager.getTopRTLPath())
-    self.graph = DataflowGraph(self.hls_prj_manager, self.top_rtl_parser)
+    hls_prj_manager = HLSProjectManager(self.top_rtl_name, self.hls_prj_path, self.hls_solution_name)
+    top_rtl_parser = TopRTLParser(hls_prj_manager.getTopRTLPath())
+    graph = DataflowGraph(hls_prj_manager, top_rtl_parser)
 
-    user_constraint_s2v = self.parseUserConstraints()
+    user_constraint_s2v = self.parseUserConstraints(graph)
 
-    fp = Floorplanner(self.graph, user_constraint_s2v, total_usage=self.hls_prj_manager.getTotalArea(), board=self.device_manager.getBoard())
-    fp.coarseGrainedFloorplan()
-    fp.printFloorplan()
+    floorplan = Floorplanner(graph, user_constraint_s2v, total_usage=hls_prj_manager.getTotalArea(), board=self.device_manager.getBoard())
+    floorplan.coarseGrainedFloorplan()
+    floorplan.printFloorplan()
 
-    wrapper_creater = CreateSlotWrapper(self.graph, self.top_rtl_parser, fp)
+    wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan)
     wrapper_creater.createSlotWrapperForAll()
 
-    json_creater = CreateResultJson(fp, wrapper_creater)
+    path_planner = GlobalRouting(floorplan, top_rtl_parser)
+
+    json_creater = CreateResultJson(floorplan, wrapper_creater, path_planner)
     json_creater.createResultJson()
 
   def __setupLogging(self):
     logging.basicConfig(filename='auto-parallel.log', filemode='w', level=logging.DEBUG, format="[%(levelname)s: %(funcName)25s() ] %(message)s")
 
-  def parseUserConstraints(self):
+  def parseUserConstraints(self, graph):
     user_constraint_s2v = defaultdict(list)
     user_fp_json = self.config["Floorplan"]
     for region, v_name_group in user_fp_json.items():
       slot = Slot(self.board, region)
       for v_name in v_name_group:
-        user_constraint_s2v[slot].append(self.graph.getVertex(v_name))
+        user_constraint_s2v[slot].append(graph.getVertex(v_name))
 
     return user_constraint_s2v
 
