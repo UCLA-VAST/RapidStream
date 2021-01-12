@@ -21,6 +21,8 @@ class TopRTLParser:
 
     self.wire_to_fifo_name = {} # str -> str
     self.fifo_name_to_wires = defaultdict(list) # fifo -> interface wires
+    self.fifo_name_to_outbound_wires = defaultdict(list)
+    self.fifo_name_to_inbound_wires = defaultdict(list)
     self.wire_to_v_name = {} # str -> str
     self.v_name_to_wires = defaultdict(list) # vertex -> interface wires
     self.inst_name_to_rtl = {}
@@ -167,15 +169,27 @@ class TopRTLParser:
           continue
 
   def __initWireToFIFOMapping(self):
+    outbound_tags = ['_read', '_dout', '_empty_n']
+    inbound_tags = ['_write', '_din', '_full_n']
+    ctrl_tags = ['clk', 'rst', 'reset']
+
     for e_node in self.traverseEdgeInAST():
       for portarg in e_node.portlist:
         # filter constant ports
         if(not isinstance(portarg.argname, ast.Identifier)):
           continue
 
+        port_name = portarg.portname
         wire_name = portarg.argname.name
         self.wire_to_fifo_name[wire_name] = e_node.name
         self.fifo_name_to_wires[e_node.name].append(wire_name)
+
+        if any(o_tag in port_name for o_tag in outbound_tags):
+          self.fifo_name_to_outbound_wires[e_node.name].append(wire_name)
+        elif any(i_tag in port_name for i_tag in inbound_tags):
+          self.fifo_name_to_inbound_wires[e_node.name].append(wire_name)
+        else:
+          assert any(c_tag in port_name for c_tag in ctrl_tags)
 
   def __initWireToVertexMapping(self):
     for v_node in self.traverseVertexInAST():
@@ -237,6 +251,12 @@ class TopRTLParser:
   # get the interface wires of vertex or edges
   def getWiresOfFIFOName(self, inst_name) -> list:
     return self.fifo_name_to_wires[inst_name]
+
+  def getOutboundSideWiresOfFIFOName(self, fifo_name):
+    return self.fifo_name_to_outbound_wires[fifo_name]
+
+  def getInboundSideWiresOfFIFOName(self, fifo_name):
+    return self.fifo_name_to_inbound_wires[fifo_name]
 
   def getWiresOfVertexName(self, v_name) -> list:
     return self.v_name_to_wires[v_name]
