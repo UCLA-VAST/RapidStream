@@ -4,6 +4,7 @@ import copy
 # TODO: calibrate resource when DDRs are enabled
 class DeviceU250:
 
+  FPGA_PART_NAME = 'xcu250-figd2104-2L-e'
   # SLR level
   SLR_NUM = 4
 
@@ -102,6 +103,8 @@ class DeviceU250:
   TOTAL_AREA['URAM'] = 1280
   
 class DeviceU280:
+  FPGA_PART_NAME = 'xcu280-fsvh2892-2L-e'
+
   SLR_NUM = 3
   
   SLR_AREA = defaultdict(lambda: defaultdict(list))
