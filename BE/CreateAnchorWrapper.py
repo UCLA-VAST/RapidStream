@@ -76,7 +76,7 @@ def createAnchorWrapper(fe_result):
     wrapper.append('  ' + 'end')
 
     # instantiate slot wrapper
-    wrapper.append('  ' + f'{slot} {slot}_U0 (' )
+    wrapper.append('  ' + f'(* keep_hierarchy = "yes" *) {slot} {slot}_U0 (' )
     for io in io_list: # try to preserve order
       if io in data_io:
         if io[0] == 'input':
