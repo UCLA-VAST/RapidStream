@@ -76,6 +76,60 @@ def printIOPlacement(hub, slot_name):
 
   open(f'{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
 
+def createPBlockScript(hub, slot_name):
+  tcl = []
+
+  assert re.search(r'CR_X\d+Y\d+_To_CR_X\d+Y\d+', slot_name), f'unexpected format of the slot name {slot_name}'
+  DL_x, DL_y, UR_x, UR_y = [int(val) for val in re.findall(r'[XY](\d+)', slot_name)] # DownLeft & UpRight
+
+  def addPblock(dir, DL_x, DL_y, UR_x, UR_y):
+    pblock_def = f'CLOCKREGION_X{DL_x}Y{DL_y}:CLOCKREGION_X{UR_x}Y{UR_y}'
+    pblock_name = pblock_def.replace(':', '_To_')
+
+    tcl.append(f'\n# {dir} ')
+    tcl.append(f'startgroup ')
+    tcl.append(f'  create_pblock {pblock_name}')
+    tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -add {pblock_def}')
+    tcl.append(f'  set_property CONTAIN_ROUTING true [get_pblocks {pblock_name}] ')
+    tcl.append(f'  set_property EXCLUDE_PLACEMENT true [get_pblocks {pblock_name}] ')
+    tcl.append(f'endgroup')
+
+    tcl.append(f'add_cells_to_pblock [get_pblocks {pblock_name}] [get_cells -regexp {{')
+    if dir == 'BODY':
+      tcl.append(f'  CR_X{DL_x}Y{DL_y}_To_CR_X{UR_x}Y{UR_y}_U0')
+    else:
+      slot_wires = hub['PathPlanningWire'][slot_name]
+      pblock_wires = []
+      if f'{dir}_IN' in slot_wires:
+        pblock_wires.extend(slot_wires[f'{dir}_IN'])
+      if f'{dir}_OUT' in slot_wires:
+        pblock_wires.extend(slot_wires[f'{dir}_OUT'])
+
+      for wire in pblock_wires:
+        tcl.append(f'  {wire}.*')
+    tcl.append(f'}}] -clear_locs ')
+
+  # constrain body
+  addPblock('BODY', DL_x, DL_y, UR_x, UR_y)
+
+  # constrain up
+  if UR_y < int(hub['CR_NUM_Y']):
+    addPblock('UP', DL_x, UR_y+1, UR_x, UR_y+1)
+
+  # down
+  if DL_y > 0:
+    addPblock('DOWN', DL_x, DL_y-1, UR_x, DL_y-1)
+    
+  # right
+  if UR_x < int(hub['CR_NUM_X']):
+    addPblock('RIGHT', UR_x+1, DL_y, UR_x+1, UR_y)
+
+  # left
+  if DL_x > 0:
+    addPblock('LEFT', DL_x-1, DL_y, DL_x-1, UR_y)
+
+  open(f'{slot_name}_floorplan.tcl', 'w').write('\n'.join(tcl))
+
 if __name__ == '__main__':
   hub = json.loads(open('BE_pass1_anchored.json', 'r').read())
   printIOPlacement(hub, 'CR_X0Y4_To_CR_X3Y7')
