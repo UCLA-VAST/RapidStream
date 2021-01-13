@@ -2,9 +2,7 @@
 import logging
 import json
 
-def __getDataAndCtrlIOs(io_list):
-  data_io = [] 
-  ctrl_io = []
+def isCtrlIO(io_name):
   ap_tags = [ 'ap_start', 
               'ap_done', 
               'ap_ready', 
@@ -18,8 +16,15 @@ def __getDataAndCtrlIOs(io_list):
               'interrupt']
   axi_tags = ['s_axi', 'm_axi', 'S_AXI', 'M_AXI']
 
+  return any(tag in io_name for tag in ap_tags + axi_tags)
+
+def __getDataAndCtrlIOs(io_list):
+  data_io = [] 
+  ctrl_io = []
+
+
   for io in io_list:
-    if any(tag in io[-1] for tag in ap_tags + axi_tags):
+    if isCtrlIO(io[-1]):
       ctrl_io.append(io)
     else:
       data_io.append(io)
@@ -42,6 +47,8 @@ def addAnchorInfoToJson(fe_result):
   
 def createAnchorWrapper(fe_result):
   slot_to_io = fe_result['SlotIO']
+  slot_to_rtl = fe_result['SlotWrapperRTL']
+
   for slot, io_list in slot_to_io.items():
     file = open(f'{slot}_anchored.v', 'w')
     data_io, ctrl_io = __getDataAndCtrlIOs(io_list)
@@ -91,6 +98,11 @@ def createAnchorWrapper(fe_result):
     wrapper.append('endmodule')
 
     file.write('\n'.join(wrapper))
+
+    # add the rtl for the inner module (the slot wrapper)
+    # discard the first line (time scale)
+    assert 'timescale' in slot_to_rtl[slot][0]
+    file.write('\n'.join(slot_to_rtl[slot][1:]))
 
 if __name__ == '__main__':
   fe_result_path = '../FE/FE_result.json'

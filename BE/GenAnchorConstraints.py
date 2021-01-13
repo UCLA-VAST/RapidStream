@@ -1,6 +1,8 @@
 #! /usr/bin/python3.6
 import logging
 import json
+import re
+import CreateAnchorWrapper
 
 # generate the Vivado script for each slot 
 def createVivadoRunScript(
@@ -46,3 +48,34 @@ def createVivadoRunScript(
   script.append(f'write_checkpoint ./{slot_name}_routed.dcp')
 
   open(f'{slot_name}_run.tcl', 'w').write('\n'.join(script))
+
+def printIOPlacement(hub, slot_name):
+  tcl = []
+  tcl.append(f'set fileId [open {slot_name}_anchor_placement.json "w"]')
+  tcl.append('puts $fileId "{"')
+
+  io_list = hub['SlotIO'][slot_name]
+  print_cmd = r'catch {{ puts $fileId [format "  \"%s\" : \"%s/%s\"," {reg_name} [get_property LOC [get_cells {reg_name}]] [lindex [split [get_property BEL [get_cells {reg_name}]] "."] 1] ] }}'
+  for io in io_list:
+    if CreateAnchorWrapper.isCtrlIO(io[-1]):
+      continue
+
+    if len(io) == 2:
+      tcl.append(print_cmd.format(reg_name = f'{io[1]}_anchor_reg'))
+    elif len(io) == 3:
+      width = int(eval(re.search('\[(.+):', io[1]).group(1)) )
+      for i in range(width+1): # notice the +1 here
+        tcl.append(print_cmd.format(reg_name = f'{io[2]}_anchor_reg[{i}]'))
+    else:
+      assert False
+
+  # tcl.append(r'puts $fileId "  \"dummy\" : \"dummy\" "')
+  tcl[-1] = tcl[-1].replace(',', '')
+  tcl.append('puts $fileId "}"')
+  tcl.append(f'close $fileId')
+
+  open(f'{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
+
+if __name__ == '__main__':
+  hub = json.loads(open('BE_pass1_anchored.json', 'r').read())
+  printIOPlacement(hub, 'CR_X0Y4_To_CR_X3Y7')
