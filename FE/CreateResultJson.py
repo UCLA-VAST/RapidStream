@@ -31,6 +31,7 @@ class CreateResultJson:
     result['PathPlanningFIFO'] = self.path_planner.naivePathPlanningFIFO()
     result['PathPlanningWire'] = self.path_planner.naivePathPlanningWire()
 
+    result['Utilization'] = self.floorplan.getUtilization()
 
     f = open(file, 'w')
     f.write(json.dumps(result, indent=2))

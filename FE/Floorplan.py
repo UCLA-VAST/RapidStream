@@ -189,7 +189,7 @@ class Floorplanner:
     self.__addGroupingConstraints(m, curr_v2s=curr_v2s, v2var=v2var, dir=dir)
     
     logging.info('Start ILP solver')
-    m.write('Coarse-Grained-Floorplan.lp')
+    # m.write('Coarse-Grained-Floorplan.lp')
     status = m.optimize(max_seconds=self.max_search_time)
     assert status == OptimizationStatus.OPTIMAL, '2-way partioning failed!'
 
@@ -206,6 +206,15 @@ class Floorplanner:
         logging.info(f'  Kernel: {v.name}')
       for e in self.s2e[s]:
         logging.info(f'  FIFO: {e.name}')
+
+  def getUtilization(self):
+    util = defaultdict(dict)
+    for s, v_group in self.s2v.items():
+      for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
+        used = sum([v.area[r] for v in v_group])
+        avail = s.getArea()[r]
+        util[s.getRTLModuleName()][r] = f'{used} / {avail} = {used/avail}'
+    return util
 
   # obtain the edges that are inside the given slots and the edges between the given slots and the other slots
   def getIntraAndInterEdges(self, v_group):
