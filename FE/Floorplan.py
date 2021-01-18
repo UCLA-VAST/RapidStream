@@ -249,6 +249,20 @@ class Floorplanner:
 
     self.__initCoarseSlotToEdges()
 
+  def naiveFineGrainedFloorplan(self):
+    init_s2v, init_v2s = self.__getInitialSlotToVerticesMapping()
+    iter1_s2v, iter1_v2s = self.__twoWayPartition(init_s2v, init_v2s, 'HORIZONTAL') # based on die boundary
+
+    iter2_s2v, iter2_v2s = self.__twoWayPartition(iter1_s2v, iter1_v2s, 'HORIZONTAL') # based on die boundary
+
+    iter3_s2v, iter3_v2s = self.__twoWayPartition(iter2_s2v, iter2_v2s, 'HORIZONTAL') # based on die boundary
+
+    iter4_s2v, iter4_v2s = self.__twoWayPartition(iter3_s2v, iter3_v2s, 'VERTICAL') # based on die boundary
+
+    self.s2v, self.v2s = self.__twoWayPartition(iter4_s2v, iter4_v2s, 'VERTICAL') # based on ddr ctrl in the middle
+
+    self.__initCoarseSlotToEdges()
+
   def getSlotToVertices(self):
     return self.s2v
 
