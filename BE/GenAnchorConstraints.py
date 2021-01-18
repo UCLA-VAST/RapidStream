@@ -56,7 +56,7 @@ def createClockXDC(
   xdc = []
   xdc.append(f'create_clock -name ap_clk -period {target_period} [get_ports ap_clk]')
   xdc.append(f'set_property HD.CLK_SRC {bufg} [get_ports ap_clk]')
-  open(f'{output_path}/{slot_name}_clk.xdc', 'w').write('/n'.join(xdc))
+  open(f'{output_path}/{slot_name}_clk.xdc', 'w').write('\n'.join(xdc))
 
 def printIOPlacement(hub, slot_name):
   tcl = []
