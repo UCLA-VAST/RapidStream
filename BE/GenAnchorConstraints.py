@@ -8,16 +8,15 @@ import CreateAnchorWrapper
 def createVivadoRunScript(
     fpga_part_name, 
     orig_rtl_path, 
-    slot_wrapper_path,
     anchor_wrapper_path,
-    clock_xdc_path,
-    slot_name):
+    slot_name,
+    output_path='.'):
   script = []
 
   script.append(f'set_part {fpga_part_name}')
 
   # read in the original RTLs by HLS
-  script.append(f'set ORIG_RTL_PATH {orig_rtl_path}') 
+  script.append(f'set ORIG_RTL_PATH "{orig_rtl_path}"') 
   script.append(r'set orig_rtl_files [glob ${ORIG_RTL_PATH}/*.v]') 
   script.append(r'read_verilog ${orig_rtl_files}') 
 
@@ -26,17 +25,17 @@ def createVivadoRunScript(
   script.append(r'foreach ip_tcl ${orig_ip_files} { source ${ip_tcl} }') 
 
   # read in the new wrappers
-  script.append(f'read_verilog {anchor_wrapper_path}')
+  script.append(f'read_verilog "{anchor_wrapper_path}"')
 
   # clock xdc
-  script.append(f'read_xdc {clock_xdc_path}')
+  script.append(f'read_xdc "{output_path}/{slot_name}_clk.xdc"')
 
   # synth
   script.append(f'synth_design -top "{slot_name}_anchored" -part {fpga_part_name} -mode out_of_context')
   script.append(f'write_checkpoint ./{slot_name}_synth.dcp')
   
   # add floorplanning constraints
-  script.append(f'source "{slot_name}_floorplan.tcl"')
+  script.append(f'source "{output_path}/{slot_name}_floorplan.tcl"')
   
   # placement and routing
   script.append(f'opt_design')
@@ -47,7 +46,17 @@ def createVivadoRunScript(
   script.append(f'phys_opt_design')
   script.append(f'write_checkpoint ./{slot_name}_routed.dcp')
 
-  open(f'{slot_name}_run.tcl', 'w').write('\n'.join(script))
+  open(f'{output_path}/{slot_name}_run.tcl', 'w').write('\n'.join(script))
+
+def createClockXDC(
+    slot_name, 
+    output_path='.',
+    target_period=3.0, 
+    bufg='BUFGCE_X0Y194'):
+  xdc = []
+  xdc.append(f'create_clock -name ap_clk -period {target_period} [get_ports ap_clk]')
+  xdc.append(f'set_property HD.CLK_SRC {bufg} [get_ports ap_clk]')
+  open(f'{output_path}/{slot_name}_clk.xdc', 'w').write('/n'.join(xdc))
 
 def printIOPlacement(hub, slot_name):
   tcl = []
@@ -76,15 +85,21 @@ def printIOPlacement(hub, slot_name):
 
   open(f'{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
 
-def createPBlockScript(hub, slot_name):
+def createPBlockScript(hub, slot_name, output_path='.'):
   tcl = []
 
   assert re.search(r'CR_X\d+Y\d+_To_CR_X\d+Y\d+', slot_name), f'unexpected format of the slot name {slot_name}'
   DL_x, DL_y, UR_x, UR_y = [int(val) for val in re.findall(r'[XY](\d+)', slot_name)] # DownLeft & UpRight
 
+  slot_wires = hub['PathPlanningWire'][slot_name]
+
   def addPblock(dir, DL_x, DL_y, UR_x, UR_y):
     pblock_def = f'CLOCKREGION_X{DL_x}Y{DL_y}:CLOCKREGION_X{UR_x}Y{UR_y}'
     pblock_name = pblock_def.replace(':', '_To_')
+
+    # no wire crossing in a certain boundary segment
+    if dir != 'BODY' and f'{dir}_IN' not in slot_wires and f'{dir}_OUT' not in slot_wires:
+      return
 
     tcl.append(f'\n# {dir} ')
     tcl.append(f'startgroup ')
@@ -98,7 +113,7 @@ def createPBlockScript(hub, slot_name):
     if dir == 'BODY':
       tcl.append(f'  CR_X{DL_x}Y{DL_y}_To_CR_X{UR_x}Y{UR_y}_U0')
     else:
-      slot_wires = hub['PathPlanningWire'][slot_name]
+      
       pblock_wires = []
       if f'{dir}_IN' in slot_wires:
         pblock_wires.extend(slot_wires[f'{dir}_IN'])
@@ -128,8 +143,9 @@ def createPBlockScript(hub, slot_name):
   if DL_x > 0:
     addPblock('LEFT', DL_x-1, DL_y, DL_x-1, UR_y)
 
-  open(f'{slot_name}_floorplan.tcl', 'w').write('\n'.join(tcl))
+  open(f'{output_path}/{slot_name}_floorplan.tcl', 'w').write('\n'.join(tcl))
+
 
 if __name__ == '__main__':
   hub = json.loads(open('BE_pass1_anchored.json', 'r').read())
-  printIOPlacement(hub, 'CR_X0Y4_To_CR_X3Y7')
+  createPBlockScript(hub, 'CR_X0Y4_To_CR_X3Y7')
