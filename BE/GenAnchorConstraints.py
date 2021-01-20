@@ -33,18 +33,24 @@ def createVivadoRunScript(
   # synth
   script.append(f'synth_design -top "{slot_name}_anchored" -part {fpga_part_name} -mode out_of_context')
   script.append(f'write_checkpoint ./{slot_name}_synth.dcp')
+  script.append(f'write_edif ./{slot_name}_synth.edf')
   
   # add floorplanning constraints
   script.append(f'source "{output_path}/{slot_name}_floorplan.tcl"')
   
-  # placement and routing
+  # placement
   script.append(f'opt_design')
   script.append(f'place_design')
   script.append(f'phys_opt_design')
   script.append(f'write_checkpoint ./{slot_name}_placed.dcp')
+  script.append(f'write_edif ./{slot_name}_placed.edf')
+  script.append(f'source "{output_path}/{slot_name}_print_anchor_placement.tcl"')
+
+  # routing
   script.append(f'route_design')
   script.append(f'phys_opt_design')
   script.append(f'write_checkpoint ./{slot_name}_routed.dcp')
+  script.append(f'write_edif ./{slot_name}_routed.edf')
 
   open(f'{output_path}/{slot_name}_run.tcl', 'w').write('\n'.join(script))
 
@@ -58,7 +64,7 @@ def createClockXDC(
   xdc.append(f'set_property HD.CLK_SRC {bufg} [get_ports ap_clk]')
   open(f'{output_path}/{slot_name}_clk.xdc', 'w').write('\n'.join(xdc))
 
-def printIOPlacement(hub, slot_name):
+def createAnchorPlacementExtractScript(hub, slot_name, output_path):
   tcl = []
   tcl.append(f'set fileId [open {slot_name}_anchor_placement.json "w"]')
   tcl.append('puts $fileId "{"')
@@ -83,7 +89,7 @@ def printIOPlacement(hub, slot_name):
   tcl.append('puts $fileId "}"')
   tcl.append(f'close $fileId')
 
-  open(f'{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
+  open(f'{output_path}/{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
 
 def createPBlockScript(hub, slot_name, output_path='.'):
   tcl = []
@@ -145,6 +151,12 @@ def createPBlockScript(hub, slot_name, output_path='.'):
 
   open(f'{output_path}/{slot_name}_floorplan.tcl', 'w').write('\n'.join(tcl))
 
+def createGNUParallelScript(hub, target_dir):
+  gnu_parallel = []
+  for slot_name in hub['SlotIO'].keys():
+    gnu_parallel.append(f'cd {target_dir}/{slot_name} && vivado -mode batch -source {slot_name}_run.tcl')
+  
+  open(f'{target_dir}/parallel.txt', 'w').write('\n'.join(gnu_parallel))
 
 if __name__ == '__main__':
   hub = json.loads(open('BE_pass1_anchored.json', 'r').read())

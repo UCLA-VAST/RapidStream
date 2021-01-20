@@ -11,7 +11,7 @@ if __name__ == '__main__':
   fe_result_path = '/home/einsx7/auto-parallel/src/FE/FE_result.json'
 
   if os.path.isdir(target_dir):
-    shutil.rmtree(target_dir)
+    raise f'target directory already exists: {target_dir}'
   os.mkdir(target_dir)
 
   hub = json.loads(open(fe_result_path, 'r').read())
@@ -38,6 +38,9 @@ if __name__ == '__main__':
                           anchored_wrapper_path, 
                           slot_name,
                           output_path=dir)
-
+    
+    createAnchorPlacementExtractScript(hub, slot_name, dir)
+    
+  createGNUParallelScript(hub, target_dir)
 
   
