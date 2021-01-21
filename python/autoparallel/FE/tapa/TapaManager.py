@@ -1,13 +1,11 @@
 #! /usr/bin/python3.6
-import sys
-sys.path.append('../FE')
 from collections import defaultdict
-from DataflowGraphTapa import DataflowGraphTapa
-from ProgramJsonManager import ProgramJsonManager
-from DeviceManager import DeviceManager
-from Floorplan import Floorplanner
-from Slot import Slot
-from AXIConnectionParser import AXIConnectionParser
+from autoparallel.FE.tapa.DataflowGraphTapa import DataflowGraphTapa
+from autoparallel.FE.tapa.ProgramJsonManager import ProgramJsonManager
+from autoparallel.FE.DeviceManager import DeviceManager
+from autoparallel.FE.Floorplan import Floorplanner
+from autoparallel.FE.Slot import Slot
+from autoparallel.FE.AXIConnectionParser import AXIConnectionParser
 
 import logging
 import json

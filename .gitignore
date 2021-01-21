@@ -5,3 +5,6 @@ parse*
 __*
 *temp*
 *trash*
+/python/autoparallel.egg-info
+/python/build/
+/python/dist/

@@ -2,10 +2,10 @@
 import logging
 from collections import defaultdict
 from typing import Dict
-from DeviceManager import *
-from DataflowGraph import *
-from HLSProjectManager import HLSProjectManager
-from Slot import Slot
+from autoparallel.FE.DeviceManager import *
+from autoparallel.FE.DataflowGraph import *
+from autoparallel.FE.HLSProjectManager import HLSProjectManager
+from autoparallel.FE.Slot import Slot
 from mip import *
 
 class Floorplanner:
