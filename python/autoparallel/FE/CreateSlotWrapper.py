@@ -1,6 +1,6 @@
 #! /usr/bin/python3.6
 import logging
-from Slot import Slot
+from autoparallel.FE.Slot import Slot
 import re
 import copy
 

@@ -1,10 +1,8 @@
 #! /usr/bin/python3.6
-import sys
-sys.path.append('../FE')
 
-from DataflowGraph import Vertex, Edge
-from ProgramJsonManager import ProgramJsonManager
-from AXIConnectionParser import AXIConnectionParser
+from autoparallel.FE.DataflowGraph import Vertex, Edge
+from autoparallel.FE.tapa.ProgramJsonManager import ProgramJsonManager
+from autoparallel.FE.AXIConnectionParser import AXIConnectionParser
 import logging
 import re
 import math

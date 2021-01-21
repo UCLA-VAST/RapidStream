@@ -1,15 +1,15 @@
 #! /usr/bin/python3.6
 
 from collections import defaultdict
-from HLSProjectManager import HLSProjectManager
-from DeviceManager import DeviceManager
-from DataflowGraph import DataflowGraph
-from TopRTLParser import TopRTLParser
-from Floorplan import Floorplanner
-from Slot import Slot
-from CreateSlotWrapper import CreateSlotWrapper
-from CreateResultJson import CreateResultJson
-from GlobalRouting import GlobalRouting
+from autoparallel.FE.HLSProjectManager import HLSProjectManager
+from autoparallel.FE.DeviceManager import DeviceManager
+from autoparallel.FE.DataflowGraph import DataflowGraph
+from autoparallel.FE.TopRTLParser import TopRTLParser
+from autoparallel.FE.Floorplan import Floorplanner
+from autoparallel.FE.Slot import Slot
+from autoparallel.FE.CreateSlotWrapper import CreateSlotWrapper
+from autoparallel.FE.CreateResultJson import CreateResultJson
+from autoparallel.FE.GlobalRouting import GlobalRouting
 
 import logging
 import json
