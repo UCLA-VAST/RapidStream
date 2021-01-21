@@ -1,7 +1,7 @@
 #! /usr/bin/python3.6
 
-from TopRTLParser import TopRTLParser
-from HLSProjectManager import HLSProjectManager
+from autoparallel.FE.TopRTLParser import TopRTLParser
+from autoparallel.FE.HLSProjectManager import HLSProjectManager
 import logging
 import math
 
