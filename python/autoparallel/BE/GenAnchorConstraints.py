@@ -2,7 +2,7 @@
 import logging
 import json
 import re
-import CreateAnchorWrapper
+from autoparallel.BE import CreateAnchorWrapper
 
 # generate the Vivado script for each slot 
 def createVivadoRunScript(

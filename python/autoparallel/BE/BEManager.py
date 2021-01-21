@@ -3,8 +3,8 @@ import logging
 import json
 import os
 import shutil
-from CreateAnchorWrapper import *
-from GenAnchorConstraints import *
+from autoparallel.BE.CreateAnchorWrapper import *
+from autoparallel.BE.GenAnchorConstraints import *
 
 if __name__ == '__main__':
   target_dir = '/home/einsx7/auto-parallel/test/parallel_run'
