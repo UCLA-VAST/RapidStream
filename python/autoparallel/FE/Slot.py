@@ -109,63 +109,71 @@ class Slot:
   def getHalfLenY(self):
     return int((self.up_right_y - self.down_left_y) / 2) 
 
-  # split by the middle row
-  def getBottomAndUpSplit(self):
+  #                  |-------| u_r_x, u_r_y
+  #                  |       |
+  #                  |  up   |
+  #                  |       |
+  #                  |-------| u_r_x, mid_y   
+  #                  |       |
+  #                  |  bot  |
+  #                  |       |
+  #   d_l_x, d_l_y   |-------|
+  def getBottomChildSlotName(self):
     assert self.down_left_x != self.up_right_x or \
       self.down_left_y != self.up_right_y, 'Cannot split a single CR'
 
-    #                  |-------| u_r_x, u_r_y
-    #                  |       |
-    #                  |  up   |
-    #                  |       |
-    #                  |-------| u_r_x, mid_y   
-    #                  |       |
-    #                  |  bot  |
-    #                  |       |
-    #   d_l_x, d_l_y   |-------|
-    def getBottomChildSlotName():
-      down_left_cr = f'CLOCKREGION_X{self.down_left_x }Y{self.down_left_y}'
-      up_right_cr  = f'CLOCKREGION_X{self.up_right_x-1}Y{mid_y-1}'
-      return f'{down_left_cr}:{up_right_cr}'
-    
-    def getUpChildSlotName():
-      down_left_cr = f'CLOCKREGION_X{self.down_left_x }Y{mid_y}'
-      up_right_cr  = f'CLOCKREGION_X{self.up_right_x-1}Y{self.up_right_y-1}'
-      return f'{down_left_cr}:{up_right_cr}'
+    mid_y = self.getPositionY()
+    down_left_cr = f'CLOCKREGION_X{self.down_left_x }Y{self.down_left_y}'
+    up_right_cr  = f'CLOCKREGION_X{self.up_right_x-1}Y{mid_y-1}'
+    return f'{down_left_cr}:{up_right_cr}'
+  
+  def getUpChildSlotName(self):
+    assert self.down_left_x != self.up_right_x or \
+      self.down_left_y != self.up_right_y, 'Cannot split a single CR'
 
     mid_y = self.getPositionY()
-    up     = Slot(self.board,  getUpChildSlotName())
-    bottom = Slot(self.board,  getBottomChildSlotName())
+    down_left_cr = f'CLOCKREGION_X{self.down_left_x }Y{mid_y}'
+    up_right_cr  = f'CLOCKREGION_X{self.up_right_x-1}Y{self.up_right_y-1}'
+    return f'{down_left_cr}:{up_right_cr}'
+
+  #                  mid_x, u_r_y
+  #               |---------|---------| u_r_x, u_r_y
+  #               |         |         |
+  #               |  L      |      R  |
+  #               |         |         |
+  #  d_l_x, d_l_y |---------|---------|
+  #                    mid_x, d_l_y
+  #     
+  def getLeftChildSlotName(self):
+    assert self.down_left_x != self.up_right_x or \
+      self.down_left_y != self.up_right_y, 'Cannot split a single CR'
+
+    mid_x = self.getPositionX()
+    down_left_cr = f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y}'
+    up_right_cr  = f'CLOCKREGION_X{mid_x - 1       }Y{self.up_right_y-1}'
+    return f'{down_left_cr}:{up_right_cr}'
+
+  def getRightChildSlotname(self):
+    assert self.down_left_x != self.up_right_x or \
+      self.down_left_y != self.up_right_y, 'Cannot split a single CR'
+
+    mid_x = self.getPositionX()
+    down_left_cr = f'CLOCKREGION_X{mid_x            }Y{self.down_left_y}'
+    up_right_cr  = f'CLOCKREGION_X{self.up_right_x-1}Y{self.up_right_y-1}'
+    return f'{down_left_cr}:{up_right_cr}'
+
+  # split by the middle row
+  def getBottomAndUpSplit(self):
+    up     = Slot(self.board,  self.getUpChildSlotName())
+    bottom = Slot(self.board,  self.getBottomChildSlotName())
 
     logging.debug(f'Horizontal Partition: from {self.getName()} to {up.getName()} and {bottom.getName()}')
     return bottom, up 
 
   # split by the middle column
   def getLeftAndRightSplit(self):
-    assert self.down_left_x != self.up_right_x or \
-      self.down_left_y != self.up_right_y, 'Cannot split a single CR'
-
-    #                  mid_x, u_r_y
-    #               |---------|---------| u_r_x, u_r_y
-    #               |         |         |
-    #               |  L      |      R  |
-    #               |         |         |
-    #  d_l_x, d_l_y |---------|---------|
-    #                    mid_x, d_l_y
-    #     
-    def getLeftChildSlotName():
-      down_left_cr = f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y}'
-      up_right_cr  = f'CLOCKREGION_X{mid_x - 1       }Y{self.up_right_y-1}'
-      return f'{down_left_cr}:{up_right_cr}'
-
-    def getRightChildSlotname():
-      down_left_cr = f'CLOCKREGION_X{mid_x            }Y{self.down_left_y}'
-      up_right_cr  = f'CLOCKREGION_X{self.up_right_x-1}Y{self.up_right_y-1}'
-      return f'{down_left_cr}:{up_right_cr}'
-
-    mid_x = self.getPositionX()
-    left =  Slot(self.board, getLeftChildSlotName())
-    right = Slot(self.board, getRightChildSlotname())
+    left =  Slot(self.board, self.getLeftChildSlotName())
+    right = Slot(self.board, self.getRightChildSlotname())
 
     logging.debug(f'Vertical Partition: from {self.getName()} to {left.getName()} and {right.getName()}')
 
