@@ -9,6 +9,8 @@ from autoparallel.FE.Slot import Slot
 from autoparallel.FE.SlotManager import SlotManager
 from mip import *
 
+_logger = logging.getLogger().getChild(__name__)
+
 class Floorplanner:
 
   def __init__(
@@ -188,6 +190,8 @@ class Floorplanner:
     logging.info('Start 2-way partitioning routine')
 
     m = Model()
+    if not _logger.isEnabledFor(logging.DEBUG):
+      m.verbose = 0
 
     v2var = self.__createILPVariables(m, curr_v2s=curr_v2s)
 

@@ -1,18 +1,12 @@
-#! /usr/bin/python3.6
+import logging
 
 from autoparallel.FE.DataflowGraph import Vertex, Edge
 from autoparallel.FE.tapa.ProgramJsonManager import ProgramJsonManager
-from autoparallel.FE.AXIConnectionParser import AXIConnectionParser
-import logging
-import re
-import math
-import json
 
 class DataflowGraphTapa ():
 
-  def __init__(self, program_json_manager : ProgramJsonManager, axi_parser : AXIConnectionParser):
+  def __init__(self, program_json_manager : ProgramJsonManager):
     self.program_json_manager = program_json_manager
-    self.axi_parser = axi_parser
 
     self.vertices = {} # name -> Vertex
     self.edges = {} # name -> Edge
@@ -20,7 +14,6 @@ class DataflowGraphTapa ():
     self.__initEdges()
 
     self.__initVertices()
-    self.__initAXIVertices()
 
     self.__linkEdgeAndVertex()
     
@@ -30,9 +23,7 @@ class DataflowGraphTapa ():
     # init Edge objects
     for e_name, info in fifo_section.items():
       e = Edge(e_name)
-      e.depth = info['depth']
       e.width = info['width']
-      e.addr_width = int(math.log2(e.depth)+1)
       self.edges[e_name] = e
 
   def __initVertices(self):
@@ -46,19 +37,11 @@ class DataflowGraphTapa ():
       
       fifo_section = self.program_json_manager.getFIFOSection()
       for e_name, info in fifo_section.items():
-        if info['produced_by_module_name'] == v_name:
+        if info['produced_by'] == v_name:
           v.out_edge_names.append(e_name)
-        if info['consumed_by_module_name'] == v_name:
+        if info['consumed_by'] == v_name:
           v.in_edge_names.append(e_name)
           
-      self.vertices[v_name] = v
-
-  def __initAXIVertices(self):
-    axi_modules = self.axi_parser.getAllAXIModules()
-
-    for v_module, v_name in axi_modules:
-      v = Vertex(v_module, v_name)
-      v.area = self.program_json_manager.getAreaOfModule(v_module)
       self.vertices[v_name] = v
 
   def __linkEdgeAndVertex(self):
