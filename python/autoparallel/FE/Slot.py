@@ -33,6 +33,15 @@ class Slot:
     # need to convert back to CR coordinates
     return f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y}:CLOCKREGION_X{self.up_right_x-1}Y{self.up_right_y-1}'
 
+  def getOrigUpRightX(self):
+    return self.up_right_x-1
+  def getOrigUpRightY(self):
+    return self.up_right_y-1
+  def getOrigDownLeftX(self):
+    return self.down_left_x
+  def getOrigDownLeftY(self):
+    return self.down_left_y
+
   def getNameConsiderVitisIP(self):
     up_right_x_update = 7 if self.up_right_x == 8 else self.up_right_x
     return f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y}:CLOCKREGION_X{up_right_x_update-1}Y{self.up_right_y-1}'
