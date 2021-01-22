@@ -4,8 +4,8 @@ from autoparallel.FE.tapa.DataflowGraphTapa import DataflowGraphTapa
 from autoparallel.FE.tapa.ProgramJsonManager import ProgramJsonManager
 from autoparallel.FE.DeviceManager import DeviceManager
 from autoparallel.FE.Floorplan import Floorplanner
-from autoparallel.FE.Slot import Slot
 from autoparallel.FE.AXIConnectionParser import AXIConnectionParser
+from autoparallel.FE.SlotManager import SlotManager
 
 import logging
 import json
@@ -26,13 +26,14 @@ class TapaManager:
     self.board = self.device_manager.getBoard()
     self.top_rtl_path = f'{self.project_path}/hdl/{self.top_name}_{self.top_name}.v'
 
+    slot_manager = SlotManager(self.board)
     self.axi_parser = AXIConnectionParser(self.top_rtl_path)
     self.program_json_manager = ProgramJsonManager(self.project_path, self.top_name)
     self.graph = DataflowGraphTapa(self.program_json_manager, self.axi_parser)
 
-    user_constraint_s2v = self.parseUserConstraints()
+    user_constraint_s2v = self.parseUserConstraints(slot_manager)
     
-    self.fp = Floorplanner(self.graph, user_constraint_s2v, total_usage=self.program_json_manager.getVertexTotalArea(), board=self.board)
+    self.fp = Floorplanner(self.graph, user_constraint_s2v, slot_manager=slot_manager, total_usage=self.program_json_manager.getVertexTotalArea(), board=self.board)
     self.fp.coarseGrainedFloorplan()
     self.generateTAPAConstraints()
 
@@ -42,27 +43,27 @@ class TapaManager:
     f = open('tapa_constraint.json', 'w')
     f.write(json.dumps(output, indent=2))
 
-  def parseUserConstraints(self):
+  def parseUserConstraints(self, slot_manager):
     port_bining = self.config['ExternalPortBinding']
 
     user_constraint_s2v = defaultdict(list)
 
     # for m_axi modules
     for region, axi_group in port_bining.items():
-      slot = Slot(self.board, region)
+      slot = slot_manager.getSlot(region)
       for axi_name in axi_group:
         io_module_name = self.axi_parser.getIOModuleNameOfAXI(axi_name)
         user_constraint_s2v[slot].append(self.graph.getVertex(io_module_name))
 
     # for s_axi_control
-    slot = Slot(self.board, 'COARSE_X1Y0')
+    slot = slot_manager.getSlot('COARSE_X1Y0')
     s_axi_ctrl_name = self.axi_parser.getSAXIName()
     user_constraint_s2v[slot].append(self.graph.getVertex(s_axi_ctrl_name))
 
     # for optional module constraints
     module_fp = self.config['OptionalFloorplan']
     for region, module_group in module_fp.items():
-      slot = Slot(self.board, region)
+      slot = slot_manager.getSlot(region)
       for mod_name in module_group:
         user_constraint_s2v[slot].append(self.graph.getVertex(mod_name))
 

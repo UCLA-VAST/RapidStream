@@ -6,14 +6,24 @@ from autoparallel.FE.DeviceManager import *
 from autoparallel.FE.DataflowGraph import *
 from autoparallel.FE.HLSProjectManager import HLSProjectManager
 from autoparallel.FE.Slot import Slot
+from autoparallel.FE.SlotManager import SlotManager
 from mip import *
 
 class Floorplanner:
 
-  def __init__(self, graph : DataflowGraph, user_constraint_s2v : Dict, total_usage : dict, board=DeviceU250, max_search_time=600, grouping_constrants=[]):
+  def __init__(
+      self, 
+      graph : DataflowGraph, 
+      user_constraint_s2v : Dict, 
+      slot_manager : SlotManager,
+      total_usage : dict, 
+      board=DeviceU250, 
+      max_search_time=600, 
+      grouping_constrants=[]):
     self.board = board
     self.graph = graph
     self.user_constraint_s2v = user_constraint_s2v
+    self.slot_manager = slot_manager
     self.total_usage = total_usage
     self.max_search_time = max_search_time
     self.grouping_constrants = grouping_constrants # dict of dict
@@ -55,18 +65,14 @@ class Floorplanner:
 
   # map all vertices to the initial slot (the whole device)
   def __getInitialSlotToVerticesMapping(self):
-
-    def getInitialSlot():
-      return Slot(self.board, f'CLOCKREGION_X0Y0:CLOCKREGION_X{self.board.CR_NUM_HORIZONTAL-1}Y{self.board.CR_NUM_VERTICAL-1}')
-
-    init_slot = getInitialSlot()
+    init_slot = self.slot_manager.getInitialSlot()
     init_s2v = {init_slot : self.graph.getAllVertices()}
     init_v2s = {v : init_slot for v in self.graph.getAllVertices()}
     return init_s2v, init_v2s
 
   def __addAreaConstraints(self, m, curr_s2v, v2var, dir):
     for s, v_group in curr_s2v.items():
-      bottom_or_left, up_or_right = s.partitionByHalf(dir)
+      bottom_or_left, up_or_right = self.slot_manager.partitionSlotByHalf(s, dir)
       assert up_or_right.up_right_x >= bottom_or_left.down_left_x
   
       for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
@@ -86,7 +92,7 @@ class Floorplanner:
         assert v in curr_v2s, f'ERROR: user has forced the location of a non-existing module {v.name}'
         
         curr_slot = curr_v2s[v]
-        bottom_or_left, up_or_right = curr_slot.partitionByHalf(dir)
+        bottom_or_left, up_or_right = self.slot_manager.partitionSlotByHalf(curr_slot, dir)
         if bottom_or_left.containsChildSlot(expect_slot):
           logging.debug(f'[user constraint] {v.name} assigned to bottom/left')
           m += v2var[v] == 0
@@ -146,7 +152,7 @@ class Floorplanner:
     next_v2s = {}
 
     for s, v_group in curr_s2v.items():
-      bottom_or_left, up_or_right = s.partitionByHalf(dir)
+      bottom_or_left, up_or_right = self.slot_manager.partitionSlotByHalf(s, dir)
       for v in v_group:
         # if v is assigned to 0-half
         if v2var[v].x == 0:
