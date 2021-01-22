@@ -166,6 +166,12 @@ class Floorplanner:
         else:
           assert False
 
+      # if no Vertex is assigned to a Slot, remove that Slot
+      if bottom_or_left not in next_s2v:
+        self.slot_manager.removeSlotNonBlocking(bottom_or_left.getName())
+      if up_or_right not in next_s2v:
+        self.slot_manager.removeSlotNonBlocking(up_or_right.getName())
+
     return next_s2v, next_v2s
 
   def __createILPVariables(self, m, curr_v2s):
