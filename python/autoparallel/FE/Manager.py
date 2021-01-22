@@ -1,15 +1,15 @@
 #! /usr/bin/python3.6
-
+import sys
 from collections import defaultdict
 from autoparallel.FE.HLSProjectManager import HLSProjectManager
 from autoparallel.FE.DeviceManager import DeviceManager
 from autoparallel.FE.DataflowGraph import DataflowGraph
 from autoparallel.FE.TopRTLParser import TopRTLParser
 from autoparallel.FE.Floorplan import Floorplanner
-from autoparallel.FE.Slot import Slot
 from autoparallel.FE.CreateSlotWrapper import CreateSlotWrapper
 from autoparallel.FE.CreateResultJson import CreateResultJson
 from autoparallel.FE.GlobalRouting import GlobalRouting
+from autoparallel.FE.SlotManager import SlotManager
 
 import logging
 import json
@@ -37,9 +37,11 @@ class Manager:
     top_rtl_parser = TopRTLParser(hls_prj_manager.getTopRTLPath())
     graph = DataflowGraph(hls_prj_manager, top_rtl_parser)
 
-    user_constraint_s2v = self.parseUserConstraints(graph)
+    slot_manager = SlotManager(self.board)
 
-    floorplan = Floorplanner(graph, user_constraint_s2v, total_usage=hls_prj_manager.getTotalArea(), board=self.device_manager.getBoard())
+    user_constraint_s2v = self.parseUserConstraints(graph, slot_manager)
+
+    floorplan = Floorplanner(graph, user_constraint_s2v, slot_manager=slot_manager, total_usage=hls_prj_manager.getTotalArea(), board=self.device_manager.getBoard())
     floorplan.coarseGrainedFloorplan()
     floorplan.printFloorplan()
 
@@ -54,11 +56,11 @@ class Manager:
   def __setupLogging(self):
     logging.basicConfig(filename='auto-parallel.log', filemode='w', level=logging.DEBUG, format="[%(levelname)s: %(funcName)25s() ] %(message)s")
 
-  def parseUserConstraints(self, graph):
+  def parseUserConstraints(self, graph, slot_manager):
     user_constraint_s2v = defaultdict(list)
     user_fp_json = self.config["Floorplan"]
     for region, v_name_group in user_fp_json.items():
-      slot = Slot(self.board, region)
+      slot = slot_manager.getSlot(region)
       for v_name in v_name_group:
         user_constraint_s2v[slot].append(graph.getVertex(v_name))
 
@@ -66,7 +68,8 @@ class Manager:
 
 
 if __name__ == "__main__":
-  m = Manager('SampleUserConfig.json')
+  assert len(sys.argv) == 2, 'input the path to the configuration file'
+  m = Manager(sys.argv[1])
     
 
 

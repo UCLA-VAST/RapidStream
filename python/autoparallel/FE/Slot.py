@@ -8,9 +8,8 @@ class Slot:
   def __init__(self, board, pblock : str):
     self.board = board
 
-    if 'COARSE_' in pblock:
-      pblock = self.__convertCoarseRegionToClockRegion(pblock)
-
+    assert 'COARSE_' not in pblock
+    
     match = re.search(r'^CLOCKREGION_X(\d+)Y(\d+)[ ]*:[ ]*CLOCKREGION_X(\d+)Y(\d+)$', pblock)
     assert match, f'incorrect pblock {pblock}'
 
@@ -29,21 +28,6 @@ class Slot:
     self.__initArea()
 
     logging.debug(f'Using customized hash function for Slot ({self.down_left_x}, {self.down_left_y}, {self.up_right_x}, {self.up_right_y}) with id {id}')
-
-  def __convertCoarseRegionToClockRegion(self, coarse_loc):
-    match = re.search(r'COARSE_X(\d+)Y(\d+)', coarse_loc)
-    assert match
-
-    x = int(match.group(1))
-    y = int(match.group(2))
-    CR_NUM_HORIZONTAL_PER_COARSE = int(0.5 * self.board.CR_NUM_HORIZONTAL)
-    CR_NUM_VERTICAL_PER_COARSE = int(self.board.CR_NUM_VERTICAL_PER_SLR)
-
-    left_bottom_x = x * CR_NUM_HORIZONTAL_PER_COARSE
-    left_bottom_y = y * CR_NUM_VERTICAL_PER_COARSE
-    right_up_x = left_bottom_x + CR_NUM_HORIZONTAL_PER_COARSE - 1
-    right_up_y = left_bottom_y + CR_NUM_VERTICAL_PER_COARSE - 1
-    return f'CLOCKREGION_X{left_bottom_x}Y{left_bottom_y} : CLOCKREGION_X{right_up_x}Y{right_up_y}'
 
   def getName(self):
     # need to convert back to CR coordinates
@@ -161,31 +145,6 @@ class Slot:
     down_left_cr = f'CLOCKREGION_X{mid_x            }Y{self.down_left_y}'
     up_right_cr  = f'CLOCKREGION_X{self.up_right_x-1}Y{self.up_right_y-1}'
     return f'{down_left_cr}:{up_right_cr}'
-
-  # split by the middle row
-  def getBottomAndUpSplit(self):
-    up     = Slot(self.board,  self.getUpChildSlotName())
-    bottom = Slot(self.board,  self.getBottomChildSlotName())
-
-    logging.debug(f'Horizontal Partition: from {self.getName()} to {up.getName()} and {bottom.getName()}')
-    return bottom, up 
-
-  # split by the middle column
-  def getLeftAndRightSplit(self):
-    left =  Slot(self.board, self.getLeftChildSlotName())
-    right = Slot(self.board, self.getRightChildSlotname())
-
-    logging.debug(f'Vertical Partition: from {self.getName()} to {left.getName()} and {right.getName()}')
-
-    return left, right
-
-  def partitionByHalf(self, dir : str):
-    if dir == 'HORIZONTAL':
-      return self.getBottomAndUpSplit()
-    elif dir == 'VERTICAL':
-      return self.getLeftAndRightSplit()
-    else:
-      assert False, f'unrecognized partition direction: {dir}'
 
   def containsChildSlot(self, target) -> bool:
     return target.down_left_x >= self.down_left_x \
