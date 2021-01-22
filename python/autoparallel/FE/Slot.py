@@ -1,7 +1,7 @@
 #! /usr/bin/python3.6
 import logging
 from collections import defaultdict
-from typing import Dict
+from typing import Dict, Iterable, Iterator, List, Union
 import re
 
 class Slot:
@@ -160,3 +160,87 @@ class Slot:
       and  target.down_left_y >= self.down_left_y \
       and  target.up_right_x  <= self.up_right_x  \
       and  target.up_right_y  <= self.up_right_y  
+
+  def isToTheLeftOf(self, other: 'Slot') -> bool:
+    return (self.down_left_y == other.down_left_y and
+            self.up_right_y == other.up_right_y and
+            self.up_right_x == other.down_left_x)
+
+  def isToTheRightOf(self, other: 'Slot') -> bool:
+    return other.isToTheLeftOf(self)
+
+  def isAbove(self, other: 'Slot') -> bool:
+    return (self.down_left_x == other.down_left_x and
+            self.up_right_x == other.up_right_x and
+            self.down_left_y == other.up_right_y)
+
+  def isBelow(self, other: 'Slot') -> bool:
+    return other.isAbove(self)
+
+  @property
+  def pblock_name(self) -> str:
+    return (f'pblock_X{self.down_left_x}Y{self.down_left_y}'
+            f'_X{self.up_right_x-1}Y{self.up_right_y-1}')
+
+  @property
+  def pblock_tcl(self) -> str:
+    return f'''
+create_pblock {self.pblock_name}
+resize_pblock {self.pblock_name} -add {self.getNameConsiderVitisIP()}
+'''
+
+
+class Topology:
+
+  def __init__(self, slots: Iterable[Slot]):
+    self.slots = tuple(slots)
+    self.adjancency: Dict[str, Dict[str, str]] = defaultdict(dict)
+    for slot1 in self.slots:
+      for slot2 in self.slots:
+        if slot2.isToTheLeftOf(slot1):
+          self.adjancency[slot1.pblock_name]['left'] = slot2.pblock_name
+        elif slot2.isToTheRightOf(slot1):
+          self.adjancency[slot1.pblock_name]['right'] = slot2.pblock_name
+        elif slot2.isAbove(slot1):
+          self.adjancency[slot1.pblock_name]['up'] = slot2.pblock_name
+        elif slot2.isBelow(slot1):
+          self.adjancency[slot1.pblock_name]['down'] = slot2.pblock_name
+
+  def getNeighborOf(self, name: str, direction: str) -> str:
+    """Get neighbor of `name` on `direction`. Empty if none exists."""
+    return self.adjancency.get(name, {}).get(direction, '')
+
+  def yieldPaths(
+      self,
+      name: str,
+      direction: str,
+      init: List[str],
+  ) -> Iterator[List[str]]:
+    """Yield connections from `name` on `direction` starting from `init`."""
+    neighbors = init[:]
+    while True:
+      name = self.getNeighborOf(name, direction)
+      if not name:
+        break
+      neighbors.append(name)
+      yield neighbors[:]
+
+  def yieldVerticalPaths(
+      self,
+      name: str,
+      init: List[str],
+  ) -> Iterator[List[str]]:
+    yield from self.yieldPaths(name, 'up', init)
+    yield from self.yieldPaths(name, 'down', init)
+
+  def getTopologyOf(self, slot: Slot) -> Dict[str, Union[str, List[str]]]:
+    paths = []
+    paths.extend(self.yieldVerticalPaths(slot.pblock_name, []))
+    for direction in 'left', 'right':
+      for path in self.yieldPaths(slot.pblock_name, direction, []):
+        paths.append(path)
+        paths.extend(self.yieldVerticalPaths(path[-1], path[:]))
+
+    topology = {p[-1]: p[:1] for p in paths}
+    topology['tcl'] = slot.pblock_tcl
+    return topology
