@@ -241,6 +241,6 @@ class Topology:
         paths.append(path)
         paths.extend(self.yieldVerticalPaths(path[-1], path[:]))
 
-    topology = {p[-1]: p[:1] for p in paths}
+    topology = {p[-1]: p[1:] for p in paths}
     topology['tcl'] = slot.pblock_tcl
     return topology
