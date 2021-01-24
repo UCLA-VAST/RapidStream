@@ -4,7 +4,7 @@ import json
 from collections import defaultdict
 
 class CreateResultJson:
-  def __init__(self, floorplan, wrapper_creater, path_planner, board, hls_prj_manager, slot_manager):
+  def __init__(self, floorplan, wrapper_creater, path_planner, board, hls_prj_manager, slot_manager, top_rtl_parser):
     self.floorplan = floorplan
     self.s2v = floorplan.getSlotToVertices()
     self.s2e = floorplan.getSlotToEdges()
@@ -13,6 +13,7 @@ class CreateResultJson:
     self.board = board
     self.hls_prj_manager = hls_prj_manager
     self.slot_manager = slot_manager
+    self.top_rtl_parser = top_rtl_parser
 
   def __getNeighborSection(self):
     neighbors = defaultdict(dict)
@@ -21,6 +22,44 @@ class CreateResultJson:
         neighbor_slots = self.slot_manager.getNeighborSlots(slot, dir)
         neighbors[slot.getRTLModuleName()][dir] = [s.getRTLModuleName() for s in neighbor_slots]
     return neighbors
+
+  def __getOppositeDirection(self, dir):
+    if dir == 'UP':
+      return 'DOWN'
+    elif dir == 'DOWN':
+      return 'UP'
+    elif dir == 'LEFT':
+      return 'RIGHT'
+    elif dir == 'RIGHT':
+      return 'LEFT'
+    else:
+      assert False, f'inccorect direction {dir}'
+
+  # collect the shared anchors with immediate neighbors in each direction
+  def __getSharedAnchorSection(self, neighbors, path_planning_wire):
+    shared_anchors = defaultdict(dict)
+    for slot_name in neighbors.keys():
+      for dir in ['UP', 'DOWN', 'LEFT', 'RIGHT']:
+        neighbor_slots = neighbors[slot_name][dir]
+        reverse_dir = self.__getOppositeDirection(dir)
+
+        wires_out_from_this_slot = path_planning_wire[slot_name][f'{dir}_OUT']
+        wires_into_neighbor_slot = []
+        for neighbor_slot in neighbor_slots:
+          wires_into_neighbor_slot.extend(path_planning_wire[neighbor_slot][f'{reverse_dir}_IN'])
+
+        wires_into_this_slot = path_planning_wire[slot_name][f'{dir}_IN']
+        wires_out_from_neighbor_slot = []
+        for neighbor_slot in neighbor_slots:
+          wires_out_from_neighbor_slot.extend(path_planning_wire[neighbor_slot][f'{reverse_dir}_OUT'])
+
+        shared_anchors_outbound = [anchor for anchor in wires_out_from_this_slot if anchor in wires_into_neighbor_slot]        
+        shared_anchors_inbound = [anchor for anchor in wires_into_this_slot if anchor in wires_out_from_neighbor_slot]
+
+        shared_anchors[slot_name][f'{dir}_IN'] = {anchor : self.top_rtl_parser.getIntegerWidthOfRegOrWire(anchor) for anchor in shared_anchors_inbound}
+        shared_anchors[slot_name][f'{dir}_OUT'] = {anchor : self.top_rtl_parser.getIntegerWidthOfRegOrWire(anchor) for anchor in shared_anchors_outbound}
+    
+    return shared_anchors
 
   def __getSlotWrapperRTLSection(self):
     slot_to_rtl = {}
@@ -46,6 +85,7 @@ class CreateResultJson:
     
     result['Utilization'] = self.floorplan.getUtilization()
     result['Neighbors'] = self.__getNeighborSection()
+    result['SharedAnchors'] = self.__getSharedAnchorSection(result['Neighbors'], result['PathPlanningWire'])
 
     f = open(file, 'w')
     f.write(json.dumps(result, indent=2))

@@ -40,7 +40,14 @@ class Manager:
 
     path_planner = GlobalRouting(floorplan, top_rtl_parser)
 
-    json_creater = CreateResultJson(floorplan, wrapper_creater, path_planner, self.board, hls_prj_manager, slot_manager)
+    json_creater = CreateResultJson(
+                    floorplan, 
+                    wrapper_creater, 
+                    path_planner, 
+                    self.board, 
+                    hls_prj_manager, 
+                    slot_manager, 
+                    top_rtl_parser)
     json_creater.createResultJson()
 
   def basicSetup(self):
