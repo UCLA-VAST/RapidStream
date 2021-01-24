@@ -20,6 +20,7 @@ class Floorplanner:
       slot_manager : SlotManager,
       total_usage : dict, 
       board=DeviceU250, 
+      user_max_usage_ratio = 0.7,
       max_search_time=600, 
       grouping_constrants=[]):
     self.board = board
@@ -33,7 +34,7 @@ class Floorplanner:
     self.v2s = {}
     self.s2e = defaultdict(list)
 
-    self.max_usage_ratio = self.__getResourceUsageLimit()
+    self.max_usage_ratio = self.__getResourceUsageLimit(user_max_usage_ratio)
 
     self.__checker()
 
@@ -42,13 +43,12 @@ class Floorplanner:
       for v in v_group:
         assert v in self.graph.getAllVertices(), f'{v.name} is not a valid RTL module'
 
-  def __getResourceUsageLimit(self):
+  def __getResourceUsageLimit(self, user_max_usage_ratio):
     total_avail = self.board.TOTAL_AREA
 
-    ratio = 0.7
     for item in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
       usage = self.total_usage[item] / total_avail[item] + 0.05
-      ratio = max(usage, ratio)
+      ratio = max(usage, user_max_usage_ratio)
 
     logging.info(f'Maximum resource usage ratio set as: {ratio}')
     return ratio

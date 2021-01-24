@@ -28,7 +28,7 @@ class CreateResultJson:
       slot_to_rtl[slot.getRTLModuleName()] = self.wrapper_creater.createSlotWrapper(slot)
     return slot_to_rtl
 
-  def createResultJson(self, file = 'FE_result.json'):
+  def createResultJson(self, file = 'front_end_result.json'):
     result = {}
     result['CR_NUM_Y'] = self.board.CR_NUM_VERTICAL
     result['CR_NUM_X'] = self.board.CR_NUM_HORIZONTAL
