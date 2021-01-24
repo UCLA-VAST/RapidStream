@@ -115,20 +115,27 @@ def createPBlockScript(hub, slot_name, output_path='.'):
     tcl.append(f'  set_property EXCLUDE_PLACEMENT true [get_pblocks {pblock_name}] ')
     tcl.append(f'endgroup')
 
-    tcl.append(f'add_cells_to_pblock [get_pblocks {pblock_name}] [get_cells -regexp {{')
     if dir == 'BODY':
+      tcl.append(f'add_cells_to_pblock [get_pblocks {pblock_name}] [get_cells -regexp {{')
       tcl.append(f'  CR_X{DL_x}Y{DL_y}_To_CR_X{UR_x}Y{UR_y}_U0')
+      tcl.append(f'}}] -clear_locs ')
+    
     else:
-      
       pblock_wires = []
       if f'{dir}_IN' in slot_wires:
         pblock_wires.extend(slot_wires[f'{dir}_IN'])
       if f'{dir}_OUT' in slot_wires:
         pblock_wires.extend(slot_wires[f'{dir}_OUT'])
-
-      for wire in pblock_wires:
-        tcl.append(f'  {wire}.*')
-    tcl.append(f'}}] -clear_locs ')
+      
+      if not pblock_wires:
+        logging.warning(f'detect empty pblock {pblock_name}')
+        tcl.append(f'  delete_pblock [get_pblocks {pblock_name}]')
+      else:
+        tcl.append(f'add_cells_to_pblock [get_pblocks {pblock_name}] [get_cells -regexp {{')
+        for wire in pblock_wires:
+          tcl.append(f'  {wire}.*')
+        tcl.append(f'}}] -clear_locs ')
+    
 
   # constrain body
   addPblock('BODY', DL_x, DL_y, UR_x, UR_y)
