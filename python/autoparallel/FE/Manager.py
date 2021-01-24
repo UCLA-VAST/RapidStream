@@ -24,6 +24,7 @@ class Manager:
     assert os.path.isfile(config_file_path)
     self.config = json.loads(open(config_file_path, 'r').read())
     self.basicSetup()
+    self.loggingSetup()
 
     hls_prj_manager = HLSProjectManager(self.top_rtl_name, self.hls_prj_path, self.hls_solution_name)
     top_rtl_parser = TopRTLParser(hls_prj_manager.getTopRTLPath())
@@ -58,10 +59,22 @@ class Manager:
     self.hls_prj_path = self.config["HLSProjectPath"]
     self.hls_solution_name = self.config["HLSSolutionName"]
 
-    level = logging.getLevelName('INFO')
-    if 'LoggingLevel' in self.config:
-      level = logging.getLevelName(self.config['LoggingLevel'])
-    logging.basicConfig(filename='auto-parallel.log', filemode='w', level=level, format="[%(levelname)s: %(funcName)25s() ] %(message)s")
+  def loggingSetup(self):
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("[%(levelname)s: %(funcName)25s() ] %(message)s")
+    
+    debug_file_handler = logging.FileHandler(filename='autoparallel-debug.log')
+    debug_file_handler.setLevel(logging.DEBUG)
+    info_file_handler = logging.FileHandler(filename='autoparallel-info.log')
+    info_file_handler.setLevel(logging.INFO)
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.INFO)
+
+    handlers = [debug_file_handler, info_file_handler, stdout_handler]
+    for handler in handlers:
+      handler.setFormatter(formatter)
+      root.addHandler(handler)
 
   def parseUserConstraints(self, graph, slot_manager):
     user_constraint_s2v = defaultdict(list)
