@@ -266,6 +266,15 @@ class TopRTLParser:
     assert ' ' not in width, 'Spaces in width express will result in error in getSlotToIO()'
     return width
 
+  def getIntegerWidthOfRegOrWire(self, name):
+    width = self.reg_wire_name_to_width[name]
+    if not width:
+      return 1
+    else:
+      match = re.search(r'\[(\d+):',width).group(1)
+      assert match
+      return int(match)+1
+
   def getRTLOfInst(self, inst_name : str):
     return self.inst_name_to_rtl[inst_name]
 
