@@ -155,7 +155,7 @@ def __constraintBoundary(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y, exclude_sh
     if f'{dir}_OUT' in slot_wires:
       pblock_wires += slot_wires[f'{dir}_OUT']
     
-    assert pblock_wires
+    assert pblock_wires # empty boundary should not appear in the json 
     return pblock_wires
 
   # exclude wires to immediate neighbors
@@ -168,11 +168,13 @@ def __constraintBoundary(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y, exclude_sh
       pblock_wires += [wire for wire in slot_wires[f'{dir}_OUT'] \
         if wire not in shared_anchors[f'{dir}_OUT'] ]
 
-    assert pblock_wires    
     return pblock_wires    
 
   if exclude_shared_anchor:
     pblock_wires = getPblockWiresWithoutSharedAnchors(dir)
+    if not pblock_wires:
+      logging.warning(f'All wires are shared anchors of {slot_name} in boundary {dir}')
+      return []
   else:
     pblock_wires = getPblockWires(dir)
 
