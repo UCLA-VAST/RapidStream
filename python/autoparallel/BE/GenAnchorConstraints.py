@@ -91,70 +91,103 @@ def createAnchorPlacementExtractScript(hub, slot_name, output_path):
 
   open(f'{output_path}/{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
 
-def createPBlockScript(hub, slot_name, output_path='.'):
+def __generateConstraints(pblock_name, pblock_def, targets, comments = []):
   tcl = []
+  tcl += comments
+  tcl.append(f'\nstartgroup ')
+  tcl.append(f'  create_pblock {pblock_name}')
+  tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -add {pblock_def}')
+  tcl.append(f'  set_property CONTAIN_ROUTING true [get_pblocks {pblock_name}] ')
+  tcl.append(f'  set_property EXCLUDE_PLACEMENT true [get_pblocks {pblock_name}] ')
+  tcl.append(f'endgroup')
 
+  tcl.append(f'add_cells_to_pblock [get_pblocks {pblock_name}] [get_cells -regexp {{')
+  for target in targets:
+    tcl.append(f'  {target}')
+  tcl.append(f'}}] -clear_locs ')
+
+  return tcl
+
+def __constrainSlotBody(hub, slot_name, output_path = '.'):
+  pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
+  pblock_name = slot_name
+  targets = [f'{slot_name}_U0']
+  comments = ['# Slot Body']
+  return __generateConstraints(pblock_name, pblock_def, targets, comments)
+
+def __constrainSlotWires(hub, slot_name, output_path = '.', exclude_shared_anchor = False):
   assert re.search(r'CR_X\d+Y\d+_To_CR_X\d+Y\d+', slot_name), f'unexpected format of the slot name {slot_name}'
   DL_x, DL_y, UR_x, UR_y = [int(val) for val in re.findall(r'[XY](\d+)', slot_name)] # DownLeft & UpRight
 
-  slot_wires = hub['PathPlanningWire'][slot_name]
-
-  def addPblock(dir, DL_x, DL_y, UR_x, UR_y):
-    pblock_def = f'CLOCKREGION_X{DL_x}Y{DL_y}:CLOCKREGION_X{UR_x}Y{UR_y}'
-    pblock_name = pblock_def.replace(':', '_To_')
-
-    # no wire crossing in a certain boundary segment
-    if dir != 'BODY' and f'{dir}_IN' not in slot_wires and f'{dir}_OUT' not in slot_wires:
-      return
-
-    tcl.append(f'\n# {dir} ')
-    tcl.append(f'startgroup ')
-    tcl.append(f'  create_pblock {pblock_name}')
-    tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -add {pblock_def}')
-    tcl.append(f'  set_property CONTAIN_ROUTING true [get_pblocks {pblock_name}] ')
-    tcl.append(f'  set_property EXCLUDE_PLACEMENT true [get_pblocks {pblock_name}] ')
-    tcl.append(f'endgroup')
-
-    if dir == 'BODY':
-      tcl.append(f'add_cells_to_pblock [get_pblocks {pblock_name}] [get_cells -regexp {{')
-      tcl.append(f'  CR_X{DL_x}Y{DL_y}_To_CR_X{UR_x}Y{UR_y}_U0')
-      tcl.append(f'}}] -clear_locs ')
+  tcl = []
     
-    else:
-      pblock_wires = []
-      if f'{dir}_IN' in slot_wires:
-        pblock_wires.extend(slot_wires[f'{dir}_IN'])
-      if f'{dir}_OUT' in slot_wires:
-        pblock_wires.extend(slot_wires[f'{dir}_OUT'])
-      
-      if not pblock_wires:
-        logging.warning(f'detect empty pblock {pblock_name}')
-        tcl.append(f'  delete_pblock [get_pblocks {pblock_name}]')
-      else:
-        tcl.append(f'add_cells_to_pblock [get_pblocks {pblock_name}] [get_cells -regexp {{')
-        for wire in pblock_wires:
-          tcl.append(f'  {wire}.*')
-        tcl.append(f'}}] -clear_locs ')
-    
-
-  # constrain body
-  addPblock('BODY', DL_x, DL_y, UR_x, UR_y)
-
   # constrain up
   if UR_y < int(hub['CR_NUM_Y']):
-    addPblock('UP', DL_x, UR_y+1, UR_x, UR_y+1)
+    tcl += __constraintBoundary(hub, slot_name, 'UP', DL_x, UR_y+1, UR_x, UR_y+1, exclude_shared_anchor)
 
   # down
   if DL_y > 0:
-    addPblock('DOWN', DL_x, DL_y-1, UR_x, DL_y-1)
+    tcl += __constraintBoundary(hub, slot_name, 'DOWN', DL_x, DL_y-1, UR_x, DL_y-1, exclude_shared_anchor)
     
   # right
   if UR_x < int(hub['CR_NUM_X']):
-    addPblock('RIGHT', UR_x+1, DL_y, UR_x+1, UR_y)
+    tcl += __constraintBoundary(hub, slot_name, 'RIGHT', UR_x+1, DL_y, UR_x+1, UR_y, exclude_shared_anchor)
 
   # left
   if DL_x > 0:
-    addPblock('LEFT', DL_x-1, DL_y, DL_x-1, UR_y)
+    tcl += __constraintBoundary(hub, slot_name, 'LEFT', DL_x-1, DL_y, DL_x-1, UR_y, exclude_shared_anchor)
+
+  return tcl
+  
+def __constraintBoundary(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y, exclude_shared_anchor):
+  slot_wires = hub['PathPlanningWire'][slot_name]
+  # no wire crossing in a certain boundary segment
+  if f'{dir}_IN' not in slot_wires and f'{dir}_OUT' not in slot_wires:
+    return []
+
+  shared_anchors = hub['SharedAnchors'][slot_name]
+
+  # all interface wires
+  def getPblockWires(dir):
+    pblock_wires = []
+    if f'{dir}_IN' in slot_wires:
+      pblock_wires += slot_wires[f'{dir}_IN']
+    if f'{dir}_OUT' in slot_wires:
+      pblock_wires += slot_wires[f'{dir}_OUT']
+    
+    assert pblock_wires
+    return pblock_wires
+
+  # exclude wires to immediate neighbors
+  def getPblockWiresWithoutSharedAnchors(dir):
+    pblock_wires = []
+    if f'{dir}_IN' in slot_wires:
+      pblock_wires += [wire for wire in slot_wires[f'{dir}_IN'] \
+        if wire not in shared_anchors[f'{dir}_IN'] ]
+    if f'{dir}_OUT' in slot_wires:
+      pblock_wires += [wire for wire in slot_wires[f'{dir}_OUT'] \
+        if wire not in shared_anchors[f'{dir}_OUT'] ]
+
+    assert pblock_wires    
+    return pblock_wires    
+
+  if exclude_shared_anchor:
+    pblock_wires = getPblockWiresWithoutSharedAnchors(dir)
+  else:
+    pblock_wires = getPblockWires(dir)
+
+  # generate the script
+  pblock_def = f'CLOCKREGION_X{DL_x}Y{DL_y}:CLOCKREGION_X{UR_x}Y{UR_y}'
+  pblock_name = pblock_def.replace(':', '_To_')
+  targets = [f'{wire}.*' for wire in pblock_wires]
+  comments = [f'\n# {dir} ']
+  return __generateConstraints(pblock_name, pblock_def, targets, comments)
+
+def createPBlockScript(hub, slot_name, output_path='.'):
+  tcl = []
+
+  tcl += __constrainSlotBody(hub, slot_name, output_path)
+  tcl += __constrainSlotWires(hub, slot_name, output_path)
 
   open(f'{output_path}/{slot_name}_floorplan.tcl', 'w').write('\n'.join(tcl))
 

@@ -2,13 +2,14 @@
 import logging
 import json
 import os
-import shutil
+import sys
 from autoparallel.BE.CreateAnchorWrapper import *
 from autoparallel.BE.GenAnchorConstraints import *
 
 if __name__ == '__main__':
-  target_dir = '/home/einsx7/auto-parallel/test/parallel_run'
-  fe_result_path = '/home/einsx7/auto-parallel/src/FE/FE_result.json'
+  assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
+  target_dir = sys.argv[2]
+  fe_result_path = sys.argv[1]
 
   if os.path.isdir(target_dir):
     raise f'target directory already exists: {target_dir}'
