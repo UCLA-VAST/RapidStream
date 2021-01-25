@@ -4,66 +4,6 @@ import json
 import re
 from autoparallel.BE import CreateAnchorWrapper
 
-# generate the Vivado script for each slot 
-def createVivadoRunScript(
-    fpga_part_name, 
-    orig_rtl_path, 
-    anchor_wrapper_path,
-    slot_name,
-    output_path='.'):
-  script = []
-
-  script.append(f'set_part {fpga_part_name}')
-
-  # read in the original RTLs by HLS
-  script.append(f'set ORIG_RTL_PATH "{orig_rtl_path}"') 
-  script.append(r'set orig_rtl_files [glob ${ORIG_RTL_PATH}/*.v]') 
-  script.append(r'read_verilog ${orig_rtl_files}') 
-
-  # instantiate IPs used in the RTL
-  script.append(r'set orig_ip_files [glob ${ORIG_RTL_PATH}/*.tcl]') 
-  script.append(r'foreach ip_tcl ${orig_ip_files} { source ${ip_tcl} }') 
-
-  # read in the new wrappers
-  script.append(f'read_verilog "{anchor_wrapper_path}"')
-
-  # clock xdc
-  script.append(f'read_xdc "{output_path}/{slot_name}_clk.xdc"')
-
-  # synth
-  script.append(f'synth_design -top "{slot_name}_anchored" -part {fpga_part_name} -mode out_of_context')
-  script.append(f'write_checkpoint ./{slot_name}_synth.dcp')
-  script.append(f'write_edif ./{slot_name}_synth.edf')
-  
-  # add floorplanning constraints
-  script.append(f'source "{output_path}/{slot_name}_floorplan.tcl"')
-  
-  # placement
-  script.append(f'opt_design')
-  script.append(f'place_design')
-  script.append(f'phys_opt_design')
-  script.append(f'write_checkpoint ./{slot_name}_placed.dcp')
-  script.append(f'write_edif ./{slot_name}_placed.edf')
-  script.append(f'source "{output_path}/{slot_name}_print_anchor_placement.tcl"')
-
-  # routing
-  script.append(f'route_design')
-  script.append(f'phys_opt_design')
-  script.append(f'write_checkpoint ./{slot_name}_routed.dcp')
-  script.append(f'write_edif ./{slot_name}_routed.edf')
-
-  open(f'{output_path}/{slot_name}_run.tcl', 'w').write('\n'.join(script))
-
-def createClockXDC(
-    slot_name, 
-    output_path='.',
-    target_period=3.0, 
-    bufg='BUFGCE_X0Y194'):
-  xdc = []
-  xdc.append(f'create_clock -name ap_clk -period {target_period} [get_ports ap_clk]')
-  xdc.append(f'set_property HD.CLK_SRC {bufg} [get_ports ap_clk]')
-  open(f'{output_path}/{slot_name}_clk.xdc', 'w').write('\n'.join(xdc))
-
 def createAnchorPlacementExtractScript(hub, slot_name, output_path):
   tcl = []
   tcl.append(f'set fileId [open {slot_name}_anchor_placement.json "w"]')
@@ -186,19 +126,12 @@ def __constraintBoundary(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y, exclude_sh
   return __generateConstraints(pblock_name, pblock_def, targets, comments)
 
 def createPBlockScript(hub, slot_name, output_path='.'):
-  tcl = []
+  tcl = __constrainSlotBody(hub, slot_name, output_path)
+  tcl_free_run = tcl + __constrainSlotWires(hub, slot_name, output_path, exclude_shared_anchor=False)
+  tcl_anchored_run = tcl + __constrainSlotWires(hub, slot_name, output_path, exclude_shared_anchor=True)
 
-  tcl += __constrainSlotBody(hub, slot_name, output_path)
-  tcl += __constrainSlotWires(hub, slot_name, output_path)
-
-  open(f'{output_path}/{slot_name}_floorplan.tcl', 'w').write('\n'.join(tcl))
-
-def createGNUParallelScript(hub, target_dir):
-  gnu_parallel = []
-  for slot_name in hub['SlotIO'].keys():
-    gnu_parallel.append(f'cd {target_dir}/{slot_name} && vivado -mode batch -source {slot_name}_run.tcl')
-  
-  open(f'{target_dir}/parallel.txt', 'w').write('\n'.join(gnu_parallel))
+  open(f'{output_path}/{slot_name}_floorplan_free_run.tcl', 'w').write('\n'.join(tcl_free_run))
+  open(f'{output_path}/{slot_name}_floorplan_anchored_run.tcl', 'w').write('\n'.join(tcl_anchored_run))
 
 if __name__ == '__main__':
   hub = json.loads(open('BE_pass1_anchored.json', 'r').read())
