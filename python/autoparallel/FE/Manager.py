@@ -37,7 +37,7 @@ class Manager:
     floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager)
 
     wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan)
-    wrapper_creater.createSlotWrapperForAll()
+    # wrapper_creater.createSlotWrapperForAll()
 
     path_planner = GlobalRouting(floorplan, top_rtl_parser)
 
@@ -102,6 +102,8 @@ class Manager:
         floorplan.naiveFineGrainedFloorplan()
       elif choice == 'IterativeDivisionToHalfSLR':
         floorplan.coarseGrainedFloorplan()
+      elif choice == 'IterativeDivisionToTwoCRs':
+        floorplan.naiveTwoCRGranularityFloorplan()
       else:
         assert False, f'unsupported floorplan method: {choice}'
     else:
