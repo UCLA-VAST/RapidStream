@@ -34,7 +34,7 @@ def createFreeRunScript(
   script.append(f'write_edif {output_path}/{slot_name}_synth.edf')
   
   # add floorplanning constraints
-  script.append(f'source "{output_path}/{slot_name}_floorplan_free_run.tcl"')
+  script.append(f'source "{output_path}/{slot_name}_floorplan_placement_free_run.tcl"')
   
   # placement
   script.append(f'opt_design')
@@ -45,6 +45,7 @@ def createFreeRunScript(
   script.append(f'source "{output_path}/{slot_name}_print_anchor_placement.tcl"')
 
   # routing
+  script.append(f'source "{output_path}/{slot_name}_floorplan_routing_free_run.tcl"')
   script.append(f'route_design')
   script.append(f'phys_opt_design')
   script.append(f'write_checkpoint {output_path}/{slot_name}_routed_free_run.dcp')
@@ -64,7 +65,7 @@ def createAnchoredRunScript(
   script.append(f'open_checkpoint {output_path}/{slot_name}_synth.dcp')
   
   # add floorplanning constraints for non-neighbor anchors
-  script.append(f'source "{output_path}/{slot_name}_floorplan_anchored_run.tcl"')
+  script.append(f'source "{output_path}/{slot_name}_floorplan_placement_anchored_run.tcl"')
 
   script.append(f'opt_design')
 
@@ -77,6 +78,7 @@ def createAnchoredRunScript(
   script.append(f'write_edif {output_path}/{slot_name}_placed_anchored_run.edf')
 
   # routing
+  script.append(f'source "{output_path}/{slot_name}_floorplan_routing_anchored_run.tcl"')
   script.append(f'route_design')
   script.append(f'phys_opt_design')
   script.append(f'write_checkpoint {output_path}/{slot_name}_routed_anchored_run.dcp')
