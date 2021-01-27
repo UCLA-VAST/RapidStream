@@ -1,5 +1,5 @@
 from collections import defaultdict
-import copy
+import re
 
 # TODO: calibrate resource when DDRs are enabled
 class DeviceU250:
@@ -31,6 +31,8 @@ class DeviceU250:
   SLR_AREA_DDR['LUT'][1] = 122800
 
   LAGUNA_PER_CR = 480
+  
+  @staticmethod
   def getLagunaPositionY():
     return [3, 4, 7, 8, 11, 12]
 
@@ -102,6 +104,94 @@ class DeviceU250:
   TOTAL_AREA['LUT'] = 1728000
   TOTAL_AREA['URAM'] = 1280
   
+  @staticmethod
+  def shrinkClockRegionPblock(pblock_def : str) :
+    assert re.search(r'CLOCKREGION_X\d+Y\d+:CLOCKREGION_X\d+Y\d+', pblock_def), f'unexpected format of the pblock {pblock_def}'
+    DL_x, DL_y, UR_x, UR_y = [int(val) for val in re.findall(r'[XY](\d+)', pblock_def)] # DownLeft & UpRight
+
+    assert DL_x+1 == UR_x and DL_y+1 == UR_y, f'currently only supports translation of 4-CR pblocks'
+    
+    SLICE_height = 120
+    DSP48E2_height = 48
+    LAGUNA_height = 120
+    RAMB18_height = 48
+    RAMB36_height = 24
+    URAM288_height = 32
+    
+    pblock_DL_y = int(DL_y/2)
+    pblock_UR_y = int(UR_y/2)
+
+    if DL_x == 0:
+      return f'''
+        SLICE_X2Y{4 + pblock_DL_y * SLICE_height}:SLICE_X56Y{115 + pblock_UR_y * SLICE_height} 
+        DSP48E2_X0Y{2 + pblock_DL_y * DSP48E2_height}:DSP48E2_X7Y{45 + pblock_UR_y * DSP48E2_height} 
+        LAGUNA_X0Y{8 + pblock_DL_y * LAGUNA_height}:LAGUNA_X7Y{117 + pblock_UR_y * LAGUNA_height} 
+        RAMB18_X0Y{2 + pblock_DL_y * RAMB18_height}:RAMB18_X3Y{45 + pblock_UR_y * RAMB18_height} 
+        RAMB36_X0Y{1 + pblock_DL_y * RAMB36_height}:RAMB36_X3Y{22 + pblock_UR_y * RAMB36_height} 
+        URAM288_X0Y{4 + pblock_DL_y * URAM288_height}:URAM288_X0Y{27 + pblock_UR_y * URAM288_height} '''
+    elif DL_x == 2:
+      return f'''
+        SLICE_X59Y{4 + pblock_DL_y * SLICE_height}:SLICE_X114Y{115 + pblock_UR_y * SLICE_height} 
+        DSP48E2_X8Y{2 + pblock_DL_y * DSP48E2_height}:DSP48E2_X15Y{45 + pblock_UR_y * DSP48E2_height} 
+        LAGUNA_X8Y{8 + pblock_DL_y * LAGUNA_height}:LAGUNA_X15Y{117 + pblock_UR_y * LAGUNA_height} 
+        RAMB18_X4Y{2 + pblock_DL_y * RAMB18_height}:RAMB18_X7Y{45 + pblock_UR_y * RAMB18_height} 
+        RAMB36_X4Y{1 + pblock_DL_y * RAMB36_height}:RAMB36_X7Y{22 + pblock_UR_y * RAMB36_height} 
+        URAM288_X1Y{4 + pblock_DL_y * URAM288_height}:URAM288_X1Y{27 + pblock_UR_y * URAM288_height}
+      '''
+    elif DL_x == 4:
+      return f'''
+        SLICE_X119Y{4 + pblock_DL_y * SLICE_height}:SLICE_X175Y{115 + pblock_UR_y * SLICE_height} 
+        DSP48E2_X16Y{2 + pblock_DL_y * DSP48E2_height}:DSP48E2_X24Y{45 + pblock_UR_y * DSP48E2_height} 
+        LAGUNA_X16Y{8 + pblock_DL_y * LAGUNA_height}:LAGUNA_X23Y{117 + pblock_UR_y * LAGUNA_height} 
+        RAMB18_X8Y{2 + pblock_DL_y * RAMB18_height}:RAMB18_X10Y{45 + pblock_UR_y * RAMB18_height} 
+        RAMB36_X8Y{1 + pblock_DL_y * RAMB36_height}:RAMB36_X10Y{22 + pblock_UR_y * RAMB36_height} 
+        URAM288_X2Y{4 + pblock_DL_y * URAM288_height}:URAM288_X3Y{27 + pblock_UR_y * URAM288_height}
+      '''
+    elif DL_x == 6:
+      return f'''
+        SLICE_X178Y{4 + pblock_DL_y * SLICE_height}:SLICE_X230Y{115 + pblock_UR_y * SLICE_height} 
+        DSP48E2_X25Y{2 + pblock_DL_y * DSP48E2_height}:DSP48E2_X31Y{45 + pblock_UR_y * DSP48E2_height} 
+        LAGUNA_X24Y{8 + pblock_DL_y * LAGUNA_height}:LAGUNA_X31Y{117 + pblock_UR_y * LAGUNA_height} 
+        RAMB18_X11Y{2 + pblock_DL_y * RAMB18_height}:RAMB18_X13Y{45 + pblock_UR_y * RAMB18_height} 
+        RAMB36_X11Y{1 + pblock_DL_y * RAMB36_height}:RAMB36_X13Y{22 + pblock_UR_y * RAMB36_height} 
+        URAM288_X4Y{4 + pblock_DL_y * URAM288_height}:URAM288_X4Y{27 + pblock_UR_y * URAM288_height}      
+      '''
+
+  """
+    resize_pblock pblock_1 -add {
+      SLICE_X2Y4:SLICE_X56Y115 
+      DSP48E2_X0Y2:DSP48E2_X7Y45 
+      LAGUNA_X0Y8:LAGUNA_X7Y119 
+      RAMB18_X0Y2:RAMB18_X3Y45 
+      RAMB36_X0Y1:RAMB36_X3Y22 
+      URAM288_X0Y4:URAM288_X0Y27
+    } 
+    resize_pblock pblock_2 -add {
+      SLICE_X59Y4:SLICE_X114Y115 
+      DSP48E2_X8Y2:DSP48E2_X15Y45 
+      LAGUNA_X8Y8:LAGUNA_X15Y119 
+      RAMB18_X4Y2:RAMB18_X7Y45 
+      RAMB36_X4Y1:RAMB36_X7Y22 
+      URAM288_X1Y4:URAM288_X1Y27
+    }
+    resize_pblock pblock_3 -add {
+      SLICE_X119Y4:SLICE_X175Y115 
+      DSP48E2_X16Y2:DSP48E2_X24Y45 
+      LAGUNA_X16Y8:LAGUNA_X23Y119 
+      RAMB18_X8Y2:RAMB18_X10Y45 
+      RAMB36_X8Y1:RAMB36_X10Y22 
+      URAM288_X2Y4:URAM288_X3Y27
+    } 
+    resize_pblock pblock_4 -add {
+      SLICE_X178Y4:SLICE_X230Y115 
+      DSP48E2_X25Y2:DSP48E2_X31Y45 
+      LAGUNA_X24Y8:LAGUNA_X31Y119 
+      RAMB18_X11Y2:RAMB18_X13Y45 
+      RAMB36_X11Y1:RAMB36_X13Y22 
+      URAM288_X4Y4:URAM288_X4Y27
+    }
+  """
+
 class DeviceU280:
   FPGA_PART_NAME = 'xcu280-fsvh2892-2L-e'
 
@@ -119,6 +209,8 @@ class DeviceU280:
   SLR_AREA['LUT'][1] = 165120  
 
   LAGUNA_PER_CR = 480
+  
+  @staticmethod
   def getLagunaPositionY():
     return [3, 4, 7, 8, 11, 12]
 

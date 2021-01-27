@@ -3,6 +3,7 @@ import logging
 import json
 import re
 from autoparallel.BE import CreateAnchorWrapper
+from autoparallel.FE import DeviceManager
 
 def createAnchorPlacementExtractScript(hub, slot_name, output_path):
   tcl = []
@@ -31,14 +32,14 @@ def createAnchorPlacementExtractScript(hub, slot_name, output_path):
 
   open(f'{output_path}/{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
 
-def __generateConstraints(pblock_name, pblock_def, targets, comments = []):
+def __generateConstraints(pblock_name, pblock_def, targets, comments = [], contain_routing = 1):
   tcl = []
   tcl += comments
   tcl.append(f'\nstartgroup ')
   tcl.append(f'  create_pblock {pblock_name}')
-  tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -add {pblock_def}')
-  tcl.append(f'  set_property CONTAIN_ROUTING true [get_pblocks {pblock_name}] ')
-  tcl.append(f'  set_property EXCLUDE_PLACEMENT true [get_pblocks {pblock_name}] ')
+  tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -add {{ {pblock_def} }}')
+  tcl.append(f'  set_property CONTAIN_ROUTING {contain_routing} [get_pblocks {pblock_name}] ')
+  tcl.append(f'  set_property EXCLUDE_PLACEMENT 1 [get_pblocks {pblock_name}] ')
   tcl.append(f'endgroup')
 
   tcl.append(f'add_cells_to_pblock [get_pblocks {pblock_name}] [get_cells -regexp {{')
@@ -48,11 +49,14 @@ def __generateConstraints(pblock_name, pblock_def, targets, comments = []):
 
   return tcl
 
-def __constrainSlotBody(hub, slot_name, output_path = '.'):
+def __constrainSlotBody(hub, slot_name, output_path = '.', step = 'ROUTE'):
   pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
   pblock_name = slot_name
   targets = [f'{slot_name}_U0']
   comments = ['# Slot Body']
+
+  if step == 'PLACE':
+    pblock_def = DeviceManager.DeviceU250.shrinkClockRegionPblock(pblock_def)
   return __generateConstraints(pblock_name, pblock_def, targets, comments)
 
 def __constrainSlotWires(hub, slot_name, output_path = '.', exclude_shared_anchor = False):
@@ -126,12 +130,30 @@ def __constraintBoundary(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y, exclude_sh
   return __generateConstraints(pblock_name, pblock_def, targets, comments)
 
 def createPBlockScript(hub, slot_name, output_path='.'):
-  tcl = __constrainSlotBody(hub, slot_name, output_path)
-  tcl_free_run = tcl + __constrainSlotWires(hub, slot_name, output_path, exclude_shared_anchor=False)
-  tcl_anchored_run = tcl + __constrainSlotWires(hub, slot_name, output_path, exclude_shared_anchor=True)
+  common = ['delete_pblock [get_pblocks *]'] # in case duplicated definition
 
-  open(f'{output_path}/{slot_name}_floorplan_free_run.tcl', 'w').write('\n'.join(tcl_free_run))
-  open(f'{output_path}/{slot_name}_floorplan_anchored_run.tcl', 'w').write('\n'.join(tcl_anchored_run))
+  constraint_body_place = __constrainSlotBody(hub, slot_name, output_path, 'PLACE')
+  constraint_body_route = __constrainSlotBody(hub, slot_name, output_path, 'ROUTE')
+
+  constrain_slot_free_run = __constrainSlotWires(hub, slot_name, output_path, exclude_shared_anchor=False)
+  constrain_slot_anchored_run = __constrainSlotWires(hub, slot_name, output_path, exclude_shared_anchor=True)
+
+  with open(f'{output_path}/{slot_name}_floorplan_placement_free_run.tcl', 'w') as fp1:
+    fp1.write('\n'.join(
+      common + constraint_body_place + constrain_slot_free_run))
+    fp1.close()
+  with open(f'{output_path}/{slot_name}_floorplan_placement_anchored_run.tcl', 'w') as fp2:
+    fp2.write('\n'.join(
+      common + constraint_body_place + constrain_slot_anchored_run))
+    fp2.close()
+  with open(f'{output_path}/{slot_name}_floorplan_routing_free_run.tcl', 'w') as fp3:
+    fp3.write('\n'.join(
+      common + constraint_body_route + constrain_slot_free_run))
+    fp3.close()
+  with open(f'{output_path}/{slot_name}_floorplan_routing_anchored_run.tcl', 'w') as fp4:
+    fp4.write('\n'.join(
+      common + constraint_body_route + constrain_slot_anchored_run))
+    fp4.close()
 
 if __name__ == '__main__':
   hub = json.loads(open('BE_pass1_anchored.json', 'r').read())
