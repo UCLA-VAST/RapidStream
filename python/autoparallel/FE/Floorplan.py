@@ -53,7 +53,7 @@ class Floorplanner:
     logging.info(f'Maximum resource usage ratio set as: {ratio}')
     return ratio
 
-  def __initCoarseSlotToEdges(self):
+  def __initSlotToEdges(self):
     for s, v_group in self.s2v.items():
       intra_edges, inter_edges = self.getIntraAndInterEdges(v_group)
       self.s2e[s] += intra_edges
@@ -217,7 +217,10 @@ class Floorplanner:
       for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
         used = sum([v.area[r] for v in v_group])
         avail = s.getArea()[r]
-        logging.info(f'[{r}]: {used} / {avail} = {used/avail}')
+        if avail:
+          logging.info(f'[{r}]: {used} / {avail} = {used/avail}')
+        else:
+          logging.info(f'[{r}]: {used} used, 0 exists')
       for v in v_group:
         logging.info(f'  Kernel: {v.name}')
       for e in self.s2e[s]:
@@ -263,7 +266,7 @@ class Floorplanner:
 
     self.s2v, self.v2s = self.__twoWayPartition(iter2_s2v, iter2_v2s, 'VERTICAL') # based on ddr ctrl in the middle
 
-    self.__initCoarseSlotToEdges()
+    self.__initSlotToEdges()
 
   def naiveFineGrainedFloorplan(self):
     init_s2v, init_v2s = self.__getInitialSlotToVerticesMapping()
@@ -277,7 +280,23 @@ class Floorplanner:
 
     self.s2v, self.v2s = self.__twoWayPartition(iter4_s2v, iter4_v2s, 'VERTICAL') # based on ddr ctrl in the middle
 
-    self.__initCoarseSlotToEdges()
+    self.__initSlotToEdges()
+
+  def naiveTwoCRGranularityFloorplan(self):
+    init_s2v, init_v2s = self.__getInitialSlotToVerticesMapping()
+    iter1_s2v, iter1_v2s = self.__twoWayPartition(init_s2v, init_v2s, 'HORIZONTAL') # based on die boundary
+
+    iter2_s2v, iter2_v2s = self.__twoWayPartition(iter1_s2v, iter1_v2s, 'HORIZONTAL') # based on die boundary
+
+    iter3_s2v, iter3_v2s = self.__twoWayPartition(iter2_s2v, iter2_v2s, 'HORIZONTAL') # based on die boundary
+
+    iter4_s2v, iter4_v2s = self.__twoWayPartition(iter3_s2v, iter3_v2s, 'VERTICAL') # based on die boundary
+
+    iter5_s2v, iter5_v2s = self.__twoWayPartition(iter4_s2v, iter4_v2s, 'VERTICAL') # based on die boundary
+
+    self.s2v, self.v2s = self.__twoWayPartition(iter5_s2v, iter5_v2s, 'VERTICAL') # based on ddr ctrl in the middle
+
+    self.__initSlotToEdges()    
 
   def getSlotToVertices(self):
     return self.s2v
