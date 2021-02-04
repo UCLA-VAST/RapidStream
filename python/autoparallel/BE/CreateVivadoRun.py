@@ -19,7 +19,7 @@ def createFreeRunScript(
   script.append(r'read_verilog ${orig_rtl_files}') 
 
   # instantiate IPs used in the RTL
-  script.append(r'set orig_ip_files [glob ${ORIG_RTL_PATH}/*.tcl]') 
+  script.append(r'set orig_ip_files [glob -nocomplain ${ORIG_RTL_PATH}/*.tcl]') 
   script.append(r'foreach ip_tcl ${orig_ip_files} { source ${ip_tcl} }') 
 
   # read in the new wrappers
@@ -40,16 +40,23 @@ def createFreeRunScript(
   script.append(f'opt_design')
   script.append(f'place_design -directive {placement_strategy}')
   script.append(f'phys_opt_design')
-  script.append(f'write_checkpoint {output_path}/{slot_name}_placed_free_run.dcp')
-  script.append(f'write_edif {output_path}/{slot_name}_placed_free_run.edf')
+
+  # write out results
+  script.append(f'exec mkdir {output_path}/{slot_name}_placed_free_run')
+  script.append(f'write_checkpoint {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp')
+  script.append(f'write_edif {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.edf')
+  
+  # extract anchor placement
   script.append(f'source "{output_path}/{slot_name}_print_anchor_placement.tcl"')
 
   # routing
   script.append(f'source "{output_path}/{slot_name}_floorplan_routing_free_run.tcl"')
   script.append(f'route_design')
   script.append(f'phys_opt_design')
-  script.append(f'write_checkpoint {output_path}/{slot_name}_routed_free_run.dcp')
-  script.append(f'write_edif {output_path}/{slot_name}_routed_free_run.edf')
+
+  script.append(f'exec mkdir {output_path}/{slot_name}_routed_free_run')
+  script.append(f'write_checkpoint {output_path}/{slot_name}_routed_free_run/{slot_name}_routed_free_run.dcp')
+  script.append(f'write_edif {output_path}/{slot_name}_routed_free_run/{slot_name}_routed_free_run.edf')
 
   open(f'{output_path}/{slot_name}_free_run.tcl', 'w').write('\n'.join(script))
 
@@ -72,17 +79,20 @@ def createAnchoredRunScript(
   # place shared anchors between neighbors
   script.append(f'source "{output_path}/{slot_name}_place_anchors.tcl"')
   script.append(f'place_design -directive {placement_strategy}')
-
   script.append(f'phys_opt_design')
-  script.append(f'write_checkpoint {output_path}/{slot_name}_placed_anchored_run.dcp')
-  script.append(f'write_edif {output_path}/{slot_name}_placed_anchored_run.edf')
+
+  script.append(f'exec mkdir {output_path}/{slot_name}_placed_anchored_run')
+  script.append(f'write_checkpoint {output_path}/{slot_name}_placed_anchored_run/{slot_name}_placed_anchored_run.dcp')
+  script.append(f'write_edif {output_path}/{slot_name}_placed_anchored_run/{slot_name}_placed_anchored_run.edf')
 
   # routing
   script.append(f'source "{output_path}/{slot_name}_floorplan_routing_anchored_run.tcl"')
   script.append(f'route_design')
   script.append(f'phys_opt_design')
-  script.append(f'write_checkpoint {output_path}/{slot_name}_routed_anchored_run.dcp')
-  script.append(f'write_edif {output_path}/{slot_name}_routed_anchored_run.edf')
+
+  script.append(f'exec mkdir {output_path}/{slot_name}_routed_anchored_run')
+  script.append(f'write_checkpoint {output_path}/{slot_name}_routed_anchored_run/{slot_name}_routed_anchored_run.dcp')
+  script.append(f'write_edif {output_path}/{slot_name}_routed_anchored_run/{slot_name}_routed_anchored_run.edf')
 
   open(f'{output_path}/{slot_name}_anchored_run.tcl', 'w').write('\n'.join(script))
 
