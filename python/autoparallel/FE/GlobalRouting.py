@@ -66,11 +66,13 @@ class GlobalRouting:
   def getPathPlanningWire(self, slot_to_dir):
     slot_to_dir_to_wires = {}
     for slot, dir_to_fifos in slot_to_dir.items():
-      dir_to_wires = defaultdict(list)
+      dir_to_wires = {}
       for dir, fifos in dir_to_fifos.items():
+        dir_to_wires[dir] = []
         for e_name in fifos:
           # the interface wires are the inbound wires for both sides 
           dir_to_wires[dir].extend(self.top_rtl_parser.getInboundSideWiresOfFIFOName(e_name))
+
       slot_to_dir_to_wires[slot] = dir_to_wires
     return slot_to_dir_to_wires
 
