@@ -47,7 +47,9 @@ class CreateResultJson:
           wires_out_from_this_slot = path_planning_wire[slot_name][f'{dir}_OUT']
           wires_into_neighbor_slot = []
           for neighbor_slot in neighbor_slots:
-            wires_into_neighbor_slot.extend(path_planning_wire[neighbor_slot][f'{reverse_dir}_IN'])
+            if f'{reverse_dir}_IN' in path_planning_wire[neighbor_slot]:
+              wires_into_neighbor_slot.extend( \
+                path_planning_wire[neighbor_slot][f'{reverse_dir}_IN'])
 
           shared_anchors_outbound = [anchor for anchor in wires_out_from_this_slot if anchor in wires_into_neighbor_slot]        
           shared_anchors[slot_name][f'{dir}_OUT'] = \
@@ -57,8 +59,10 @@ class CreateResultJson:
           wires_into_this_slot = path_planning_wire[slot_name][f'{dir}_IN']
           wires_out_from_neighbor_slot = []
           for neighbor_slot in neighbor_slots:
-            wires_out_from_neighbor_slot.extend(path_planning_wire[neighbor_slot][f'{reverse_dir}_OUT'])
-
+            if f'{reverse_dir}_OUT' in path_planning_wire[neighbor_slot]:
+              wires_out_from_neighbor_slot.extend( \
+                path_planning_wire[neighbor_slot][f'{reverse_dir}_OUT'])
+        
           shared_anchors_inbound = [anchor for anchor in wires_into_this_slot if anchor in wires_out_from_neighbor_slot]
           shared_anchors[slot_name][f'{dir}_IN'] = \
             {anchor : self.top_rtl_parser.getIntegerWidthOfRegOrWire(anchor) for anchor in shared_anchors_inbound}
