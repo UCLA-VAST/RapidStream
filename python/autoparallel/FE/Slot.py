@@ -3,6 +3,7 @@ import logging
 from collections import defaultdict
 from typing import Dict, Iterable, Iterator, List, Union
 import re
+import json
 
 class Slot:
   def __init__(self, board, pblock : str):
@@ -24,9 +25,9 @@ class Slot:
     assert self.up_right_x < 100
     assert self.up_right_y < 100
 
-    self.area = {}
-    self.__initArea()
-
+    self.area = self.board.getArea(pblock)
+    logging.debug(f'Slot {pblock} has area: ')
+    logging.debug(json.dumps(self.area, indent=2))
     logging.debug(f'Using customized hash function for Slot ({self.down_left_x}, {self.down_left_y}, {self.up_right_x}, {self.up_right_y}) with id {id}')
 
   def getName(self):
@@ -62,21 +63,6 @@ class Slot:
     if isinstance(other, Slot):
       return self.__key() == other.__key()
     assert False, 'comparing Slot to a different class'
-
-  # calculate the available resources of this slot
-  def __initArea(self):
-    for item in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
-      self.area[item] = 0
-      for i in range(self.down_left_x, self.up_right_x):
-        self.area[item] += self.board.CR_AREA[i][item]
-      
-      # vertically the CRs are the same
-      self.area[item] *= (self.up_right_y - self.down_left_y)
-    
-    self.area['LAGUNA'] = 0
-    for i in self.board.getLagunaPositionY():
-      if self.down_left_y <= i <= self.up_right_y:
-        self.area['LAGUNA'] += self.board.LAGUNA_PER_CR
 
   def getArea(self):
     return self.area
