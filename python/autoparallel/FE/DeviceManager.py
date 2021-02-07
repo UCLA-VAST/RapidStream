@@ -3,6 +3,7 @@ import re
 
 # TODO: calibrate resource when DDRs are enabled
 class DeviceU250:
+  NAME = 'U250'
 
   FPGA_PART_NAME = 'xcu250-figd2104-2L-e'
   # SLR level
@@ -39,6 +40,10 @@ class DeviceU250:
   CR_NUM_HORIZONTAL = 8  
   CR_NUM_VERTICAL = 16  
   CR_NUM_VERTICAL_PER_SLR = 4 # each die has 4 CRs vertically
+  
+  # to be compatible with U280
+  ACTUAL_SLR_NUM = 4
+  ACTUAL_CR_NUM_VERTICAL = 16
 
   # Clock Region level
   CR_AREA = [defaultdict(defaultdict) for i in range(CR_NUM_HORIZONTAL)]
@@ -103,7 +108,39 @@ class DeviceU250:
   TOTAL_AREA['FF'] = 3456000
   TOTAL_AREA['LUT'] = 1728000
   TOTAL_AREA['URAM'] = 1280
-  
+
+  # FIXME: getArea is duplicated in U250 and U280
+  # Remember to change "DeviceU250" to "DeviceU280"
+  @staticmethod
+  def getArea(pblock_def):
+    assert re.search(r'CLOCKREGION_X\d+Y\d+:CLOCKREGION_X\d+Y\d+', pblock_def), f'unexpected format of the slot name {pblock_def}'
+    DL_x, DL_y, UR_x, UR_y = [int(val) for val in re.findall(r'[XY](\d+)', pblock_def)] # DownLeft & UpRight
+
+    # treat the pseudo SLR with 0 area
+    UR_y = min(DeviceU250.ACTUAL_CR_NUM_VERTICAL-1, UR_y) 
+
+    area = {}
+    for item in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
+      area[item] = 0
+
+    if DL_y > DeviceU250.ACTUAL_CR_NUM_VERTICAL-1:
+      return area 
+
+    for item in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
+      # the total area of one row
+      for i in range(DL_x, UR_x+1): # note the +1 here
+        area[item] += DeviceU250.CR_AREA[i][item]
+      
+      # how many rows
+      assert UR_y >= DL_y
+      area[item] *= (UR_y - DL_y + 1)
+
+    return area
+
+  # we should use different pblocks for placement and routing
+  # the routing pblock should extend the placement pblock a little bit
+  # to allow more space to route the marginal logic
+  # this function hardcode a smaller pblock for each clock region
   @staticmethod
   def shrinkClockRegionPblock(pblock_def : str) :
     assert re.search(r'CLOCKREGION_X\d+Y\d+:CLOCKREGION_X\d+Y\d+', pblock_def), f'unexpected format of the pblock {pblock_def}'
@@ -193,9 +230,8 @@ class DeviceU250:
   """
 
 class DeviceU280:
+  NAME = 'U280'
   FPGA_PART_NAME = 'xcu280-fsvh2892-2L-e'
-
-  SLR_NUM = 3
   
   SLR_AREA = defaultdict(lambda: defaultdict(list))
   SLR_AREA['BRAM'][0] = 768
@@ -214,9 +250,13 @@ class DeviceU280:
   def getLagunaPositionY():
     return [3, 4, 7, 8, 11, 12]
 
+  SLR_NUM = 4 # add a pseudo SLR at the top with area 0
   CR_NUM_HORIZONTAL = 8
   CR_NUM_VERTICAL = 16
   CR_NUM_VERTICAL_PER_SLR = 4 # each die has 4 CRs vertically
+
+  ACTUAL_SLR_NUM = 3 # in reality there are only 3 SLRs
+  ACTUAL_CR_NUM_VERTICAL = 12
 
   TOTAL_AREA = {}
   TOTAL_AREA['BRAM'] = 4032
@@ -281,6 +321,33 @@ class DeviceU280:
   CR_AREA[7]['FF']   = 0
   CR_AREA[7]['LUT']  = 0
   CR_AREA[7]['URAM'] = 0
+
+  # TODO: getArea is duplicated in U250 and U280
+  @staticmethod
+  def getArea(pblock_def):
+    assert re.search(r'CLOCKREGION_X\d+Y\d+:CLOCKREGION_X\d+Y\d+', pblock_def), f'unexpected format of the slot name {pblock_def}'
+    DL_x, DL_y, UR_x, UR_y = [int(val) for val in re.findall(r'[XY](\d+)', pblock_def)] # DownLeft & UpRight
+
+    # treat the pseudo SLR with 0 area
+    UR_y = min(DeviceU280.ACTUAL_CR_NUM_VERTICAL-1, UR_y) 
+
+    area = {}
+    for item in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
+      area[item] = 0
+
+    if DL_y > DeviceU280.ACTUAL_CR_NUM_VERTICAL-1:
+      return area 
+
+    for item in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
+      # the total area of one row
+      for i in range(DL_x, UR_x+1): # note the +1 here
+        area[item] += DeviceU280.CR_AREA[i][item]
+      
+      # how many rows
+      assert UR_y >= DL_y
+      area[item] *= (UR_y - DL_y + 1)
+
+    return area
 
 class DeviceManager:
   def __init__(self, board_name):
