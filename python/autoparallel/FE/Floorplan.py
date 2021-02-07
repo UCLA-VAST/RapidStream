@@ -72,7 +72,7 @@ class Floorplanner:
     init_v2s = {v : init_slot for v in self.graph.getAllVertices()}
     return init_s2v, init_v2s
 
-  def __addAreaConstraints(self, m, curr_s2v, v2var, dir):
+  def __addAreaConstraints(self, m, curr_s2v, v2var, dir, delta=0):
     for s, v_group in curr_s2v.items():
       bottom_or_left, up_or_right = self.slot_manager.partitionSlotByHalf(s, dir)
       assert up_or_right.up_right_x >= bottom_or_left.down_left_x
@@ -83,10 +83,10 @@ class Floorplanner:
         I = range(len(v_group))
 
         # for the up/right child slot (if mod_x is assigned 1)
-        m += xsum( v_var_list[i] * area_list[i] for i in I ) <= up_or_right.getArea()[r] * self.max_usage_ratio
+        m += xsum( v_var_list[i] * area_list[i] for i in I ) <= up_or_right.getArea()[r] * (self.max_usage_ratio + delta)
         
         # for the down/left child slot (if mod_x is assigned 0)        
-        m += xsum( (1-v_var_list[i]) * area_list[i] for i in I ) <= bottom_or_left.getArea()[r] * self.max_usage_ratio
+        m += xsum( (1-v_var_list[i]) * area_list[i] for i in I ) <= bottom_or_left.getArea()[r] * (self.max_usage_ratio + delta)
 
   def __addUserConstraints(self, m, curr_v2s, v2var, dir):
     for expect_slot, v_group in self.user_constraint_s2v.items():
@@ -184,7 +184,7 @@ class Floorplanner:
     return v2var
 
   # use iterative 2-way partitioning when there are lots of small functions
-  def __twoWayPartition(self, curr_s2v : Dict, curr_v2s : Dict, dir : str, external_v2s : Dict = {}):
+  def __twoWayPartition(self, curr_s2v : Dict, curr_v2s : Dict, dir : str, external_v2s : Dict = {}, delta=0.0):
     assert set(map(type, curr_s2v.keys())) == {Slot}
     assert set(map(type, curr_v2s.keys())) == {Vertex}
     logging.info('Start 2-way partitioning routine')
@@ -198,7 +198,7 @@ class Floorplanner:
     self.__addOptGoal(m, curr_v2s=curr_v2s, external_v2s=external_v2s, v2var=v2var, dir=dir)
     
     # area constraints for each child slot
-    self.__addAreaConstraints(m, curr_s2v=curr_s2v, v2var=v2var, dir=dir)
+    self.__addAreaConstraints(m, curr_s2v=curr_s2v, v2var=v2var, dir=dir, delta=delta)
 
     self.__addUserConstraints(m, curr_v2s=curr_v2s, v2var=v2var, dir=dir)
 
@@ -209,10 +209,17 @@ class Floorplanner:
     status = m.optimize(max_seconds=self.max_search_time)
     assert status == OptimizationStatus.OPTIMAL, '2-way partioning failed!'
 
-    return self.__getPartitionResult(curr_s2v=curr_s2v, v2var=v2var, dir=dir)
+    next_s2v, next_v2s = self.__getPartitionResult(curr_s2v=curr_s2v, v2var=v2var, dir=dir)
+    self.printFloorplan(next_s2v)
 
-  def printFloorplan(self):
-    for s, v_group in self.s2v.items():
+    return next_s2v, next_v2s
+
+  def printFloorplan(self, target_s2v = {}):
+    logging.info('Show current floorplan result:')
+    if not target_s2v:
+      target_s2v = self.s2v
+
+    for s, v_group in target_s2v.items():
       logging.info(f'{s.getName()}:')
       for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
         used = sum([v.area[r] for v in v_group])
@@ -260,25 +267,25 @@ class Floorplanner:
 
   def coarseGrainedFloorplan(self):
     init_s2v, init_v2s = self.__getInitialSlotToVerticesMapping()
-    iter1_s2v, iter1_v2s = self.__twoWayPartition(init_s2v, init_v2s, 'HORIZONTAL') # based on die boundary
+    iter1_s2v, iter1_v2s = self.__twoWayPartition(init_s2v, init_v2s, 'HORIZONTAL', delta=-0.05) # based on die boundary
 
-    iter2_s2v, iter2_v2s = self.__twoWayPartition(iter1_s2v, iter1_v2s, 'HORIZONTAL') # based on die boundary
+    iter2_s2v, iter2_v2s = self.__twoWayPartition(iter1_s2v, iter1_v2s, 'HORIZONTAL', delta=-0.05) # based on die boundary
 
-    self.s2v, self.v2s = self.__twoWayPartition(iter2_s2v, iter2_v2s, 'VERTICAL') # based on ddr ctrl in the middle
+    self.s2v, self.v2s = self.__twoWayPartition(iter2_s2v, iter2_v2s, 'VERTICAL', delta=0.05) # based on ddr ctrl in the middle
 
     self.__initSlotToEdges()
 
   def naiveFineGrainedFloorplan(self):
     init_s2v, init_v2s = self.__getInitialSlotToVerticesMapping()
-    iter1_s2v, iter1_v2s = self.__twoWayPartition(init_s2v, init_v2s, 'HORIZONTAL') # based on die boundary
+    iter1_s2v, iter1_v2s = self.__twoWayPartition(init_s2v, init_v2s, 'HORIZONTAL', delta=-0.1) # based on die boundary
 
-    iter2_s2v, iter2_v2s = self.__twoWayPartition(iter1_s2v, iter1_v2s, 'HORIZONTAL') # based on die boundary
+    iter2_s2v, iter2_v2s = self.__twoWayPartition(iter1_s2v, iter1_v2s, 'HORIZONTAL',  delta=-0.05) # based on die boundary
 
-    iter3_s2v, iter3_v2s = self.__twoWayPartition(iter2_s2v, iter2_v2s, 'HORIZONTAL') # based on die boundary
+    iter3_s2v, iter3_v2s = self.__twoWayPartition(iter2_s2v, iter2_v2s, 'VERTICAL',  delta=-0.05) # based on die boundary
 
-    iter4_s2v, iter4_v2s = self.__twoWayPartition(iter3_s2v, iter3_v2s, 'VERTICAL') # based on die boundary
+    iter4_s2v, iter4_v2s = self.__twoWayPartition(iter3_s2v, iter3_v2s, 'HORIZONTAL',  delta=0.0) # based on die boundary
 
-    self.s2v, self.v2s = self.__twoWayPartition(iter4_s2v, iter4_v2s, 'VERTICAL') # based on ddr ctrl in the middle
+    self.s2v, self.v2s = self.__twoWayPartition(iter4_s2v, iter4_v2s, 'VERTICAL',  delta=0.15) # based on ddr ctrl in the middle
 
     self.__initSlotToEdges()
 
