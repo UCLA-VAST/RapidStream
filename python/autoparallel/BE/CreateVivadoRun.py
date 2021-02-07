@@ -5,7 +5,6 @@ import sys
 def createFreeRunScript(
     fpga_part_name, 
     orig_rtl_path, 
-    anchor_wrapper_path,
     slot_name,
     output_path='.',
     placement_strategy='Default'):
@@ -14,24 +13,23 @@ def createFreeRunScript(
   script.append(f'set_part {fpga_part_name}')
 
   # read in the original RTLs by HLS
-  script.append(f'set ORIG_RTL_PATH "{orig_rtl_path}"') 
-  script.append(r'set orig_rtl_files [glob ${ORIG_RTL_PATH}/*.v]') 
+  # the new wrapper is placed in the same directory
+  script.append(f'set RTL_PATH "{output_path}/rtl"') 
+  script.append(r'set orig_rtl_files [glob ${RTL_PATH}/*.v]') 
   script.append(r'read_verilog ${orig_rtl_files}') 
 
   # instantiate IPs used in the RTL
-  script.append(r'set orig_ip_files [glob -nocomplain ${ORIG_RTL_PATH}/*.tcl]') 
+  script.append(r'set orig_ip_files [glob -nocomplain ${RTL_PATH}/*.tcl]') 
   script.append(r'foreach ip_tcl ${orig_ip_files} { source ${ip_tcl} }') 
-
-  # read in the new wrappers
-  script.append(f'read_verilog "{anchor_wrapper_path}"')
 
   # clock xdc
   script.append(f'read_xdc "{output_path}/{slot_name}_clk.xdc"')
 
   # synth
+  script.append(f'exec mkdir {output_path}/{slot_name}_synth')
   script.append(f'synth_design -top "{slot_name}_anchored" -part {fpga_part_name} -mode out_of_context')
-  script.append(f'write_checkpoint {output_path}/{slot_name}_synth.dcp')
-  script.append(f'write_edif {output_path}/{slot_name}_synth.edf')
+  script.append(f'write_checkpoint {output_path}/{slot_name}_synth/{slot_name}_synth.dcp')
+  script.append(f'write_edif {output_path}/{slot_name}_synth/{slot_name}_synth.edf')
   
   # add floorplanning constraints
   script.append(f'source "{output_path}/{slot_name}_floorplan_placement_free_run.tcl"')
@@ -63,7 +61,6 @@ def createFreeRunScript(
 def createAnchoredRunScript(
     fpga_part_name, 
     orig_rtl_path, 
-    anchor_wrapper_path,
     slot_name,
     output_path='.',
     placement_strategy='Default'):
@@ -99,12 +96,11 @@ def createAnchoredRunScript(
 def createVivadoRunScript(
     fpga_part_name, 
     orig_rtl_path, 
-    anchor_wrapper_path,
     slot_name,
     output_path='.',
     placement_strategy='Default'):
-  createAnchoredRunScript(fpga_part_name, orig_rtl_path, anchor_wrapper_path, slot_name, output_path, placement_strategy)
-  createFreeRunScript(fpga_part_name, orig_rtl_path, anchor_wrapper_path, slot_name, output_path, placement_strategy)
+  createAnchoredRunScript(fpga_part_name, orig_rtl_path, slot_name, output_path, placement_strategy)
+  createFreeRunScript(fpga_part_name, orig_rtl_path, slot_name, output_path, placement_strategy)
 
 def createClockXDC(
     slot_name, 
@@ -126,20 +122,4 @@ def createGNUParallelScript(hub, target_dir):
   open(f'{target_dir}/parallel-free-run.txt', 'w').write('\n'.join(free_run))
   open(f'{target_dir}/parallel-anchored-run.txt', 'w').write('\n'.join(anchored_run))
 
-if __name__ == '__main__':
-  assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
-  backend_run_dir = sys.argv[2]
-  fe_result_path = sys.argv[1]
-
-  hub = json.loads(open(fe_result_path, 'r').read())
-  fpga_part_name = hub['FPGA_PART_NAME']
-  orig_rtl_path = hub['ORIG_RTL_PATH']
   
-  for slot_name in hub['SlotIO'].keys():
-    dir = f'{backend_run_dir}/{slot_name}'
-    anchored_wrapper_path = f'{dir}/{slot_name}_anchored.v'
-    createAnchoredRunScript(fpga_part_name, 
-                      orig_rtl_path, 
-                      anchored_wrapper_path, 
-                      slot_name,
-                      output_path=dir)
