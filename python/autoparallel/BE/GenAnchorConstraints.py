@@ -99,7 +99,7 @@ def __constraintBoundary(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y, exclude_sh
     if f'{dir}_OUT' in slot_wires:
       pblock_wires += slot_wires[f'{dir}_OUT']
     
-    assert pblock_wires # empty boundary should not appear in the json 
+    assert pblock_wires, f'empty boundary should not appear in the json: {slot_name} -> {dir}' 
     return pblock_wires
 
   # exclude wires to immediate neighbors

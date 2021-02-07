@@ -7,6 +7,7 @@ from autoparallel.BE.CreateAnchorWrapper import *
 from autoparallel.BE.GenAnchorConstraints import *
 from autoparallel.BE.CreateVivadoRun import *
 from autoparallel.BE.AnchorPlacement import *
+from autoparallel.BE.DuplicateRTL import *
 
 if __name__ == '__main__':
   assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
@@ -20,6 +21,7 @@ if __name__ == '__main__':
   hub = json.loads(open(fe_result_path, 'r').read())
   fpga_part_name = hub['FPGA_PART_NAME']
   orig_rtl_path = hub['ORIG_RTL_PATH']
+  FloorplanVertex = hub['FloorplanVertex']
 
   assert os.path.isdir(orig_rtl_path)
   
@@ -27,7 +29,11 @@ if __name__ == '__main__':
     dir = f'{backend_run_dir}/{slot_name}'
     os.mkdir(dir)
     
-    createAnchorWrapper(hub, slot_name, output_path=dir)  
+    # duplicate source RTL and add unique prefix
+    target_rtl_path = f'{dir}/rtl'
+    os.mkdir(target_rtl_path)
+    createAnchorWrapper(hub, slot_name, output_path=target_rtl_path)  
+    duplicateSourceRTL(orig_rtl_path, target_rtl_path, slot_name, FloorplanVertex)
 
     # create pblock constraints for each anchored wrapper
     createPBlockScript(hub, slot_name, output_path=dir)
@@ -38,7 +44,6 @@ if __name__ == '__main__':
     anchored_wrapper_path = f'{dir}/{slot_name}_anchored.v'
     createVivadoRunScript(fpga_part_name, 
                           orig_rtl_path, 
-                          anchored_wrapper_path, 
                           slot_name,
                           output_path=dir, 
                           placement_strategy='AltSpreadLogic_high')
