@@ -104,6 +104,8 @@ class Manager:
         floorplan.coarseGrainedFloorplan()
       elif choice == 'IterativeDivisionToTwoCRs':
         floorplan.naiveTwoCRGranularityFloorplan()
+      elif choice == 'EightWayDivisionToHalfSLR':
+        floorplan.eightWayPartition()
       else:
         assert False, f'unsupported floorplan method: {choice}'
     else:

@@ -183,6 +183,117 @@ class Floorplanner:
     
     return v2var
 
+  # could only be invoked at the beginning when there is only one slot
+  def eightWayPartition(self):
+    logging.info('Start 8-way partitioning routine')
+
+    curr_s2v, curr_v2s = self.__getInitialSlotToVerticesMapping()
+
+    m = Model()
+    if not _logger.isEnabledFor(logging.DEBUG):
+      m.verbose = 0    
+
+    # three variables could determine the location of a module
+    # y = y1 *2 + y2  (four slots)
+    # x = x           (each SLR is divided by half) 
+    v2var_x = {} 
+    v2var_y1 = {}
+    v2var_y2 = {}
+    for v in curr_v2s.keys():
+      v2var_x[v] = m.add_var(var_type=BINARY, name=f'{v.name}_x') 
+      v2var_y1[v] = m.add_var(var_type=BINARY, name=f'{v.name}_y1') 
+      v2var_y2[v] = m.add_var(var_type=BINARY, name=f'{v.name}_y2') 
+
+    # get the target slots
+    # for U280, slot_11x will have empty area
+    init_slot = self.slot_manager.getInitialSlot()
+    slot_0, slot_1 = self.slot_manager.getBottomAndUpSplit(init_slot)
+
+    slot_00, slot_01 = self.slot_manager.getBottomAndUpSplit(slot_0)
+    slot_10, slot_11 = self.slot_manager.getBottomAndUpSplit(slot_1)
+
+    slot_000, slot_001 = self.slot_manager.getLeftAndRightSplit(slot_00)
+    slot_010, slot_011 = self.slot_manager.getLeftAndRightSplit(slot_01)
+    slot_100, slot_101 = self.slot_manager.getLeftAndRightSplit(slot_10)
+    slot_110, slot_111 = self.slot_manager.getLeftAndRightSplit(slot_11)
+    
+    # must not change order!
+    slot_group = [slot_000, slot_001, \
+                  slot_010, slot_011, \
+                  slot_100, slot_101, \
+                  slot_110, slot_111 ]
+    # note that slot_idx is different from slot position
+    slot_idx = lambda y1, y2, x : y1 * 4 + y2 * 2 + x
+
+    # area constraint
+    for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
+      choose = lambda x, num: x if num == 1 else (1-x)     
+
+      for y1 in range(2):
+        for y2 in range(2):
+          for x in range(2):
+            # convert logic AND to linear constraints
+            # prods[v] = choose_y1 AND choose_y2 AND choose_x
+            prods = { v : m.add_var(var_type=BINARY, name=f'{v.name}_choose{y1}{y2}{x}') for v in curr_v2s.keys() }
+            for v in curr_v2s.keys():
+              m +=  choose(v2var_y1[v], y1) + choose(v2var_y2[v], y2) + \
+                    choose(v2var_x[v], x) - 3 * prods[v] >= 0
+              m +=  choose(v2var_y1[v], y1) + choose(v2var_y2[v], y2) + \
+                    choose(v2var_x[v], x) - 3 * prods[v] <= 2
+
+            m += xsum(  prods[v] * v.area[r] for v in curr_v2s.keys() ) \
+                        <= slot_group[slot_idx(y1, y2, x)].getArea()[r] * self.max_usage_ratio
+
+    # user constraint
+    for expect_slot, v_group in self.user_constraint_s2v.items():
+      for v in v_group:
+        assert v in curr_v2s, f'ERROR: user has forced the location of a non-existing module {v.name}'
+
+        for y1 in range(2):
+          for y2 in range(2):
+            for x in range(2):
+              if slot_group[slot_idx(y1, y2, x)].containsChildSlot(expect_slot):
+                m += v2var_y1[v] == y1
+                m += v2var_y2[v] == y2
+                m += v2var_x[v] == x                
+
+    # add optimization goal
+    intra_edges, interface_edges = self.getIntraAndInterEdges(curr_v2s.keys())
+    edge_costs = [m.add_var(var_type=INTEGER, name=f'intra_{e.name}') for e in intra_edges] \
+        + [m.add_var(var_type=INTEGER, name=f'inter_{e.name}') for e in interface_edges]
+    all_edges = intra_edges + interface_edges
+    
+    # note pos is different from slot_idx, becasue the x dimension is different from the y dimention
+    # we will use {(y1 * 2 + y1) - (y2 * 2 + y2)} + (x1 - x2) to express the hamming distance
+    pos = lambda v : v2var_y1[v] * 2 + v2var_y2[v] + v2var_x[v]
+    cost = lambda e : pos(e.src) - pos(e.dst)
+    for e_cost_var, e in zip(edge_costs, all_edges):
+      m += e_cost_var >= cost(e)
+      m += e_cost_var >= -cost(e)
+
+    m.objective = minimize(xsum(edge_costs[i] * edge.width for i, edge in enumerate(all_edges) ) )
+
+    logging.info('Start ILP solver')
+    # m.write('Coarse-Grained-Floorplan.lp')
+    status = m.optimize(max_seconds=self.max_search_time)
+    assert status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE, '8-way partioning failed!'
+
+    # extract results
+    next_s2v = defaultdict(list)
+    next_v2s = {}
+    
+    for v in curr_v2s.keys():
+      idx = int(slot_idx(v2var_y1[v].x,  v2var_y2[v].x, v2var_x[v].x))
+      next_s2v[slot_group[idx]].append(v)
+      next_v2s[v] = slot_group[idx]
+
+    self.printFloorplan(next_s2v)
+
+    self.s2v, self.v2s = next_s2v, next_v2s
+    self.__initSlotToEdges()
+
+    return
+  
   # use iterative 2-way partitioning when there are lots of small functions
   def __twoWayPartition(self, curr_s2v : Dict, curr_v2s : Dict, dir : str, external_v2s : Dict = {}, delta=0.0):
     assert set(map(type, curr_s2v.keys())) == {Slot}
