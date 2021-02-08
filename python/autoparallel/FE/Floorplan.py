@@ -264,12 +264,17 @@ class Floorplanner:
     all_edges = intra_edges + interface_edges
     
     # note pos is different from slot_idx, becasue the x dimension is different from the y dimention
-    # we will use {(y1 * 2 + y1) - (y2 * 2 + y2)} + (x1 - x2) to express the hamming distance
-    pos = lambda v : v2var_y1[v] * 2 + v2var_y2[v] + v2var_x[v]
-    cost = lambda e : pos(e.src) - pos(e.dst)
+    # we will use |(y1 * 2 + y1) - (y2 * 2 + y2)| + |x1 - x2| to express the hamming distance
+    pos_y = lambda v : v2var_y1[v] * 2 + v2var_y2[v] 
+    pos_x = lambda v : v2var_x[v]
+    cost_y = lambda e : pos_y(e.src) - pos_y(e.dst)
+    cost_x = lambda e : pos_x(e.src) - pos_x(e.dst)
+
     for e_cost_var, e in zip(edge_costs, all_edges):
-      m += e_cost_var >= cost(e)
-      m += e_cost_var >= -cost(e)
+      m += e_cost_var >= cost_y(e) + cost_x(e)
+      m += e_cost_var >= -cost_y(e) + cost_x(e)
+      m += e_cost_var >= cost_y(e) - cost_x(e)
+      m += e_cost_var >= -cost_y(e) - cost_x(e)
 
     m.objective = minimize(xsum(edge_costs[i] * edge.width for i, edge in enumerate(all_edges) ) )
 
