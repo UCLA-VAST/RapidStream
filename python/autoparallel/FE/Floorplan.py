@@ -207,7 +207,7 @@ class Floorplanner:
     logging.info('Start ILP solver')
     # m.write('Coarse-Grained-Floorplan.lp')
     status = m.optimize(max_seconds=self.max_search_time)
-    assert status == OptimizationStatus.OPTIMAL, '2-way partioning failed!'
+    assert status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE, '2-way partioning failed!'
 
     next_s2v, next_v2s = self.__getPartitionResult(curr_s2v=curr_s2v, v2var=v2var, dir=dir)
     self.printFloorplan(next_s2v)
