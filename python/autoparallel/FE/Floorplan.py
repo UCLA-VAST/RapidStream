@@ -105,13 +105,17 @@ class Floorplanner:
           logging.warning(f'Potential wrong constraints from user: {v.name} -> {expect_slot.getName()}')
 
   # specify which modules must be assigned to the same slot
-  def __addGroupingConstraints(self, m, curr_v2s, v2var, dir):
-    curr_v_set = set(curr_v2s.keys())
+  # note that the key of curr_v2s is Vertex instead of name string
+  def __addGroupingConstraints(self, m, curr_v2s, v2var):
+    v_name_to_v = {v.name : v for v in curr_v2s.keys()}
     for grouping in self.grouping_constrants:
-      common = list(curr_v_set & set(grouping))
-      assert len(common) > 1
-      for i in range(1, len(common)):
-        m += v2var[common[0]] == v2var[common[i]]
+      assert grouping[0] in v_name_to_v, f'unknown vertex: {grouping[0]}'
+
+      for i in range(1, len(grouping)):
+        assert grouping[i] in v_name_to_v, f'unknown vertex: {grouping[i]}'
+
+        logging.info(f'[grouping] {grouping[0]} is grouped with {grouping[i]}')
+        m += v2var[v_name_to_v[grouping[0]]] == v2var[v_name_to_v[grouping[i]]]
 
   def __addOptGoal(self, m, curr_v2s, external_v2s, v2var, dir):
     def getVertexPosInChildSlot(v : Vertex):
@@ -255,7 +259,11 @@ class Floorplanner:
               if slot_group[slot_idx(y1, y2, x)].containsChildSlot(expect_slot):
                 m += v2var_y1[v] == y1
                 m += v2var_y2[v] == y2
-                m += v2var_x[v] == x                
+                m += v2var_x[v] == x    
+
+    # grouping constraints
+    for v2var in [v2var_x, v2var_y1, v2var_y2]:
+      self.__addGroupingConstraints(m, curr_v2s=curr_v2s, v2var=v2var)                      
 
     # add optimization goal
     intra_edges, interface_edges = self.getIntraAndInterEdges(curr_v2s.keys())
@@ -318,7 +326,7 @@ class Floorplanner:
 
     self.__addUserConstraints(m, curr_v2s=curr_v2s, v2var=v2var, dir=dir)
 
-    self.__addGroupingConstraints(m, curr_v2s=curr_v2s, v2var=v2var, dir=dir)
+    self.__addGroupingConstraints(m, curr_v2s=curr_v2s, v2var=v2var)
     
     logging.info('Start ILP solver')
     # m.write('Coarse-Grained-Floorplan.lp')
