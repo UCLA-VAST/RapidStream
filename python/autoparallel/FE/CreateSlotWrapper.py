@@ -3,14 +3,21 @@ import logging
 from autoparallel.FE.Slot import Slot
 import re
 import copy
+import os
+import shutil
 
 class CreateSlotWrapper:
   def __init__(self, graph, top_rtl_parser, floorplan):
     self.graph = graph
     self.top_rtl_parser = top_rtl_parser
     self.floorplan = floorplan
+
+    # only contains the ap_done signals that are part of the final ap_done
     self.ap_done_v_name_to_wire = top_rtl_parser.getApDoneVNameToWire()
+
+    # only contains the ap_done signals that are part of the final ap_done
     self.ap_ready_v_name_to_wire = top_rtl_parser.getApReadyVNameToWire()
+
     self.s2v = floorplan.getSlotToVertices()
     self.s2e = floorplan.getSlotToEdges()
 
@@ -137,7 +144,7 @@ class CreateSlotWrapper:
 
     # if the slot does not contain valid ap_ready modules:
     if not ap_done_wires:
-      stmt.append('assign ap_done = 1\'bx;')
+      stmt.append('assign ap_done = 1\'b1;') # if the slot only contains controller, ap_done should be 1
       return
 
     decl.append('// pipeline ap_done')
@@ -157,6 +164,7 @@ class CreateSlotWrapper:
     stmt.append(assignment)
 
   # only collect valid ap_ready signals
+  # not mature yet. May not be able to extract all needed ap_ready signals 
   def __setApReady(self, decl, slot, stmt):
     ap_ready_wires = []
     for v in self.s2v[slot]:
@@ -183,6 +191,10 @@ class CreateSlotWrapper:
       stmt.append(f'end')
     assignment = 'assign ap_ready = ' + '&'.join(f'{ap_ready}_pipe' for ap_ready in ap_ready_wires) + ';'
     stmt.append(assignment)
+
+  # lazy approach, so far works fine
+  def __setApReadyAsApDone(self, stmt):
+    stmt.append('assign ap_ready = ap_done;')
 
   # no modification to the ap_idle signals
   def __setApIdle(self):
@@ -299,7 +311,7 @@ class CreateSlotWrapper:
     self.__setApStart(decl, v_insts, stmt)
     self.__setApContinue(v_insts)
     self.__setApDone(decl, slot, stmt)
-    self.__setApReady(decl, slot, stmt)
+    self.__setApReadyAsApDone(stmt)
     self.__setApIdle()
     self.__setSAxiCtrl(v_insts)
     self.__setApRst(decl, v_insts, e_insts, stmt)
