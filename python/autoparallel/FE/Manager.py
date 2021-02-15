@@ -87,14 +87,15 @@ class Manager:
 
     return user_constraint_s2v
 
-  def runFloorplanning(self, graph, user_constraint_s2v, slot_manager, hls_prj_manager):
+  def runFloorplanning(self, graph, user_constraint_s2v, slot_manager, hls_prj_manager, grouping_constraints=[]):
     floorplan = Floorplanner(
       graph, 
       user_constraint_s2v, 
       slot_manager=slot_manager, 
       total_usage=hls_prj_manager.getTotalArea(), 
       board=self.device_manager.getBoard(),
-      user_max_usage_ratio=self.config['AreaUtilizationRatio'])
+      user_max_usage_ratio=self.config['AreaUtilizationRatio'],
+      grouping_constrants=grouping_constraints)
     
     if 'FloorplanMethod' in self.config:
       choice = self.config['FloorplanMethod']
