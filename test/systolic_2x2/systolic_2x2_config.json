@@ -1,0 +1,28 @@
+{
+  "Board" : "U250",
+  "HLSProjectPath" : "./kernel0",
+  "HLSSolutionName" : "solution",
+  "TopName" : "kernel0",
+
+  "FloorplanMethod": "EightWayDivisionToHalfSLR",
+  "AreaUtilizationRatio" : 0.7,
+
+  "Floorplan" : {
+    "CLOCKREGION_X4Y0:CLOCKREGION_X7Y3" : [
+      "A_IO_L3_in_serialize_U0",
+      "kernel0_gmem_A_m_axi_U",
+      "kernel0_control_s_axi_U",
+      "kernel0_entry12_U0"
+    ],
+    "CLOCKREGION_X4Y4:CLOCKREGION_X7Y7" : [
+      "B_IO_L3_in_serialize_U0",
+      "kernel0_gmem_B_m_axi_U"
+    ],
+    "CLOCKREGION_X4Y8:CLOCKREGION_X7Y11" : [
+      "C_drain_IO_L3_out_serialize_U0",
+      "kernel0_gmem_C_m_axi_U"
+    ]
+  },
+
+  "LoggingLevel" : "DEBUG"
+}
