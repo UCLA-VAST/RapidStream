@@ -217,7 +217,7 @@ class CreateSlotWrapper:
         # we do not want redundant wire and IO declaration
         # add a space before name for exact match
         # avoid filtering out a wire unexpectedly
-        if any([f' {name}' in line for line in io_decl]):
+        if any([re.search(fr' {name}[ ]*;', line) for line in io_decl]):
           logging.debug(f'filter out {name} due to io redundancy')
           continue
         # if a wire is used & it is not an IO
