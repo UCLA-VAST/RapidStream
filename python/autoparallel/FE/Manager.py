@@ -37,7 +37,8 @@ class Manager:
     floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager)
 
     wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan)
-    # wrapper_creater.createSlotWrapperForAll()
+    if self.logging_level == 'DEBUG':
+      wrapper_creater.createSlotWrapperForAll()
 
     path_planner = GlobalRouting(floorplan, top_rtl_parser)
 
@@ -56,17 +57,21 @@ class Manager:
     self.board = self.device_manager.getBoard()
 
     self.top_rtl_name = self.config["TopName"]
-    self.hls_prj_path = self.config["HLSProjectPath"]
+    self.hls_prj_path = os.path.abspath(self.config["HLSProjectPath"])
     self.hls_solution_name = self.config["HLSSolutionName"]
+    if "LoggingLevel" in self.config:
+      self.logging_level = self.config["LoggingLevel"]
+    else:
+      self.logging_level = "INFO"
 
   def loggingSetup(self):
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
     formatter = logging.Formatter("[%(levelname)s: %(funcName)25s() ] %(message)s")
     
-    debug_file_handler = logging.FileHandler(filename='autoparallel-debug.log')
+    debug_file_handler = logging.FileHandler(filename='autoparallel-debug.log', mode='w')
     debug_file_handler.setLevel(logging.DEBUG)
-    info_file_handler = logging.FileHandler(filename='autoparallel-info.log')
+    info_file_handler = logging.FileHandler(filename='autoparallel-info.log', mode='w')
     info_file_handler.setLevel(logging.INFO)
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(logging.INFO)
