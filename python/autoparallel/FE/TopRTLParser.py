@@ -202,6 +202,8 @@ class TopRTLParser:
         self.wire_to_v_name[wire_name] = v_node.name
         self.v_name_to_wires[v_node.name].append(wire_name)
 
+  # only some modules will be used to check if the whole design has finished
+  # we only collect the ap_done names of those modules
   def __initApDoneSources(self):
     f = open(self.top_rtl_path, 'r')
     for line in f:
@@ -213,15 +215,38 @@ class TopRTLParser:
         return
     assert False, 'ap_done signal in unexpected format'
 
+  # extract which ap_ready signals will be used for the final ap_ready signal
+  # [FIXME] some situations cannot be handled yet (multiple levels of intermediate wires)
   def __initApReadySources(self):
     f = open(self.top_rtl_path, 'r')
+    
+    # case 1: assign ap_ready = xxx & xxx ...
     for line in f:
       if re.search(r'assign[ ]*ap_ready', line):
         line = re.sub(r'assign[ ]*ap_ready[ ]*=[ ]*', '', line)
         line = re.sub(r'[() ;\n]', '', line)
         ap_readies = line.split('&'); assert len(ap_readies)
+        
+        if len(ap_readies) == 1 and ap_readies[0] == 'ap_sync_ready':
+          break
+
         self.ap_ready_v_name_to_wire = {self.wire_to_v_name[ap_ready] : ap_ready for ap_ready in ap_readies}
         return
+    
+    # case 2: assign ap_ready = ap_sync_ready;
+    f.seek(0)
+    for line in f:
+      if re.search(r'assign[ ]*ap_sync_ready', line):
+        line = re.sub(r'assign[ ]*ap_sync_ready[ ]*=[ ]*', '', line)
+        line = re.sub(r'[() ;\n]', '', line)
+        ap_readies = line.split('&'); assert len(ap_readies)
+        
+        try:
+          self.ap_ready_v_name_to_wire = {self.wire_to_v_name[ap_ready] : ap_ready for ap_ready in ap_readies}
+        except:
+          logging.critical('failed in parsing ap_ready signals')
+        return
+    
     assert False, 'ap_ready signal in unexpected format'
 
 
@@ -312,9 +337,11 @@ class TopRTLParser:
     assert(len(node.instances) == 1)
     return node.instances[0].name
 
+  # only contains the ap_done signals that are part of the final ap_done
   def getApDoneVNameToWire(self):
     return self.ap_done_v_name_to_wire
 
+  # only contains the ap_ready signals that are part of the final ap_ready
   def getApReadyVNameToWire(self):
     return self.ap_ready_v_name_to_wire
 
