@@ -320,10 +320,13 @@ class CreateSlotWrapper:
 
     return header + decl + io_decl + v_insts + e_insts + stmt + ending
 
-  def createSlotWrapperForAll(self):
+  def createSlotWrapperForAll(self, dir='wrapper_rtl'):
+    if os.path.isdir(dir):
+      shutil.rmtree(dir)
+    os.mkdir(dir)
     for s in self.s2e.keys():
       wrapper = self.createSlotWrapper(s)
-      f = open(s.getRTLModuleName()+'.v', 'w')
+      f = open(dir + '/' + s.getRTLModuleName()+'.v', 'w')
       f.write('\n'.join(wrapper))
 
   def getSlotToIO(self):
