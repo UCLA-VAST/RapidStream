@@ -13,7 +13,7 @@ for wrapper in wrapper_rtl/*.v; do
   # disable warning-STMTDLY
   # disable warning-SYMRSVDWORD
   # make warning-IMPLICIT error
-  verilator --lint-only ${wrapper} -I./ip_interface_rtl -I./kernel0/solution/syn/verilog/ --Wno-fatal --Wno-STMTDLY --Wno-SYMRSVDWORD --Werror-IMPLICIT 2>&1 | grep ${wrapper}
+  verilator --lint-only ${wrapper} -I./wrapper_rtl -I./ip_interface_rtl -I./kernel0/solution/syn/verilog/ --Wno-fatal --Wno-STMTDLY --Wno-SYMRSVDWORD --Werror-IMPLICIT 2>&1 | grep ${wrapper}
 
   # grep should not find any occurrence of ${wrapper}
   if [ $? -eq 0 ]; then

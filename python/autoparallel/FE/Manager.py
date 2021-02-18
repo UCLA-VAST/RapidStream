@@ -10,7 +10,7 @@ from autoparallel.FE.CreateSlotWrapper import CreateSlotWrapper
 from autoparallel.FE.CreateResultJson import CreateResultJson
 from autoparallel.FE.GlobalRouting import GlobalRouting
 from autoparallel.FE.SlotManager import SlotManager
-
+from autoparallel.FE.CreateTopRTL import CreateTopRTL
 import logging
 import json
 import re
@@ -39,6 +39,7 @@ class Manager:
     wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan)
     if self.logging_level == 'DEBUG':
       wrapper_creater.createSlotWrapperForAll()
+      CreateTopRTL(top_rtl_parser, wrapper_creater)
 
     path_planner = GlobalRouting(floorplan, top_rtl_parser)
 
