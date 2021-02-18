@@ -315,6 +315,9 @@ class TopRTLParser:
   def getDirOfIO(self, io_name):
     return self.io_name_to_dir[io_name]
 
+  def getDirWidthNameOfAllIO(self):
+    return [(self.io_name_to_dir[name], width, name) for name, width in self.io_name_to_width.items()]
+
   def getInFIFOsOfModuleInst(self, inst_name):
     return self.mod_to_fifo_in[inst_name]
 
