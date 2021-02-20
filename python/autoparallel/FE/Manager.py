@@ -39,7 +39,10 @@ class Manager:
     wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan)
     if self.logging_level == 'DEBUG':
       wrapper_creater.createSlotWrapperForAll()
-      CreateTopRTL(top_rtl_parser, wrapper_creater)
+      CreateTopRTL(
+        top_rtl_parser, 
+        wrapper_creater, 
+        hls_prj_manager.getTopModuleName())
 
     path_planner = GlobalRouting(floorplan, top_rtl_parser)
 
