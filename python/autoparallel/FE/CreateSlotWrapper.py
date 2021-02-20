@@ -50,7 +50,7 @@ class CreateSlotWrapper:
     # add indentation
     io_header = ['  '+io for io in io_header]
 
-    beg = ['`timescale 1 ns / 1 ps', f'module {slot.getRTLModuleName()} (']
+    beg = ['\n\n`timescale 1 ns / 1 ps', f'module {slot.getRTLModuleName()} (']
     io_header = beg + io_header
     io_header.append(');')
 
@@ -152,6 +152,7 @@ class CreateSlotWrapper:
       decl.append(f'(* shreg_extract = "no" *) reg {ap_done}_p1;')
       decl.append(f'(* shreg_extract = "no" *) reg {ap_done}_p2;')
       decl.append(f'(* shreg_extract = "no" *) reg {ap_done}_pipe;')
+      decl.append(f'(* shreg_extract = "no" *) reg {ap_done}_backup;') 
 
     stmt.append('// pipeline ap_done')
     for ap_done in ap_done_wires:
@@ -160,7 +161,19 @@ class CreateSlotWrapper:
       stmt.append(f'  {ap_done}_p2 <= {ap_done}_p1;')
       stmt.append(f'  {ap_done}_pipe <= {ap_done}_p2;')
       stmt.append(f'end')
-    assignment = 'assign ap_done = ' + '&'.join(f'{ap_done}_pipe' for ap_done in ap_done_wires) + ';'
+
+    stmt.append('// backup ap_done')
+    for ap_done in ap_done_wires:
+      stmt.append(f'always @ (posedge ap_clk) begin')
+      stmt.append(f'  if (~ap_start_pipe) begin')
+      stmt.append(f'    {ap_done}_backup <= 0;')
+      stmt.append(f'  end')
+      stmt.append(f'  else begin')
+      stmt.append(f'    {ap_done}_backup <= {ap_done}_backup | {ap_done}_pipe;')
+      stmt.append(f'  end')
+      stmt.append(f'end')
+
+    assignment = 'assign ap_done = ' + '&'.join(f'{ap_done}_backup' for ap_done in ap_done_wires) + ';'
     stmt.append(assignment)
 
   # only collect valid ap_ready signals
@@ -197,8 +210,8 @@ class CreateSlotWrapper:
     stmt.append('assign ap_ready = ap_done;')
 
   # no modification to the ap_idle signals
-  def __setApIdle(self):
-    pass
+  def __setApIdle(self, stmt):
+    stmt.append('assign ap_idle = ap_done;')
 
   # remove unused wire/reg declarations
   def __filterUnusedDecl(self, decl, v_insts, e_insts, io_decl):
@@ -312,7 +325,7 @@ class CreateSlotWrapper:
     self.__setApContinue(v_insts)
     self.__setApDone(decl, slot, stmt)
     self.__setApReadyAsApDone(stmt)
-    self.__setApIdle()
+    self.__setApIdle(stmt)
     self.__setSAxiCtrl(v_insts)
     self.__setApRst(decl, v_insts, e_insts, stmt)
 

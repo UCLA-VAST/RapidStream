@@ -350,3 +350,6 @@ class TopRTLParser:
 
   def getParamValueStr(self, param_name):
     return self.param_to_value_str[param_name]
+
+  def getParamToValueStr(self):
+    return self.param_to_value_str
