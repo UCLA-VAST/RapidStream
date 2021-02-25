@@ -5,6 +5,7 @@ import pyverilog.vparser.ast as ast
 from pyverilog.ast_code_generator.codegen import ASTCodeGenerator
 import re
 import logging
+import math
 
 class TopRTLParser:
 
@@ -34,6 +35,7 @@ class TopRTLParser:
     self.ap_done_v_name_to_wire = {} # ap_done module name -> wire name
     self.ap_ready_v_name_to_wire = {}
     self.param_to_value_str = {}
+    self.e_name_to_ast_node = {}
 
     self.__initWireToFIFOMapping()
     self.__initWireToVertexMapping()
@@ -81,6 +83,7 @@ class TopRTLParser:
       assert len(e_inst_list.instances) == 1, f'unsupported RTL coding style at line {e_inst_list.lineno}'
       e_node = e_inst_list.instances[0]
       self.inst_name_to_rtl[e_node.name] = self.codegen.visit(e_inst_list)
+      self.e_name_to_ast_node[e_node.name] = e_inst_list
 
   # get mapping from reg/wire/io name to width/direction
   def __initDeclList(self):
@@ -302,6 +305,31 @@ class TopRTLParser:
 
   def getRTLOfInst(self, inst_name : str):
     return self.inst_name_to_rtl[inst_name]
+
+  # transform the default FIFO used by HLS to our unified template
+  def getFIFOInstOfNewTemplate(self, e_name:str, e_width : int, e_depth : int, latency : int):
+    e_inst_list = self.e_name_to_ast_node[e_name]
+
+    # use our FIFO template
+    e_inst_list.module = 'fifo_almost_full'
+
+    param_width = ast.ParamArg('DATA_WIDTH', ast.Rvalue(ast.IntConst(str(e_width))) )
+    param_depth = ast.ParamArg('DEPTH', ast.Rvalue(ast.IntConst(str(e_depth))) )
+
+    addr_bitwidth = int(math.log2(e_width)+1)
+    param_addr_width = ast.ParamArg( 'ADDR_WIDTH', ast.Rvalue(ast.IntConst(str(addr_bitwidth))) )
+
+    # normal FIFO has one unit of latency
+    param_grace_period = ast.ParamArg( 'GRACE_PERIOD', ast.Rvalue(ast.IntConst(str( latency-1 ))) )
+    
+    params = [param_width, param_depth, param_addr_width, param_grace_period]
+    e_inst_list.parameterlist = params
+
+    for c in e_inst_list.instances: # should only has 1 instance
+      c.module = e_inst_list.module
+      c.parameterlist = params
+
+    return self.codegen.visit(e_inst_list)
 
   def getWidthOfIO(self, io_name):
     return self.io_name_to_width[io_name]
