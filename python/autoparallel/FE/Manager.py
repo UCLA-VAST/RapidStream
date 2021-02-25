@@ -11,6 +11,7 @@ from autoparallel.FE.CreateResultJson import CreateResultJson
 from autoparallel.FE.GlobalRouting import GlobalRouting
 from autoparallel.FE.SlotManager import SlotManager
 from autoparallel.FE.CreateTopRTL import CreateTopRTL
+from autoparallel.FE.LatencyBalancing import LatencyBalancing
 import logging
 import json
 import re
@@ -36,7 +37,13 @@ class Manager:
 
     floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager)
 
-    wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan)
+    # grid routing of edges 
+    global_router = GlobalRouting(floorplan, top_rtl_parser)
+
+    # latency balancing
+    rebalance = LatencyBalancing(graph, floorplan, global_router)
+
+    wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan, global_router, rebalance)
     if self.logging_level == 'DEBUG':
       wrapper_creater.createSlotWrapperForAll()
       CreateTopRTL(
@@ -44,12 +51,10 @@ class Manager:
         wrapper_creater, 
         hls_prj_manager.getTopModuleName())
 
-    path_planner = GlobalRouting(floorplan, top_rtl_parser)
-
     json_creater = CreateResultJson(
                     floorplan, 
                     wrapper_creater, 
-                    path_planner, 
+                    global_router, 
                     self.board, 
                     hls_prj_manager, 
                     slot_manager, 

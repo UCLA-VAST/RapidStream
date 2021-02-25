@@ -2,6 +2,7 @@
 import logging
 from autoparallel.FE.Slot import Slot
 from autoparallel.FE.TopRTLParser import TopRTLParser
+from autoparallel.FE.FIFOTemplate import fifo_template
 import re
 
 def getTopIO(top_rtl_parser):
@@ -104,5 +105,6 @@ def CreateTopRTL(top_rtl_parser, wrapper_creater, top_module_name):
   slot_insts = getSlotInst(slot_to_io, ctrl_signals)
   ending = ['endmodule']
 
-  new_top = header + top_io + wire_decl + ctrl + slot_insts + ending
+  # append our fifo template at the end. Separate files may not be detected by HLS when packing into xo 
+  new_top = header + top_io + wire_decl + ctrl + slot_insts + ending + [fifo_template]
   open(f'wrapper_rtl/{top_module_name}.v', 'w').write('\n'.join(new_top))

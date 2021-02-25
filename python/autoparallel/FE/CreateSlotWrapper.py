@@ -7,10 +7,12 @@ import os
 import shutil
 
 class CreateSlotWrapper:
-  def __init__(self, graph, top_rtl_parser, floorplan):
+  def __init__(self, graph, top_rtl_parser, floorplan, global_router, rebalance):
     self.graph = graph
     self.top_rtl_parser = top_rtl_parser
     self.floorplan = floorplan
+    self.global_router = global_router
+    self.rebalance = rebalance
 
     # only contains the ap_done signals that are part of the final ap_done
     self.ap_done_v_name_to_wire = top_rtl_parser.getApDoneVNameToWire()
@@ -30,10 +32,19 @@ class CreateSlotWrapper:
     logging.debug(f'slot {slot.getRTLModuleName()} has {len(v_list)} v insts')
     return [self.top_rtl_parser.getRTLOfInst(v.name) for v in v_list]
 
+  # replace the original HLS fifo by our almost-full template
   def __getEdgeInstances(self, slot : Slot):
     e_list = self.s2e[slot]
     logging.debug(f'slot {slot.getRTLModuleName()} has {len(e_list)} e insts')
-    return [self.top_rtl_parser.getRTLOfInst(e.name) for e in e_list]
+
+    edge_insts = []
+    for e in e_list:
+      balance = self.rebalance.getLatencyofEdgeName(e.name)
+      lat = self.global_router.getPipelineLevelOfEdge(e)
+      inst = self.top_rtl_parser.getFIFOInstOfNewTemplate(e.name, e.width, e.depth + balance, lat)
+      edge_insts.append(inst)
+    
+    return edge_insts
 
   def __getHeader(self, slot : Slot):
     """
