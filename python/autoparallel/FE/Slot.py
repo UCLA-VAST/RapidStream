@@ -152,6 +152,7 @@ class Slot:
             self.up_right_y == other.up_right_y and
             self.up_right_x == other.down_left_x)
 
+  #------------- For TAPA ------------- #
   def isToTheRightOf(self, other: 'Slot') -> bool:
     return other.isToTheLeftOf(self)
 
@@ -174,8 +175,9 @@ class Slot:
 create_pblock {self.pblock_name}
 resize_pblock {self.pblock_name} -add {self.getNameConsiderVitisIP()}
 '''
+  #------------------------------------ #
 
-
+# For TAPA. To be replaced by GlobalRouting
 class Topology:
 
   def __init__(self, slots: Iterable[Slot]):

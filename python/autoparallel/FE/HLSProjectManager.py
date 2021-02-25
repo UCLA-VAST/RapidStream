@@ -46,7 +46,19 @@ class HLSProjectManager:
     elif isfile(opt2):
       return opt2
     else:
-      assert False, f'cannot find the RTL file for {self.top_func_name}'    
+      assert False, f'cannot find the RTL file for {self.top_func_name}'  
+
+  # kernel0 or kernel0_kernel0
+  def getTopModuleName(self):
+    opt1 = rf'{self.top_func_name}'
+    opt2 = rf'{self.top_func_name}_{self.top_func_name}'
+    path = self.getTopRTLPath()
+    if re.search(opt2, path):
+      return opt2
+    elif re.search(opt1, path):
+      return opt1
+    else:
+      assert False, f'cannot find the top RTL module name'   
 
   def getScheReportFromModuleType(self, mod_type):
     opt1 = self.getScheReportDir() + f'/{mod_type}' + '.verbose.sched.rpt'
@@ -96,7 +108,7 @@ class HLSProjectManager:
     line = rpt.readline()   # +-------------
     assert r'+-------' in line, line
     line = rpt.readline()   # |               Instance  
-    assert re.search(r'[| ]*Instance[ ]*[| ]*Module[ ]*[| ]*BRAM_18K[ |]+DSP48E[ |]+FF[ |]+LUT[ |]+URAM', line), line
+    assert re.search(r'[| ]*Instance[ ]*[| ]*Module[ ]*[| ]*BRAM_18K[ |]+DSP[48E |]+FF[ |]+LUT[ |]+URAM', line), line
     line = rpt.readline()   # +----------
     assert r'+-------' in line, line
 
@@ -119,13 +131,17 @@ class HLSProjectManager:
     rpt.close()
     
   def getAreaFromModuleType(self, mod_type):
-    if '_axi' in mod_type:
-      if mod_type not in self.area_map:
-        assert re.search(f'{self.top_func_name}_{self.top_func_name}', mod_type)
-        mod_type = mod_type[len(self.top_func_name)+1:]
+    # if '_axi' in mod_type:
+    #   if mod_type not in self.area_map:
+    #     assert re.search(f'{self.top_func_name}_{self.top_func_name}', mod_type), mod_type
+    #     mod_type = mod_type[len(self.top_func_name)+1:]
     
-    if mod_type in self.area_map: 
-      return self.area_map[mod_type]
+    opt1 = mod_type
+    opt2 = mod_type[len(self.top_func_name)+1:]
+    if opt1 in self.area_map: 
+      return self.area_map[opt1]
+    elif opt2 in self.area_map:
+      return self.area_map[opt2]
     else:
       return self.getAreaBasedOnIndividualReport(mod_type)
 
@@ -139,7 +155,7 @@ class HLSProjectManager:
       if ('Utilization Estimates' in line):
         for line in rpt:
           if ('Name' in line):
-            assert re.search(r'BRAM[_]18K[ |]*DSP48E[ |]*FF[ |]*LUT[ |]*URAM', line), f'HLS has changed the item order in reports! {rpt_addr} : {line}'
+            assert re.search(r'BRAM[_]18K[ |]*DSP[48E |]*FF[ |]*LUT[ |]*URAM', line), f'HLS has changed the item order in reports! {rpt_addr} : {line}'
 
           if ('Total' in line):
             x = re.findall(r'\d+', line)
