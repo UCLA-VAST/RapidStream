@@ -40,8 +40,9 @@ class CreateSlotWrapper:
     edge_insts = []
     for e in e_list:
       balance = self.rebalance.getLatencyofEdgeName(e.name)
-      lat = self.global_router.getPipelineLevelOfEdge(e)
-      inst = self.top_rtl_parser.getFIFOInstOfNewTemplate(e.name, e.width, e.depth + balance, lat)
+      pipeline_level = self.global_router.getPipelineLevelOfEdge(e)
+      grace_period = pipeline_level * 2 # round trip latency
+      inst = self.top_rtl_parser.getFIFOInstOfNewTemplate(e.name, e.width, e.depth + balance, grace_period)
       edge_insts.append(inst)
     
     return edge_insts
