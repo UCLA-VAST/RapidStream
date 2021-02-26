@@ -49,7 +49,8 @@ class Manager:
       CreateTopRTL(
         top_rtl_parser, 
         wrapper_creater, 
-        hls_prj_manager.getTopModuleName())
+        hls_prj_manager.getTopModuleName(),
+        global_router)
 
     json_creater = CreateResultJson(
                     floorplan, 

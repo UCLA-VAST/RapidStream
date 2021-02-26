@@ -3,6 +3,7 @@ import logging
 from autoparallel.FE.Slot import Slot
 from autoparallel.FE.TopRTLParser import TopRTLParser
 from autoparallel.FE.FIFOTemplate import fifo_template
+from autoparallel.FE.GlobalRouting import GlobalRouting
 import re
 
 def getTopIO(top_rtl_parser):
@@ -19,6 +20,16 @@ def getTopIO(top_rtl_parser):
 
   return io_rtl + param_sec
 
+def __isDataPort(io, top_rtl_parser):
+  # filter ap signals.
+  if io[-1].startswith('ap_'): 
+    return False
+  # filter top level IOs (cannot be redefined as wire)
+  elif top_rtl_parser.isIO(io[-1]):
+    return False
+  else:
+    return True
+
 def getWireDecl(slot_to_io, ctrl_signals, top_rtl_parser):
   """
   declare connecting wires
@@ -29,22 +40,51 @@ def getWireDecl(slot_to_io, ctrl_signals, top_rtl_parser):
   wire_decl = []
   for slot, io_list in slot_to_io.items():
     for io in io_list:
-      # a wire will be the input of one module
-      # and the output of another, so avoid declare twice
-      if io[0] != 'output': 
-        continue
-
-      # filter ap signals. Handled separately
-      if io[-1].startswith('ap_'): 
-        continue
-
-      # IO cannot be redefined as wire
-      if top_rtl_parser.isIO(io[-1]):
+      if not __isDataPort(io, top_rtl_parser):
         continue
 
       # add the wire to declaration
-      wire_decl.append('  wire ' + ' '.join(io[1:]) + ';')
+      if io[0] == 'output': 
+        wire_decl.append('  wire ' + ' '.join(io[1:]) + '_out;')
+      elif io[0] == 'input':
+        wire_decl.append('  wire ' + ' '.join(io[1:]) + '_in;')
   return wire_decl
+
+def getPipelining(slot_to_io, top_rtl_parser, global_router):
+  """
+  add pipeline registers to connect the slots
+  """
+
+  pipeline = []
+  for slot, io_list in slot_to_io.items():
+    for io in io_list:  
+      if not __isDataPort(io, top_rtl_parser):
+        continue
+
+      # choose to work on the output side
+      if io[0] != 'output': 
+        continue # otherwise we do the same thing twice for each edge
+
+      e_name = top_rtl_parser.getFIFONameFromWire(io[-1])
+      pipeline_level = global_router.getPipelineLevelOfEdgeName(e_name)
+
+      # assign the input wire equals the output wire
+      if pipeline_level == 0:
+        pipeline.append(f'  assign {io[-1]}_out = {io[-1]}_in;')
+      else:
+        # add the pipeline registers
+        for i in range(pipeline_level):
+          pipeline.append(f'  (* dont_touch = "yes" *) reg {io[-1]}_q{i};')
+      
+        # connect the head and tail
+        pipeline.append(f'  always @ (posedge ap_clk) begin')
+        pipeline.append(f'    {io[-1]}_q0 <= {io[-1]}_out;')
+        for i in range(1, pipeline_level):
+          pipeline.append(f'    {io[-1]}_q{i} <= {io[-1]}_q{i-1};')
+        pipeline.append(f'  end')
+        pipeline.append(f'  assign {io[-1]}_in = {io[-1]}_q{pipeline_level-1};')
+  
+  return pipeline
 
 def getCtrlSignals(slot_to_io):
   # control signals
@@ -75,36 +115,48 @@ def getCtrlSignals(slot_to_io):
 
   return ctrl_section
 
-def getSlotInst(slot_to_io, ctrl_signals):
+def getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals):
   # instantiate each slot
   slot_insts = []
   
   for slot, io_list in slot_to_io.items():
     slot_insts.append(f'\n\n  {slot} {slot}_U0 (')
     for io in io_list:
-      # differential control signal
       if io[-1] in ctrl_signals:
+        # seperately handle ap signals
         slot_insts.append(f'    .{io[-1]}({io[-1]}_{slot}),')
-      else:
+      elif top_rtl_parser.isIO(io[-1]):
+        # directly connect to top-level IO
         slot_insts.append(f'    .{io[-1]}({io[-1]}),')
+      elif io[-1] in s_axi_ctrl_signals:
+        slot_insts.append(f'    .{io[-1]}({io[-1]}),') 
+      else:
+        # differentiate direction for pipelining purpose
+        if io[0] == 'input':
+          slot_insts.append(f'    .{io[-1]}({io[-1]}_in),')
+        elif io[0] == 'output':
+          slot_insts.append(f'    .{io[-1]}({io[-1]}_out),')
+        else: assert False
 
     # handle the last io
     slot_insts[-1] = slot_insts[-1].replace(',', '\n  );') 
   
   return slot_insts
 
-def CreateTopRTL(top_rtl_parser, wrapper_creater, top_module_name):
+def CreateTopRTL(top_rtl_parser, wrapper_creater, top_module_name, global_router):
   slot_to_io = wrapper_creater.getSlotToIO()
   ctrl_signals = set(['ap_start', 'ap_done', 'ap_idle', 'ap_ready', 'ap_continue', 'ap_rst_n'])
+  s_axi_ctrl_signals = set(['ap_start_orig', 'ap_done_final', 'ap_idle_final', 'ap_ready_final'])
 
   header = ['\n\n`timescale 1 ns / 1 ps',
             f'module {top_module_name} (']
   top_io = getTopIO(top_rtl_parser)
   wire_decl = getWireDecl(slot_to_io, ctrl_signals, top_rtl_parser)
+  pipeline = getPipelining(slot_to_io, top_rtl_parser, global_router)
   ctrl = getCtrlSignals(slot_to_io)
-  slot_insts = getSlotInst(slot_to_io, ctrl_signals)
+  slot_insts = getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals)
   ending = ['endmodule']
 
   # append our fifo template at the end. Separate files may not be detected by HLS when packing into xo 
-  new_top = header + top_io + wire_decl + ctrl + slot_insts + ending + [fifo_template]
+  new_top = header + top_io + wire_decl + pipeline + ctrl + slot_insts + ending + [fifo_template]
   open(f'wrapper_rtl/{top_module_name}.v', 'w').write('\n'.join(new_top))
