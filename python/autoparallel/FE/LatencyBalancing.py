@@ -22,7 +22,9 @@ class LatencyBalancing:
 
     # differential constraint for each edge
     for e_name, e in self.name2edge.items():
-      m += v2var[e.src] >= v2var[e.dst] + self.global_router.getPipelineLevelOfEdge(e)
+      # +1 because each FIFO by itself has 1 unit of latency
+      # in case the original design is not balanced
+      m += v2var[e.src] >= v2var[e.dst] + self.global_router.getPipelineLevelOfEdge(e) + 1
 
     m.objective = minimize(xsum( 
       e.width * (v2var[e.src] - v2var[e.dst]) for e in self.name2edge.values() 
