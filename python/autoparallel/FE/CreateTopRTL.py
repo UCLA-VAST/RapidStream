@@ -70,11 +70,12 @@ def getPipelining(slot_to_io, top_rtl_parser, global_router):
 
       # assign the input wire equals the output wire
       if pipeline_level == 0:
-        pipeline.append(f'  assign {io[-1]}_out = {io[-1]}_in;')
+        pipeline.append(f'  assign {io[-1]}_in = {io[-1]}_out;')
       else:
         # add the pipeline registers
         for i in range(pipeline_level):
-          pipeline.append(f'  (* dont_touch = "yes" *) reg {io[-1]}_q{i};')
+          width = io[1] if len(io) == 3 else ''
+          pipeline.append(f'  (* dont_touch = "yes" *) reg {width} {io[-1]}_q{i};')
       
         # connect the head and tail
         pipeline.append(f'  always @ (posedge ap_clk) begin')
