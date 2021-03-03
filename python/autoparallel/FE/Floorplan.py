@@ -30,9 +30,9 @@ class Floorplanner:
     self.total_usage = total_usage
     self.max_search_time = max_search_time
     self.grouping_constrants = grouping_constrants # dict of dict
-    self.s2v = defaultdict(list)
+    self.s2v = {}
     self.v2s = {}
-    self.s2e = defaultdict(list)
+    self.s2e = {}
 
     self.max_usage_ratio = self.__getResourceUsageLimit(user_max_usage_ratio)
 
@@ -54,9 +54,13 @@ class Floorplanner:
     return ratio
 
   def __initSlotToEdges(self):
+    self.s2e = {}
     for s, v_group in self.s2v.items():
+      assert v_group, f'incorrect empty slot: {s.getName()}'
+
+      # add the edge if the src and dst are both in this slot
       intra_edges, inter_edges = self.getIntraAndInterEdges(v_group)
-      self.s2e[s] += intra_edges
+      self.s2e[s] = intra_edges
 
       # for the FIFO connecting two different slots, it should be assigned to the destination side
       v_set = set(v_group)
@@ -154,11 +158,13 @@ class Floorplanner:
 
   def __getPartitionResult(self, curr_s2v, v2var, dir):
     # create new mapping
-    next_s2v = defaultdict(list)
+    next_s2v = {}
     next_v2s = {}
 
     for s, v_group in curr_s2v.items():
       bottom_or_left, up_or_right = self.slot_manager.partitionSlotByHalf(s, dir)
+      next_s2v[bottom_or_left] = []
+      next_s2v[up_or_right] = []
       for v in v_group:
         # if v is assigned to 0-half
         if v2var[v].x == 0:
@@ -173,9 +179,11 @@ class Floorplanner:
           assert False
 
       # if no Vertex is assigned to a Slot, remove that Slot
-      if bottom_or_left not in next_s2v:
+      if not next_s2v[bottom_or_left]:
+        next_s2v.pop(bottom_or_left)
         self.slot_manager.removeSlotNonBlocking(bottom_or_left.getName())
-      if up_or_right not in next_s2v:
+      if not next_s2v[up_or_right]:
+        next_s2v.pop(up_or_right)
         self.slot_manager.removeSlotNonBlocking(up_or_right.getName())
 
     return next_s2v, next_v2s
@@ -300,7 +308,7 @@ class Floorplanner:
       next_s2v[slot_group[idx]].append(v)
       next_v2s[v] = slot_group[idx]
 
-    self.printFloorplan(next_s2v)
+    self.printFloorplan()
 
     self.s2v, self.v2s = next_s2v, next_v2s
     self.__initSlotToEdges()
@@ -334,7 +342,6 @@ class Floorplanner:
     assert status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE, '2-way partioning failed!'
 
     next_s2v, next_v2s = self.__getPartitionResult(curr_s2v=curr_s2v, v2var=v2var, dir=dir)
-    self.printFloorplan(next_s2v)
 
     return next_s2v, next_v2s
 
@@ -360,6 +367,7 @@ class Floorplanner:
   def getUtilization(self):
     util = defaultdict(dict)
     for s, v_group in self.s2v.items():
+      assert v_group, f'empty slot should not exist: {s.getName()}'
       for r in ['BRAM', 'DSP', 'FF', 'LUT', 'URAM']:
         used = sum([v.area[r] for v in v_group])
         avail = s.getArea()[r]
@@ -398,6 +406,8 @@ class Floorplanner:
     self.s2v, self.v2s = self.__twoWayPartition(iter2_s2v, iter2_v2s, 'VERTICAL', delta=0.05) # based on ddr ctrl in the middle
 
     self.__initSlotToEdges()
+    self.printFloorplan()
+
 
   def naiveFineGrainedFloorplan(self):
     init_s2v, init_v2s = self.__getInitialSlotToVerticesMapping()
@@ -412,6 +422,7 @@ class Floorplanner:
     self.s2v, self.v2s = self.__twoWayPartition(iter4_s2v, iter4_v2s, 'VERTICAL',  delta=0.15) # based on ddr ctrl in the middle
 
     self.__initSlotToEdges()
+    self.printFloorplan()
 
   def naiveTwoCRGranularityFloorplan(self):
     init_s2v, init_v2s = self.__getInitialSlotToVerticesMapping()
@@ -428,6 +439,7 @@ class Floorplanner:
     self.s2v, self.v2s = self.__twoWayPartition(iter5_s2v, iter5_v2s, 'VERTICAL') # based on ddr ctrl in the middle
 
     self.__initSlotToEdges()    
+    self.printFloorplan()
 
   def getSlotToVertices(self):
     return self.s2v
