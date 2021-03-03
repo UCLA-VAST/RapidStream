@@ -91,7 +91,7 @@ def getCtrlSignals(slot_to_io):
   # control signals
   ctrl_section = []
   ctrl_section.append(f'  wire ap_start_orig;')
-  ctrl_section.append(f'  wire ap_done_final;')
+  ctrl_section.append(f'  (* dont_touch = "yes" *) reg ap_done_final;')
   ctrl_section.append(f'  wire ap_ready_final;')
   ctrl_section.append(f'  wire ap_idle_final;')
 
@@ -101,6 +101,8 @@ def getCtrlSignals(slot_to_io):
   ctrl_section.append(f'  wire ap_idle = ap_idle_final;')
   ctrl_section.append(f'  wire ap_start = ap_start_orig;')
 
+  level = 4   # pipeline 3 times
+
   for slot in slot_to_io.keys(): 
     ctrl_section.append(f'  wire ap_start_{slot} = ap_start_orig;')
     ctrl_section.append(f'  wire ap_done_{slot};')
@@ -108,11 +110,35 @@ def getCtrlSignals(slot_to_io):
     ctrl_section.append(f'  wire ap_ready_{slot};')
     ctrl_section.append(f'  wire ap_continue_{slot} = 1\'b1;')
     ctrl_section.append(f'  wire ap_rst_n_{slot} = ap_rst_n;')
+    for i in range(level): 
+      ctrl_section.append(f'  (* dont_touch = "yes" *) reg ap_done_{slot}_q{i};')
 
-  ctrl_section.append(f'  assign ap_done_final = 1\'b1 ' + \
-    ' '.join([f'& ap_done_{slot}' for slot in slot_to_io.keys()]) + ';' )
+  ctrl_section.append(f'  (* dont_touch = "yes" *) reg ap_done_final_reg_;')
+  ctrl_section.append(f'  always @ (posedge ap_clk) begin')
+  ctrl_section.append(f'    ap_done_final_reg_ <= 1\'b1 ' + \
+    ' '.join([f'& ap_done_{slot}_q{level-1}' for slot in slot_to_io.keys()]) + ';' )
+  ctrl_section.append(f'  end')
+
+  ctrl_section.append(f'  assign ap_done_final = ap_done_final_reg_;')
   ctrl_section.append(f'  assign ap_ready_final = ap_done_final;')
   ctrl_section.append(f'  assign ap_idle_final = ap_done_final;')
+
+  # pipeline the ap_done from each slot
+  for slot in slot_to_io.keys():
+
+
+    ctrl_section.append(f'  always @ (posedge ap_clk) begin')
+    ctrl_section.append(f'    ap_done_{slot}_q0 <= ap_done_{slot};')
+    for i in range(1, level-1):
+      ctrl_section.append(f'    ap_done_{slot}_q{i} <= ap_done_{slot}_q{i-1};')
+
+    # hold the ap_done of each slot until everyone has asserted
+    # prevent staggered pulse signals
+    ctrl_section.append(f'    if (ap_done_final_reg_) ')
+    ctrl_section.append(f'      ap_done_{slot}_q{level-1} <= ap_done_{slot}_q{level-2};')
+    ctrl_section.append(f'    else')
+    ctrl_section.append(f'      ap_done_{slot}_q{level-1} <= ap_done_{slot}_q{level-2} | ap_done_{slot}_q{level-1};')
+    ctrl_section.append(f'  end')
 
   return ctrl_section
 
