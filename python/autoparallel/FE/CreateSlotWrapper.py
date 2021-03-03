@@ -174,19 +174,24 @@ class CreateSlotWrapper:
       stmt.append(f'  {ap_done}_pipe <= {ap_done}_p2;')
       stmt.append(f'end')
 
+    # in case different modules stagger their ap_done signal
+    # hold the ap_done until the final ap_done is asserted
+    stmt.append('(* dont_touch = "yes" *) reg ap_done_reg_;')
+    stmt.append(f'always @ (posedge ap_clk) begin')
+    stmt.append('  ap_done_reg_ <= ' + '&'.join(f'{ap_done}_backup' for ap_done in ap_done_wires) + ';')
+    stmt.append(f'end')    
+    stmt.append('assign ap_done = ap_done_reg_;')
+
     stmt.append('// backup ap_done')
     for ap_done in ap_done_wires:
       stmt.append(f'always @ (posedge ap_clk) begin')
-      stmt.append(f'  if (~ap_start_pipe) begin')
-      stmt.append(f'    {ap_done}_backup <= 0;')
+      stmt.append(f'  if (ap_done_reg_) begin')
+      stmt.append(f'    {ap_done}_backup <= {ap_done}_pipe;')
       stmt.append(f'  end')
       stmt.append(f'  else begin')
       stmt.append(f'    {ap_done}_backup <= {ap_done}_backup | {ap_done}_pipe;')
       stmt.append(f'  end')
       stmt.append(f'end')
-
-    assignment = 'assign ap_done = ' + '&'.join(f'{ap_done}_backup' for ap_done in ap_done_wires) + ';'
-    stmt.append(assignment)
 
   # only collect valid ap_ready signals
   # not mature yet. May not be able to extract all needed ap_ready signals 
