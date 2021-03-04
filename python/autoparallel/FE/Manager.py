@@ -44,14 +44,13 @@ class Manager:
     rebalance = LatencyBalancing(graph, floorplan, global_router)
 
     wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan, global_router, rebalance)
-    if self.logging_level == 'DEBUG':
-      wrapper_creater.createSlotWrapperForAll()
-      CreateTopRTL(
-        top_rtl_parser, 
-        wrapper_creater, 
-        hls_prj_manager.getTopModuleName(),
-        global_router)
 
+    new_top_rtl = CreateTopRTL(top_rtl_parser, wrapper_creater, hls_prj_manager.getTopModuleName(), global_router)
+    
+    wrapper_creater.createSlotWrapperForAll(dir='wrapper_rtl')
+    open(f'wrapper_rtl/{hls_prj_manager.getTopModuleName()}.v', 'w').write(new_top_rtl)
+      
+    logging.info(f'generating front end results...')
     json_creater = CreateResultJson(
                     floorplan, 
                     wrapper_creater, 
@@ -59,7 +58,8 @@ class Manager:
                     self.board, 
                     hls_prj_manager, 
                     slot_manager, 
-                    top_rtl_parser)
+                    top_rtl_parser,
+                    new_top_rtl)
     json_creater.createResultJson()
 
   def basicSetup(self):
