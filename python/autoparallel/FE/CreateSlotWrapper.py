@@ -5,6 +5,7 @@ import re
 import copy
 import os
 import shutil
+from autoparallel.FE.FIFOTemplate import fifo_template
 
 class CreateSlotWrapper:
   def __init__(self, graph, top_rtl_parser, floorplan, global_router, rebalance):
@@ -348,7 +349,7 @@ class CreateSlotWrapper:
 
     self.__addIndent(decl, io_decl, v_insts, e_insts, stmt)
 
-    return header + decl + io_decl + v_insts + e_insts + stmt + ending
+    return header + decl + io_decl + v_insts + e_insts + stmt + ending + [fifo_template]
 
   def createSlotWrapperForAll(self, dir='wrapper_rtl'):
     if os.path.isdir(dir):
@@ -368,3 +369,12 @@ class CreateSlotWrapper:
       
       slot_2_io[slot.getRTLModuleName()] = io_decl
     return slot_2_io
+
+  # to be used as black box
+  def getEmptyWrappers(self):
+    empty_wrappers = []
+    for s in self.s2e.keys():
+      empty_wrappers += self.__getHeader(s)
+      empty_wrappers += self.__getIODecl(s)
+      empty_wrappers += self.__getEnding()
+    return empty_wrappers

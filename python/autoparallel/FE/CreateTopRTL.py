@@ -168,7 +168,7 @@ def getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals):
   slot_insts = []
   
   for slot, io_list in slot_to_io.items():
-    slot_insts.append(f'\n\n  {slot} {slot}_U0 (')
+    slot_insts.append(f'\n\n  (* black_box *) {slot} {slot}_U0 (')
     for io in io_list:
       if io[-1] in ctrl_signals:
         # seperately handle ap signals
@@ -207,4 +207,8 @@ def CreateTopRTL(top_rtl_parser, wrapper_creater, top_module_name, global_router
 
   # append our fifo template at the end. Separate files may not be detected by HLS when packing into xo 
   new_top = header + top_io + wire_decl + pipeline + ctrl + slot_insts + ending + [fifo_template]
-  open(f'wrapper_rtl/{top_module_name}.v', 'w').write('\n'.join(new_top))
+
+  # add empty wrappers for compatibility with black box
+  new_top += wrapper_creater.getEmptyWrappers()
+  
+  return '\n'.join(new_top)

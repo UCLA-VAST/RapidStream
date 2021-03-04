@@ -4,7 +4,16 @@ import json
 from collections import defaultdict
 
 class CreateResultJson:
-  def __init__(self, floorplan, wrapper_creater, path_planner, board, hls_prj_manager, slot_manager, top_rtl_parser):
+  def __init__(
+      self, 
+      floorplan, 
+      wrapper_creater, 
+      path_planner, 
+      board, 
+      hls_prj_manager, 
+      slot_manager, 
+      top_rtl_parser, 
+      new_top_rtl):
     self.floorplan = floorplan
     self.s2v = floorplan.getSlotToVertices()
     self.s2e = floorplan.getSlotToEdges()
@@ -14,6 +23,7 @@ class CreateResultJson:
     self.hls_prj_manager = hls_prj_manager
     self.slot_manager = slot_manager
     self.top_rtl_parser = top_rtl_parser
+    self.new_top_rtl = new_top_rtl
 
   def __getNeighborSection(self):
     neighbors = defaultdict(dict)
@@ -87,6 +97,7 @@ class CreateResultJson:
     
     result['SlotIO'] = self.wrapper_creater.getSlotToIO()
     result['SlotWrapperRTL'] = self.__getSlotWrapperRTLSection()
+    result['NewTopRTL'] = self.new_top_rtl
     
     result['PathPlanningFIFO'] = self.path_planner.naivePathPlanningFIFO()
     result['PathPlanningWire'] = self.path_planner.naivePathPlanningWire()
