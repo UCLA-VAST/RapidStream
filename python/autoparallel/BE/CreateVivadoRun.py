@@ -52,9 +52,12 @@ def createFreeRunScript(
   script.append(f'route_design')
   script.append(f'phys_opt_design')
 
+  # lock design
+  script.append(f'lock_design -level routing')
+
   script.append(f'exec mkdir {output_path}/{slot_name}_routed_free_run')
-  script.append(f'write_checkpoint {output_path}/{slot_name}_routed_free_run/{slot_name}_routed_free_run.dcp')
-  script.append(f'write_edif {output_path}/{slot_name}_routed_free_run/{slot_name}_routed_free_run.edf')
+  script.append(f'write_checkpoint -cell {slot_name}_U0 {output_path}/{slot_name}_routed_free_run/{slot_name}_routed_free_run.dcp')
+  script.append(f'write_edif -cell {slot_name}_U0 {output_path}/{slot_name}_routed_free_run/{slot_name}_routed_free_run.edf')
 
   open(f'{output_path}/{slot_name}_free_run.tcl', 'w').write('\n'.join(script))
 
@@ -66,7 +69,7 @@ def createAnchoredRunScript(
     placement_strategy='Default'):
   script = []
 
-  script.append(f'open_checkpoint {output_path}/{slot_name}_synth.dcp')
+  script.append(f'open_checkpoint {output_path}/{slot_name}_synth/{slot_name}_synth.dcp')
   
   # add floorplanning constraints for non-neighbor anchors
   script.append(f'source "{output_path}/{slot_name}_floorplan_placement_anchored_run.tcl"')
@@ -87,9 +90,11 @@ def createAnchoredRunScript(
   script.append(f'route_design')
   script.append(f'phys_opt_design')
 
+  script.append(f'lock_design -level routing')
+
   script.append(f'exec mkdir {output_path}/{slot_name}_routed_anchored_run')
-  script.append(f'write_checkpoint {output_path}/{slot_name}_routed_anchored_run/{slot_name}_routed_anchored_run.dcp')
-  script.append(f'write_edif {output_path}/{slot_name}_routed_anchored_run/{slot_name}_routed_anchored_run.edf')
+  script.append(f'write_checkpoint -cell {slot_name}_U0 {output_path}/{slot_name}_routed_anchored_run/{slot_name}_routed_anchored_run.dcp')
+  script.append(f'write_edif -cell {slot_name}_U0 {output_path}/{slot_name}_routed_anchored_run/{slot_name}_routed_anchored_run.edf')
 
   open(f'{output_path}/{slot_name}_anchored_run.tcl', 'w').write('\n'.join(script))
 
