@@ -40,9 +40,12 @@ def createAnchorPlacementScript(hub, slot_name, backend_run_path):
 
   anchor_name_to_loc = __getSharedAnchorPlacement(hub, slot_name, backend_run_path)
   for anchor_name, loc in anchor_name_to_loc.items():
+    # will cause problem in anchored-run. Laguna registers must exist in pair.
+    assert 'LAGUNA' not in loc, f'Anchor registers should not be placed on Laguna sites'
+
     tcl.append(f'place_cell {anchor_name} {loc}')
 
-    # fix the placement of anchors
+    # fix the placement of anchors    
     tcl.append(f'set_property IS_BEL_FIXED 1 [get_cells {anchor_name}]')
     tcl.append(f'set_property IS_LOC_FIXED 1 [get_cells {anchor_name}]')
 

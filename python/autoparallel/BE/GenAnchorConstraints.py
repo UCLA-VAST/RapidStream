@@ -32,7 +32,7 @@ def createAnchorPlacementExtractScript(hub, slot_name, output_path):
 
   open(f'{output_path}/{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
 
-def __generateConstraints(pblock_name, pblock_def, targets, comments = [], contain_routing = 1):
+def __generateConstraints(pblock_name, pblock_def, targets, comments = [], contain_routing = 1, exclude_laguna = False):
   tcl = []
   tcl += comments
   tcl.append(f'\nstartgroup ')
@@ -40,6 +40,10 @@ def __generateConstraints(pblock_name, pblock_def, targets, comments = [], conta
   tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -add {{ {pblock_def} }}')
   tcl.append(f'  set_property CONTAIN_ROUTING {contain_routing} [get_pblocks {pblock_name}] ')
   tcl.append(f'  set_property EXCLUDE_PLACEMENT 1 [get_pblocks {pblock_name}] ')
+
+  # keep anchor registers from being placed to laguna 
+  if exclude_laguna:
+    tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -remove LAGUNA_X0Y0:LAGUNA_X31Y839')
   tcl.append(f'endgroup')
 
   tcl.append(f'add_cells_to_pblock [get_pblocks {pblock_name}] [get_cells -regexp {{')
@@ -127,7 +131,7 @@ def __constraintBoundary(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y, exclude_sh
   pblock_name = pblock_def.replace(':', '_To_')
   targets = [f'{wire}.*' for wire in pblock_wires]
   comments = [f'\n# {dir} ']
-  return __generateConstraints(pblock_name, pblock_def, targets, comments)
+  return __generateConstraints(pblock_name, pblock_def, targets, comments, exclude_laguna=True)
 
 def createPBlockScript(hub, slot_name, output_path='.'):
   common = ['delete_pblock [get_pblocks *]'] # in case duplicated definition
