@@ -25,7 +25,10 @@ class CreateSlotWrapper:
     self.s2e = floorplan.getSlotToEdges()
 
   def __getWireDeclCopy(self, slot : Slot) -> str:
-    # note that each slot will filter out different wire declarations
+    """
+    Different wrappers will filter out different wires
+    To avoid interference, we make a deep copy of the entire wire list from the original top RTL
+    """
     return copy.deepcopy(self.top_rtl_parser.getAllDeclExceptIO())
 
   def __getVertexInstances(self, slot : Slot):
@@ -33,8 +36,11 @@ class CreateSlotWrapper:
     logging.debug(f'slot {slot.getRTLModuleName()} has {len(v_list)} v insts')
     return [self.top_rtl_parser.getRTLOfInst(v.name) for v in v_list]
 
-  # replace the original HLS fifo by our almost-full template
   def __getEdgeInstances(self, slot : Slot):
+    """
+    get the RTL snippet of each FIFO instantiation
+    replace the original HLS fifo by our almost-full template
+    """
     e_list = self.s2e[slot]
     logging.debug(f'slot {slot.getRTLModuleName()} has {len(e_list)} e insts')
 
@@ -72,9 +78,12 @@ class CreateSlotWrapper:
   def __getEnding(self):
     return ['endmodule']
 
-  # 1. inter-slot edges
-  # 2. top-level IOs
   def __getIODecl(self, slot : Slot):
+    """
+    get the IO of each wrapper
+    1. inter-slot edges
+    2. top-level IOs
+    """
     IO_section = []
     v_set = set(self.s2v[slot])
 
@@ -123,8 +132,11 @@ class CreateSlotWrapper:
 
     return IO_section
 
-  # pipeline every ap_start signal
   def __setApStart(self, decl, v_insts, stmt):
+    """
+    pipeline the ap_start signal
+    update the ap_start used in each module instance
+    """
     v_insts[:] = [re.sub(r'\.ap_start[ ]*\(.*\)', '.ap_start(ap_start_pipe)', inst) for inst in v_insts]
 
     decl.append('// pipeline ap_start')
@@ -144,12 +156,19 @@ class CreateSlotWrapper:
     stmt.append('  ap_start_pipe <= ap_start_p2;')
     stmt.append('end')
 
-  # set ap_continue = 1
   def __setApContinue(self, v_insts):
+    """
+    set ap_continue = 1
+    """
     v_insts[:] = [re.sub(r'\.ap_continue[ ]*\(.*\)', '.ap_continue(1\'b1)', inst) for inst in v_insts]
 
-  # only collect valid ap_done signals
   def __setApDone(self, decl, slot, stmt):
+    """
+    implement the ap_done logic for each wrapper
+    We first extract from the original top RTL which ap_done signals are used for the final ap_done
+    if a wrapper contains one or more of them, use them to comprise the ap_done of the wrapper
+    otherwise set the ap_done of the wrapper to be 1
+    """
     ap_done_wires = []
     for v in self.s2v[slot]:
       try: ap_done_wires.append(self.ap_done_v_name_to_wire[v.name])
@@ -193,10 +212,12 @@ class CreateSlotWrapper:
       stmt.append(f'    {ap_done}_backup <= {ap_done}_backup | {ap_done}_pipe;')
       stmt.append(f'  end')
       stmt.append(f'end')
-
-  # only collect valid ap_ready signals
-  # not mature yet. May not be able to extract all needed ap_ready signals 
+ 
   def __setApReady(self, decl, slot, stmt):
+    """
+    similar to __setApDone. Currently not used. May not be able to extract all needed ap_ready signals because of coding style
+    For simplicity we set the final ap_ready = ap_done
+    """
     ap_ready_wires = []
     for v in self.s2v[slot]:
       try: ap_ready_wires.append(self.ap_ready_v_name_to_wire[v.name])
@@ -231,8 +252,11 @@ class CreateSlotWrapper:
   def __setApIdle(self, stmt):
     stmt.append('assign ap_idle = ap_done;')
 
-  # remove unused wire/reg declarations
   def __filterUnusedDecl(self, decl, v_insts, e_insts, io_decl):
+    """
+    we start with the complete wire/reg declaration from the original top file
+    for each wrapper, we only keep the ones that are used in this wrapper
+    """
     insts = v_insts + e_insts
     decl_filter = []
     ap_signals = ['ap_start', 'ap_done', 'ap_ready', 'ap_idle']
@@ -277,6 +301,10 @@ class CreateSlotWrapper:
       sec = ['  ' + line for line in sec]
 
   def __setSAxiCtrl(self, v_insts):
+    """
+    the s_axi_control sends out the initial ap_start signal and takes in
+    the final ap_done signal 
+    """
     for i, v_inst in enumerate(v_insts):
       if 's_axi_control' in v_inst:
         v_inst = re.sub(r'\.ap_start[ ]*\(.*\)', '.ap_start(ap_start_orig)', v_inst)
@@ -372,6 +400,9 @@ class CreateSlotWrapper:
 
   # to be used as black box
   def getEmptyWrappers(self):
+    """
+    in vivado flow, to declare a module instance as black box, we must have an empty initilization
+    """
     empty_wrappers = []
     for s in self.s2e.keys():
       empty_wrappers += self.__getHeader(s)

@@ -16,6 +16,9 @@ class GlobalRouting:
     self.__initEdgeLatency()
 
   def naivePathPlanningFIFO(self):
+    """
+    for each slot and for each direction, get all edges that leave through that direction
+    """
     slot_to_dir = {}
     for this_slot, v_list in self.s2v.items():
       intra_edges, inter_edges = self.floorplan.getIntraAndInterEdges(v_list)
@@ -67,8 +70,10 @@ class GlobalRouting:
 
     return slot_to_dir
 
-  # convert the FIFO name to actual interface wire names
   def getPathPlanningWire(self, slot_to_dir):
+    """
+    get the map: slot -> each direction -> all wires of all the edges that leave through this direction
+    """
     slot_to_dir_to_wires = {}
     for slot, dir_to_fifos in slot_to_dir.items():
       dir_to_wires = {}
