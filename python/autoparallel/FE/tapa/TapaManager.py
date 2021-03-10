@@ -49,7 +49,7 @@ class TapaManager:
     # for optional module constraints
     module_fp = self.config['OptionalFloorplan']
     for region, module_group in module_fp.items():
-      slot = slot_manager.getSlot(region)
+      slot = slot_manager.createSlot(region)
       for mod_name in module_group:
         user_constraint_s2v[slot].append(self.graph.getVertex(mod_name))
 

@@ -101,7 +101,7 @@ class Manager:
     if "Floorplan" in self.config:
       user_fp_json = self.config["Floorplan"]
       for region, v_name_group in user_fp_json.items():
-        slot = slot_manager.getSlot(region)
+        slot = slot_manager.createSlot(region)
         for v_name in v_name_group:
           user_constraint_s2v[slot].append(graph.getVertex(v_name))
 
