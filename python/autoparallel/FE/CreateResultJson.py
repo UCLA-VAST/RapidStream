@@ -99,8 +99,8 @@ class CreateResultJson:
     result['SlotWrapperRTL'] = self.__getSlotWrapperRTLSection()
     result['NewTopRTL'] = self.new_top_rtl
     
-    result['PathPlanningFIFO'] = self.path_planner.naivePathPlanningFIFO()
-    result['PathPlanningWire'] = self.path_planner.naivePathPlanningWire()
+    result['PathPlanningFIFO'] = self.path_planner.getSlotToDirToEdges()
+    result['PathPlanningWire'] = self.path_planner.getSlotToDirToEdgeWires()
     
     result['Utilization'] = self.floorplan.getUtilization()
     result['Neighbors'] = self.__getNeighborSection()

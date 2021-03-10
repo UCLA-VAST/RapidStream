@@ -33,6 +33,11 @@ class SlotManager:
 
   def getSlot(self, pblock : str):
     pblock = self.__preprocessPblock(pblock)
+    assert pblock in self.pblock_to_slot
+    return self.pblock_to_slot[pblock]
+
+  def createSlot(self, pblock : str):
+    pblock = self.__preprocessPblock(pblock)
     if pblock not in self.pblock_to_slot:
       self.pblock_to_slot[pblock] = Slot(self.board, pblock)
     return self.pblock_to_slot[pblock]
@@ -43,16 +48,16 @@ class SlotManager:
 
   # split by the middle row
   def getBottomAndUpSplit(self, slot):
-    up     = self.getSlot(slot.getUpChildSlotName())
-    bottom = self.getSlot(slot.getBottomChildSlotName())
+    up     = self.createSlot(slot.getUpChildSlotName())
+    bottom = self.createSlot(slot.getBottomChildSlotName())
     self.removeSlotNonBlocking(slot.getName())
 
     return bottom, up 
 
   # split by the middle column
   def getLeftAndRightSplit(self, slot):
-    left =  self.getSlot(slot.getLeftChildSlotName())
-    right = self.getSlot(slot.getRightChildSlotname())
+    left =  self.createSlot(slot.getLeftChildSlotName())
+    right = self.createSlot(slot.getRightChildSlotname())
     self.removeSlotNonBlocking(slot.getName())
 
     return left, right
@@ -66,7 +71,7 @@ class SlotManager:
       assert False, f'unrecognized partition direction: {dir}'
 
   def getInitialSlot(self):
-    return self.getSlot(f'CLOCKREGION_X0Y0:CLOCKREGION_X{self.board.CR_NUM_HORIZONTAL-1}Y{self.board.CR_NUM_VERTICAL-1}')
+    return self.createSlot(f'CLOCKREGION_X0Y0:CLOCKREGION_X{self.board.CR_NUM_HORIZONTAL-1}Y{self.board.CR_NUM_VERTICAL-1}')
 
   def __haveOverlappedYRange(self, a : Slot, b : Slot):
     return min(a.getOrigUpRightY(), b.getOrigUpRightY()) > max(a.getOrigDownLeftY(), b.getOrigDownLeftY())
