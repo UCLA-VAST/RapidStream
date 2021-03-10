@@ -38,12 +38,12 @@ class Manager:
     floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager)
 
     # grid routing of edges 
-    global_router = GlobalRouting(floorplan, top_rtl_parser)
+    global_router = GlobalRouting(floorplan, top_rtl_parser, slot_manager)
 
     # latency balancing
     rebalance = LatencyBalancing(graph, floorplan, global_router)
 
-    wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan, global_router, rebalance)
+    wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan, global_router, rebalance, self.target)
 
     new_top_rtl = CreateTopRTL(top_rtl_parser, wrapper_creater, hls_prj_manager.getTopModuleName(), global_router)
     
@@ -73,6 +73,11 @@ class Manager:
       self.logging_level = self.config["LoggingLevel"]
     else:
       self.logging_level = "INFO"
+
+    if "Target" in self.config:
+      self.target = self.config["Target"]
+    else:
+      self.target = "hw"
 
   def loggingSetup(self):
     root = logging.getLogger()

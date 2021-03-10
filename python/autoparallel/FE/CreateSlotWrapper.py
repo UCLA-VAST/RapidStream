@@ -8,12 +8,13 @@ import shutil
 from autoparallel.FE.FIFOTemplate import fifo_template
 
 class CreateSlotWrapper:
-  def __init__(self, graph, top_rtl_parser, floorplan, global_router, rebalance):
+  def __init__(self, graph, top_rtl_parser, floorplan, global_router, rebalance, target='hw'):
     self.graph = graph
     self.top_rtl_parser = top_rtl_parser
     self.floorplan = floorplan
     self.global_router = global_router
     self.rebalance = rebalance
+    self.target = target
 
     # only contains the ap_done signals that are part of the final ap_done
     self.ap_done_v_name_to_wire = top_rtl_parser.getApDoneVNameToWire()
@@ -377,7 +378,10 @@ class CreateSlotWrapper:
 
     self.__addIndent(decl, io_decl, v_insts, e_insts, stmt)
 
-    return header + decl + io_decl + v_insts + e_insts + stmt + ending + [fifo_template]
+    wrapper = header + decl + io_decl + v_insts + e_insts + stmt + ending
+    if self.target == 'hw':
+      wrapper += [fifo_template]
+    return wrapper
 
   def createSlotWrapperForAll(self, dir='wrapper_rtl'):
     if os.path.isdir(dir):
