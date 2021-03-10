@@ -14,11 +14,12 @@ class Slot:
     match = re.search(r'^CLOCKREGION_X(\d+)Y(\d+)[ ]*:[ ]*CLOCKREGION_X(\d+)Y(\d+)$', pblock)
     assert match, f'incorrect pblock {pblock}'
 
-    # convert CR coordinate to boundary intersect coordinates
+    # DO NOT convert CR coordinate to boundary intersect coordinates
+    # stick to vivado convention
     self.down_left_x = int(match.group(1))
     self.down_left_y = int(match.group(2))
-    self.up_right_x = int(int(match.group(3))+1)
-    self.up_right_y = int(int(match.group(4))+1)
+    self.up_right_x =  int(match.group(3))
+    self.up_right_y =  int(match.group(4))
 
     assert self.down_left_x < 100
     assert self.down_left_y < 100
@@ -32,23 +33,24 @@ class Slot:
 
   def getName(self):
     # need to convert back to CR coordinates
-    return f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y}:CLOCKREGION_X{self.up_right_x-1}Y{self.up_right_y-1}'
+    return f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y}:CLOCKREGION_X{self.up_right_x}Y{self.up_right_y}'
 
   def getOrigUpRightX(self):
-    return self.up_right_x-1
+    return self.up_right_x
   def getOrigUpRightY(self):
-    return self.up_right_y-1
+    return self.up_right_y
   def getOrigDownLeftX(self):
     return self.down_left_x
   def getOrigDownLeftY(self):
     return self.down_left_y
 
   def getNameConsiderVitisIP(self):
-    up_right_x_update = 7 if self.up_right_x == 8 else self.up_right_x
-    return f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y}:CLOCKREGION_X{up_right_x_update-1}Y{self.up_right_y-1}'
+    """ usually there are 8 columns and the 7-th (starting from 0) is consumed by Vitis """
+    up_right_x_update = 6 if self.up_right_x == 7 else self.up_right_x
+    return f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y}:CLOCKREGION_X{up_right_x_update}Y{self.up_right_y}'
 
   def getRTLModuleName(self):
-    return f'CR_X{self.down_left_x}Y{self.down_left_y}_To_CR_X{self.up_right_x-1}Y{self.up_right_y-1}'
+    return f'CR_X{self.down_left_x}Y{self.down_left_y}_To_CR_X{self.up_right_x}Y{self.up_right_y}'
 
   def __key(self):
     return (str(self.down_left_x).zfill(3),
@@ -68,25 +70,26 @@ class Slot:
     return self.area
   
   # use the middle point as the position of the slot. Check the results have no fractional part
+  # biased towards the larger side
   def getPositionX(self):
-    return int((self.down_left_x + self.up_right_x) / 2) 
+    return int((self.down_left_x + self.up_right_x + 1) / 2)
 
+  # biased towards the ceiling side
   def getPositionY(self):
-    return int((self.down_left_y + self.up_right_y) / 2) 
+    return int((self.down_left_y + self.up_right_y + 1) / 2)
   
   # 1/4 from the lower end
   def getQuarterPositionX(self):
-    return int(self.down_left_x + (self.up_right_x - self.down_left_x) / 4) 
+    return int(self.down_left_x + (self.up_right_x - self.down_left_x + 1) / 4)
 
   def getQuarterPositionY(self):
-    return int(self.down_left_y + (self.up_right_y - self.down_left_y) / 4) 
+    return int(self.down_left_y + (self.up_right_y - self.down_left_y + 1) / 4)
 
-  # since we are using the boundary intersect coordinates, we do not need +1
   def getHalfLenX(self):
-    return int((self.up_right_x - self.down_left_x) / 2) 
+    return int((self.up_right_x - self.down_left_x + 1) / 2)
 
   def getHalfLenY(self):
-    return int((self.up_right_y - self.down_left_y) / 2) 
+    return int((self.up_right_y - self.down_left_y + 1) / 2)
 
   #                  |-------| u_r_x, u_r_y
   #                  |       |
@@ -103,7 +106,7 @@ class Slot:
 
     mid_y = self.getPositionY()
     down_left_cr = f'CLOCKREGION_X{self.down_left_x }Y{self.down_left_y}'
-    up_right_cr  = f'CLOCKREGION_X{self.up_right_x-1}Y{mid_y-1}'
+    up_right_cr  = f'CLOCKREGION_X{self.up_right_x}Y{mid_y-1}'
     return f'{down_left_cr}:{up_right_cr}'
   
   def getUpChildSlotName(self):
@@ -112,7 +115,7 @@ class Slot:
 
     mid_y = self.getPositionY()
     down_left_cr = f'CLOCKREGION_X{self.down_left_x }Y{mid_y}'
-    up_right_cr  = f'CLOCKREGION_X{self.up_right_x-1}Y{self.up_right_y-1}'
+    up_right_cr  = f'CLOCKREGION_X{self.up_right_x}Y{self.up_right_y}'
     return f'{down_left_cr}:{up_right_cr}'
 
   #                  mid_x, u_r_y
@@ -129,7 +132,7 @@ class Slot:
 
     mid_x = self.getPositionX()
     down_left_cr = f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y}'
-    up_right_cr  = f'CLOCKREGION_X{mid_x - 1       }Y{self.up_right_y-1}'
+    up_right_cr  = f'CLOCKREGION_X{mid_x - 1       }Y{self.up_right_y}'
     return f'{down_left_cr}:{up_right_cr}'
 
   def getRightChildSlotname(self):
@@ -138,7 +141,7 @@ class Slot:
 
     mid_x = self.getPositionX()
     down_left_cr = f'CLOCKREGION_X{mid_x            }Y{self.down_left_y}'
-    up_right_cr  = f'CLOCKREGION_X{self.up_right_x-1}Y{self.up_right_y-1}'
+    up_right_cr  = f'CLOCKREGION_X{self.up_right_x}Y{self.up_right_y}'
     return f'{down_left_cr}:{up_right_cr}'
 
   def containsChildSlot(self, target) -> bool:
@@ -147,19 +150,19 @@ class Slot:
       and  target.up_right_x  <= self.up_right_x  \
       and  target.up_right_y  <= self.up_right_y  
 
+  #------------- For TAPA ------------- #
   def isToTheLeftOf(self, other: 'Slot') -> bool:
     return (self.down_left_y == other.down_left_y and
             self.up_right_y == other.up_right_y and
-            self.up_right_x == other.down_left_x)
+            self.up_right_x+1 == other.down_left_x)
 
-  #------------- For TAPA ------------- #
   def isToTheRightOf(self, other: 'Slot') -> bool:
     return other.isToTheLeftOf(self)
 
   def isAbove(self, other: 'Slot') -> bool:
     return (self.down_left_x == other.down_left_x and
             self.up_right_x == other.up_right_x and
-            self.down_left_y == other.up_right_y)
+            self.down_left_y == other.up_right_y+1)
 
   def isBelow(self, other: 'Slot') -> bool:
     return other.isAbove(self)
@@ -167,7 +170,7 @@ class Slot:
   @property
   def pblock_name(self) -> str:
     return (f'pblock_X{self.down_left_x}Y{self.down_left_y}'
-            f'_X{self.up_right_x-1}Y{self.up_right_y-1}')
+            f'_X{self.up_right_x}Y{self.up_right_y}')
 
   @property
   def pblock_tcl(self) -> str:
