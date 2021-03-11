@@ -22,12 +22,14 @@ module fifo_almost_full #(
   input  wire                  if_read,
   output wire [DATA_WIDTH-1:0] if_dout
 );
+  parameter REAL_DEPTH = GRACE_PERIOD + DEPTH + 4;
+  parameter REAL_ADDR_WIDTH  = $clog2(REAL_DEPTH);
 generate
   if (DATA_WIDTH * DEPTH > THRESHOLD) begin : bram
     fifo_bram_almost_full #(
       .DATA_WIDTH(DATA_WIDTH),
-      .ADDR_WIDTH(ADDR_WIDTH),
-      .DEPTH     (DEPTH),
+      .ADDR_WIDTH(REAL_ADDR_WIDTH),
+      .DEPTH     (REAL_DEPTH),
       .GRACE_PERIOD(GRACE_PERIOD) /*********/
     ) unit (
       .clk  (clk),
@@ -44,8 +46,8 @@ generate
   end else begin : srl
     fifo_srl_almost_full #(
       .DATA_WIDTH(DATA_WIDTH),
-      .ADDR_WIDTH(ADDR_WIDTH),
-      .DEPTH     (DEPTH),
+      .ADDR_WIDTH(REAL_ADDR_WIDTH),
+      .DEPTH     (REAL_DEPTH),
       .GRACE_PERIOD(GRACE_PERIOD) /*********/
     ) unit (
       .clk  (clk),
