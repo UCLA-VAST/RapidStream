@@ -91,23 +91,18 @@ class CreateSlotWrapper:
     # wires of inter-slot edges become IOs. Differentiate in-bound and out-bound edges
     # note that for both sides the interface is the out-bound side of the FIFO
     intra_edges, inter_edges = self.floorplan.getIntraAndInterEdges(self.s2v[slot])
+    inbound_dir = {'_din' : 'input', '_write' : 'input', '_full_n' : 'output'}
+    outbound_dir = {'_din' : 'output', '_write' : 'output', '_full_n' : 'input'}
+
     for e in inter_edges:
-      if e.dst in v_set: # e is a part of this slot
-        assert e.src not in v_set 
-        for port_name, wire_name in self.top_rtl_parser.getWiresOfFIFOName(e.name):
-          if '_din' in port_name or '_write' in port_name:
-            IO_section.append(f'input {self.top_rtl_parser.getWidthOfRegOrWire(wire_name)} {wire_name};')
-          elif '_full_n' in port_name:
-            IO_section.append(f'output {self.top_rtl_parser.getWidthOfRegOrWire(wire_name)} {wire_name};')
-      elif e.src in v_set: # e is not a part of this slot
-        assert e.dst not in v_set
-        for port_name, wire_name in self.top_rtl_parser.getWiresOfFIFOName(e.name):
-          if '_din' in port_name or '_write' in port_name:
-            IO_section.append(f'output {self.top_rtl_parser.getWidthOfRegOrWire(wire_name)} {wire_name};')
-          elif '_full_n' in port_name:
-            IO_section.append(f'input {self.top_rtl_parser.getWidthOfRegOrWire(wire_name)} {wire_name};')
-      else:
-        assert False
+      is_inbound = e.dst in v_set
+      wire_dir = inbound_dir if is_inbound else outbound_dir
+      for port_name, wire_name in self.top_rtl_parser.getWiresOfFIFOName(e.name):
+        suffix = [key for key in ['_din', '_full_n', '_write'] if port_name.endswith(key)]
+        if suffix:
+          dir = wire_dir[suffix[0]]
+          wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
+          IO_section.append(f'{dir} {wire_width} {wire_name};')
 
     # if any vertex is an AXI module, it will contain top-level IO
     for v in self.s2v[slot]:
