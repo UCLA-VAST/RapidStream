@@ -185,7 +185,7 @@ class TopRTLParser:
         port_name = portarg.portname
         wire_name = portarg.argname.name
         self.wire_to_fifo_name[wire_name] = e_node.name
-        self.fifo_name_to_wires[e_node.name].append(wire_name)
+        self.fifo_name_to_wires[e_node.name].append((port_name, wire_name))
 
         if any(o_tag in port_name for o_tag in outbound_tags):
           self.fifo_name_to_outbound_wires[e_node.name].append(wire_name)

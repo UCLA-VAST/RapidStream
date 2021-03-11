@@ -94,18 +94,18 @@ class CreateSlotWrapper:
     for e in inter_edges:
       if e.dst in v_set: # e is a part of this slot
         assert e.src not in v_set 
-        for wire in self.top_rtl_parser.getWiresOfFIFOName(e.name):
-          if '_din' in wire or '_write' in wire:
-            IO_section.append(f'input {self.top_rtl_parser.getWidthOfRegOrWire(wire)} {wire};')
-          elif '_full_n' in wire:
-            IO_section.append(f'output {self.top_rtl_parser.getWidthOfRegOrWire(wire)} {wire};')
+        for port_name, wire_name in self.top_rtl_parser.getWiresOfFIFOName(e.name):
+          if '_din' in port_name or '_write' in port_name:
+            IO_section.append(f'input {self.top_rtl_parser.getWidthOfRegOrWire(wire_name)} {wire_name};')
+          elif '_full_n' in port_name:
+            IO_section.append(f'output {self.top_rtl_parser.getWidthOfRegOrWire(wire_name)} {wire_name};')
       elif e.src in v_set: # e is not a part of this slot
         assert e.dst not in v_set
-        for wire in self.top_rtl_parser.getWiresOfFIFOName(e.name):
-          if '_din' in wire or '_write' in wire:
-            IO_section.append(f'output {self.top_rtl_parser.getWidthOfRegOrWire(wire)} {wire};')
-          elif '_full_n' in wire:
-            IO_section.append(f'input {self.top_rtl_parser.getWidthOfRegOrWire(wire)} {wire};')        
+        for port_name, wire_name in self.top_rtl_parser.getWiresOfFIFOName(e.name):
+          if '_din' in port_name or '_write' in port_name:
+            IO_section.append(f'output {self.top_rtl_parser.getWidthOfRegOrWire(wire_name)} {wire_name};')
+          elif '_full_n' in port_name:
+            IO_section.append(f'input {self.top_rtl_parser.getWidthOfRegOrWire(wire_name)} {wire_name};')
       else:
         assert False
 
@@ -362,8 +362,8 @@ class CreateSlotWrapper:
     ending = self.__getEnding()
 
     logging.debug(f'create wrapper for {slot.getRTLModuleName()}')
-    logging.debug(f'{slot.getRTLModuleName()}: v_insts contains: {chr(10).join(v_insts)}') # chr(10) -> '\n'
-    logging.debug(f'{slot.getRTLModuleName()}: e_insts contains: {chr(10).join(e_insts)}')
+    logging.debug(f'{slot.getRTLModuleName()}: v_insts contains:' + '\n'.join(v_insts))
+    logging.debug(f'{slot.getRTLModuleName()}: e_insts contains:' + '\n'.join(e_insts))
     
     # must do the filtering at the beginning, otherwise it may mess up our added signals
     self.__filterUnusedDecl(decl, v_insts, e_insts, io_decl)
