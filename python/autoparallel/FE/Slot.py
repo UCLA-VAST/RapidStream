@@ -77,6 +77,12 @@ class Slot:
   # biased towards the ceiling side
   def getPositionY(self):
     return int((self.down_left_y + self.up_right_y + 1) / 2)
+
+  def getLenX(self):
+    return self.up_right_x - self.down_left_x + 1
+
+  def getLenY(self):
+    return self.up_right_y - self.down_left_y + 1
   
   # 1/4 from the lower end
   def getQuarterPositionX(self):
@@ -149,6 +155,21 @@ class Slot:
       and  target.down_left_y >= self.down_left_y \
       and  target.up_right_x  <= self.up_right_x  \
       and  target.up_right_y  <= self.up_right_y  
+
+  def getNeighborSlotName(self, dir):
+    """get the neighbor slot at the given direction of the equal size"""
+    len_x = self.up_right_x - self.down_left_x + 1
+    len_y = self.up_right_y - self.down_left_y + 1
+
+    if dir == 'UP':
+      return f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y+len_y}:CLOCKREGION_X{self.up_right_x}Y{self.up_right_y+len_y}'
+    elif dir == 'DOWN':
+      return f'CLOCKREGION_X{self.down_left_x}Y{self.down_left_y-len_y}:CLOCKREGION_X{self.up_right_x}Y{self.up_right_y-len_y}'
+    elif dir == 'RIGHT':
+      return f'CLOCKREGION_X{self.down_left_x+len_x}Y{self.down_left_y}:CLOCKREGION_X{self.up_right_x+len_x}Y{self.up_right_y}'
+    elif dir == 'LEFT':
+      return f'CLOCKREGION_X{self.down_left_x-len_x}Y{self.down_left_y}:CLOCKREGION_X{self.up_right_x-len_x}Y{self.up_right_y}'
+    else: assert False
 
   #------------- For TAPA ------------- #
   def isToTheLeftOf(self, other: 'Slot') -> bool:

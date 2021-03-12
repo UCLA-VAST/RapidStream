@@ -5,17 +5,68 @@ from collections import defaultdict
 from autoparallel.FE.DataflowGraph import Vertex, Edge
 
 class GlobalRouting:
-  def __init__(self, floorplan, top_rtl_parser):
+  def __init__(self, floorplan, top_rtl_parser, slot_manager):
     self.floorplan = floorplan
     self.top_rtl_parser = top_rtl_parser
+    self.slot_manager = slot_manager
     self.v2s = floorplan.getVertexToSlot()
     self.s2v = floorplan.getSlotToVertices()
     self.s2e = floorplan.getSlotToEdges()
     self.e_name2lat = {}
+    self.e_name2path = {} # from edge to all slots passed
+    self.slot2e_names = {} # from slot to all edges passed through
 
+    self.naiveGlobalRouting()
     self.__initEdgeLatency()
 
-  def naivePathPlanningFIFO(self):
+  def naiveGlobalRouting(self):
+    """
+    each edge first go in the Y direction then in the X direction
+    assume all slots are of the same size and are aligned
+    the slot_path exclude the src slot and the dst slot
+    """
+    for e_list in self.s2e.values():
+      for e in e_list:
+        slot_path = []
+        src_slot = self.v2s[e.src]
+        dst_slot = self.v2s[e.dst]
+        slot_path.append(src_slot)
+
+        curr = src_slot
+        len_x = src_slot.getLenX()
+        len_y = src_slot.getLenY()
+
+        # first go in X direction
+        x_diff = curr.getPositionX() - dst_slot.getPositionX()
+        if x_diff:
+          dir = 'LEFT' if x_diff > 0 else 'RIGHT'
+          for i in range(int(abs(x_diff/len_x))):
+            curr = self.slot_manager.createSlotForRouting(curr.getNeighborSlotName(dir))
+            slot_path.append(curr)
+
+        y_diff = curr.getPositionY() - dst_slot.getPositionY()
+        if y_diff:
+          dir = 'DOWN' if y_diff > 0 else 'UP'
+          for i in range(int(abs(y_diff/len_y))):
+            curr = self.slot_manager.createSlotForRouting(curr.getNeighborSlotName(dir))
+            slot_path.append(curr)
+        
+        assert curr == dst_slot
+        
+        slot_path = slot_path[1:-1] # exclude the src and the dst
+        logging.info(f'{e.name}: {self.v2s[e.src].getName()} -> {self.v2s[e.dst].getName()} : ' + ' '.join(s.getName() for s in slot_path))
+        self.e_name2path[e.name] = slot_path
+
+    for e_name, slots in self.e_name2path.items():
+      for s in slots:
+        if s not in self.slot2e_names:
+          self.slot2e_names[s] = []
+        self.slot2e_names[s].append(e_name)
+
+    for slot, e_names in self.slot2e_names.items():
+        logging.info(f'{slot.getName()} will be passed by: \n\t' + '\n\t'.join(e_names))
+
+  def getSlotToDirToEdges(self):
     """
     for each slot and for each direction, get all edges that leave through that direction
     """
@@ -86,8 +137,8 @@ class GlobalRouting:
       slot_to_dir_to_wires[slot] = dir_to_wires
     return slot_to_dir_to_wires
 
-  def naivePathPlanningWire(self):
-    return self.getPathPlanningWire(self.naivePathPlanningFIFO())
+  def getSlotToDirToEdgeWires(self):
+    return self.getPathPlanningWire(self.getSlotToDirToEdges())
 
   def __getPipelineLevelOfEdge(self, e : Edge) -> int:
     src_slot = self.v2s[e.src]
@@ -120,6 +171,19 @@ class GlobalRouting:
   def getLatencyOfEdge(self, e: Edge) -> int:
     """consider the latency of the FIFO itself"""
     return self.getPipelineLevelOfEdge(e) + 1
+
+  def getPassingEdgeNamesOfSlot(self, slot):
+    if slot in self.slot2e_names:
+      return self.slot2e_names[slot]
+    else:
+      return []
+
+  def getIndexOfSlotInPath(self, e_name, slot):
+    assert slot in self.e_name2path[e_name]
+    return self.e_name2path[e_name].index(slot)
+
+  def getPathLength(self, e_name):
+    return len(self.e_name2path[e_name])
 
 if __name__ == '__main__':
   json_path = './BE_pass1_anchored.json'
