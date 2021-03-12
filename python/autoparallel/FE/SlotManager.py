@@ -7,6 +7,7 @@ class SlotManager:
   def __init__(self, board):
     self.board = board
     self.pblock_to_slot = {}
+    self.pblock_to_routing_slot = {}
 
   def __preprocessPblock(self, pblock : str) -> str:
     def __convertCoarseRegionToClockRegion(coarse_loc):
@@ -31,16 +32,24 @@ class SlotManager:
       assert match, f'incorrect pblock {pblock}'
       return pblock
 
-  def getSlot(self, pblock : str):
+  def createSlotForRouting(self, pblock : str):
+    """create a Slot object for global routing purpose"""
     pblock = self.__preprocessPblock(pblock)
-    assert pblock in self.pblock_to_slot
-    return self.pblock_to_slot[pblock]
+    if pblock not in self.pblock_to_routing_slot:
+      self.pblock_to_routing_slot[pblock] = Slot(self.board, pblock)
+    return self.pblock_to_routing_slot[pblock]
 
   def createSlot(self, pblock : str):
+    """create a Slot for floorplanning purpose and track the existing Slot objects"""
     pblock = self.__preprocessPblock(pblock)
     if pblock not in self.pblock_to_slot:
       self.pblock_to_slot[pblock] = Slot(self.board, pblock)
     return self.pblock_to_slot[pblock]
+
+  def getPureRoutingSlots(self):
+    return [self.pblock_to_routing_slot[pblock] \
+        for pblock in self.pblock_to_routing_slot.keys() \
+        if pblock not in self.pblock_to_slot]
 
   def removeSlotNonBlocking(self, pblock : str):
     if pblock in self.pblock_to_slot:
