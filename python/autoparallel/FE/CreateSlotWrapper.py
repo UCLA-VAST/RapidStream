@@ -8,13 +8,14 @@ import shutil
 from autoparallel.FE.FIFOTemplate import fifo_template
 
 class CreateSlotWrapper:
-  def __init__(self, graph, top_rtl_parser, floorplan, global_router, rebalance, target='hw'):
+  def __init__(self, graph, top_rtl_parser, floorplan, global_router, rebalance, target='hw', include_passby = True):
     self.graph = graph
     self.top_rtl_parser = top_rtl_parser
     self.floorplan = floorplan
     self.global_router = global_router
     self.rebalance = rebalance
     self.target = target
+    self.include_passby = include_passby
 
     # only contains the ap_done signals that are part of the final ap_done
     self.ap_done_v_name_to_wire = top_rtl_parser.getApDoneVNameToWire()
@@ -84,49 +85,139 @@ class CreateSlotWrapper:
     get the IO of each wrapper
     1. inter-slot edges
     2. top-level IOs
+    3. pass-by wires
     """
     IO_section = []
     v_set = set(self.s2v[slot])
-
-    # wires of inter-slot edges become IOs. Differentiate in-bound and out-bound edges
-    # note that for both sides the interface is the out-bound side of the FIFO
-    intra_edges, inter_edges = self.floorplan.getIntraAndInterEdges(self.s2v[slot])
     inbound_dir = {'_din' : 'input', '_write' : 'input', '_full_n' : 'output'}
     outbound_dir = {'_din' : 'output', '_write' : 'output', '_full_n' : 'input'}
 
-    for e in inter_edges:
-      is_inbound = e.dst in v_set
-      wire_dir = inbound_dir if is_inbound else outbound_dir
-      for port_name, wire_name in self.top_rtl_parser.getWiresOfFIFOName(e.name):
-        suffix = [key for key in ['_din', '_full_n', '_write'] if port_name.endswith(key)]
-        if suffix:
-          dir = wire_dir[suffix[0]]
-          wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
-          IO_section.append(f'{dir} {wire_width} {wire_name};')
+    def addCtrlSignals():
+      """control signals"""
+      IO_section.append('input  ap_start;')
+      IO_section.append('output ap_done;')
+      IO_section.append('output ap_idle;')
+      IO_section.append('output ap_ready;')
+      IO_section.append('input  ap_continue;')
+      IO_section.append('input ap_clk;')
+      IO_section.append('input ap_rst_n;')
 
-    # if any vertex is an AXI module, it will contain top-level IO
-    for v in self.s2v[slot]:
-      if '_axi' in v.name:
-        for wire in self.top_rtl_parser.getWiresOfVertexName(v.name):
-          if self.top_rtl_parser.isIO(wire) and 'ap_' not in wire: # to avoid redundant ap ports
-            IO_section.append(f'{self.top_rtl_parser.getDirOfIO(wire)} {self.top_rtl_parser.getWidthOfIO(wire)} {wire};')
+      if any('s_axi' in v.name for v in self.s2v[slot]):
+        IO_section.append('output ap_start_orig;')
+        IO_section.append('input  ap_done_final;')
+        IO_section.append('input  ap_idle_final;')
+        IO_section.append('input  ap_ready_final;')
+    
+    def addAXISignals(): 
+      """if any vertex is an AXI module, it will contain top-level IO"""
+      for v in self.s2v[slot]:
+        if '_axi' in v.name:
+          for wire in self.top_rtl_parser.getWiresOfVertexName(v.name):
+            if self.top_rtl_parser.isIO(wire) and 'ap_' not in wire: # to avoid redundant ap ports
+              IO_section.append(f'{self.top_rtl_parser.getDirOfIO(wire)} {self.top_rtl_parser.getWidthOfIO(wire)} {wire};')
 
-    # control signals
-    IO_section.append('input  ap_start;')
-    IO_section.append('output ap_done;')
-    IO_section.append('output ap_idle;')
-    IO_section.append('output ap_ready;')
-    IO_section.append('input  ap_continue;')
-    IO_section.append('input ap_clk;')
-    IO_section.append('input ap_rst_n;')
+    def addPassingEdges():
+      """
+      add the edges that pass by this slot
+      each passing edge corresponds to
+      input _din, input _write, output _dout (inbound side, connect to src)
+      output _din, output _write, input _dout (outbound side, connect to dst)
+      """
+      passing_e_names = self.global_router.getPassingEdgeNamesOfSlot(slot)
+      for e_name in passing_e_names:
+        index = self.global_router.getIndexOfSlotInPath(e_name, slot)
 
-    if any('s_axi' in v.name for v in self.s2v[slot]):
-      IO_section.append('output ap_start_orig;')
-      IO_section.append('input  ap_done_final;')
-      IO_section.append('input  ap_idle_final;')
-      IO_section.append('input  ap_ready_final;')
+        # originally one wire connect the two slots
+        # now this wire goes through multiple intermediate slots
+        # add tags to differentiate them
+        # note that we want the two ports connected by a wire to have the same name
+        # this makes it easier to generate the top RTL
+        # since we change the IO name here, we need to connect the IO to the internal
+        in_tag = f'_pass_{index}'# connect to preivous wire segment
+        out_tag = f'_pass_{index+1}' # connect to next segment
+        
+        for port_name, wire_name in self.top_rtl_parser.getWiresOfFIFOName(e_name):
+          suffix = [key for key in ['_din', '_full_n', '_write'] if port_name.endswith(key)]
+          if suffix:
+            wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
+            IO_section.append(f'{inbound_dir[suffix[0]]} {wire_width} {wire_name}{in_tag};')
+            IO_section.append(f'{outbound_dir[suffix[0]]} {wire_width} {wire_name}{out_tag};')
+
+    def addDataSignals():
+      """
+      wires of inter-slot edges become IOs. Differentiate in-bound and out-bound edges
+      note that for both sides the interface is the out-bound side of the FIFO
+      """
+      intra_edges, inter_edges = self.floorplan.getIntraAndInterEdges(self.s2v[slot])
+
+      for e in inter_edges:
+        is_inbound = e.dst in v_set
+        wire_dir = inbound_dir if is_inbound else outbound_dir
+        for port_name, wire_name in self.top_rtl_parser.getWiresOfFIFOName(e.name):
+          suffix = [key for key in ['_din', '_full_n', '_write'] if port_name.endswith(key)]
+          if suffix:
+            dir = wire_dir[suffix[0]]
+            wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
+
+            # change the IO name for the dst of an edge 
+            # in order to make it easier to create the top, two ports connected by a wire have the same name
+            # thus for each inter-slot edge, the port names on the inbound side are changed 
+            # a side effect is that the IO will be mismatching the ports of the internal FIFOs
+            # this issue is fixed in __connectPassingWires
+            if not self.include_passby:
+              IO_section.append(f'{dir} {wire_width} {wire_name};')
+            elif is_inbound:
+              # the current slot is the dst of the edge
+              path_len = self.global_router.getPathLength(e.name)
+              IO_section.append(f'{dir} {wire_width} {wire_name}_pass_{path_len};')
+            else: # outbound
+              IO_section.append(f'{dir} {wire_width} {wire_name}_pass_0;')
+
+    addAXISignals()
+    addDataSignals()
+    if self.include_passby:
+      addPassingEdges()
+    addCtrlSignals()
 
     return IO_section
+
+  def __connectPassingWires(self, stmt, slot):
+    assert self.include_passby
+
+    # we choose to directly wire-connect the passing edges
+    # the actual pipeline registers will appear as anchor registers
+    passing_e_names = self.global_router.getPassingEdgeNamesOfSlot(slot)
+    for e_name in passing_e_names:
+      index = self.global_router.getIndexOfSlotInPath(e_name, slot)
+      for port_name, wire_name in self.top_rtl_parser.getWiresOfFIFOName(e_name):
+        if port_name.endswith('_din') or port_name.endswith('_write'):
+          stmt.append(f'assign {wire_name}_pass_{index+1} = {wire_name}_pass_{index};')
+        elif port_name.endswith('_full_n'):
+          stmt.append(f'assign {wire_name}_pass_{index} = {wire_name}_pass_{index+1};')
+
+  def __connectInterSlotEdgeWiresToIO(self, stmt, slot, decl):
+    """
+    if we include the passing edges, the IOs of inbound inter-slot FIFOs are modified with a suffix
+    here we need to connect the IO ports with the actual FIFO instances internal to the slot
+    """
+    intra_edges, inter_edges = self.floorplan.getIntraAndInterEdges(self.s2v[slot])
+    for e in inter_edges:
+      if e.dst in self.s2v[slot]: # process in-bound edges
+        path_len = self.global_router.getPathLength(e.name)
+        for port_name, wire_name in self.top_rtl_parser.getWiresOfFIFOName(e.name):
+          # _din and _write are input
+          # note here we directly "assign" without declare the wire
+          # this is because the wire declaration section will have covered it (although not desired)
+          if any(port_name.endswith(tag) for tag in ['_din', '_write', '_full_n']):
+            assert any(wire_name in decl_stmt for decl_stmt in decl)
+          
+          if port_name.endswith('_din') or port_name.endswith('_write'):
+            wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
+            stmt.append(f'assign {wire_name} = {wire_name}_pass_{path_len};')
+          # _full_n is output
+          elif port_name.endswith('_full_n'):
+            wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
+            stmt.append(f'assign {wire_name}_pass_{path_len} = {wire_name};')
 
   def __setApStart(self, decl, v_insts, stmt):
     """
@@ -362,6 +453,10 @@ class CreateSlotWrapper:
     
     # must do the filtering at the beginning, otherwise it may mess up our added signals
     self.__filterUnusedDecl(decl, v_insts, e_insts, io_decl)
+
+    if self.include_passby:
+      self.__connectPassingWires(stmt, slot)
+      self.__connectInterSlotEdgeWiresToIO(stmt, slot, decl)
 
     self.__setApStart(decl, v_insts, stmt)
     self.__setApContinue(v_insts)
