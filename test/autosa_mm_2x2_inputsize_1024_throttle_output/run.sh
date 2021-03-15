@@ -44,4 +44,4 @@ done
 
 mv kernel0_kernel0.v ./kernel0/solution/syn/verilog/
 
-timeout 600 ${TOOL} -f step3-cosim.tcl
+timeout 600 ${TOOL} -f step3-cosim.tcl || (echo 'FAILED' && exit)
