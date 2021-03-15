@@ -112,12 +112,16 @@ int main(int argc, char **argv) {
   int err = 0;
   for (int i = 0; i < I; i++)
     for (int j = 0; j < J; j++) {
-      if (fabs((float)C_golden[i][j] - (float)C[i][j]) > 0.001)
+      if (fabs((float)C_golden[i][j] - (float)C[i][j]) > 0.001) {
+        printf("Error at C[%d][%d]: %f, should be %f\n", i, j, (float)C[i][j], (float)C_golden[i][j]);
         err++;
+      }
     }
 
-  if (err)
+  if (err) {
     printf("Failed with %d errors!\n", err);
+    return -1;
+  }
   else
     printf("Passed!\n");
 
