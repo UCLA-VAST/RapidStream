@@ -43,7 +43,7 @@ class Manager:
     # latency balancing
     rebalance = LatencyBalancing(graph, floorplan, global_router)
 
-    wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan, global_router, rebalance, self.target)
+    wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan, global_router, rebalance, slot_manager, self.target)
 
     new_top_rtl = CreateTopRTL(top_rtl_parser, wrapper_creater, hls_prj_manager.getTopModuleName(), global_router)
     

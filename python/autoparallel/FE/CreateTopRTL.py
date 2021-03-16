@@ -50,7 +50,7 @@ def getWireDecl(slot_to_io, ctrl_signals, top_rtl_parser):
         wire_decl.append('  wire ' + ' '.join(io[1:]) + '_in;')
   return wire_decl
 
-def getPipelining(slot_to_io, top_rtl_parser, global_router):
+def getPipelining(slot_to_io, top_rtl_parser, global_router, include_passby):
   """
   add pipeline registers to connect the slots
   """
@@ -65,8 +65,11 @@ def getPipelining(slot_to_io, top_rtl_parser, global_router):
       if io[0] != 'output': 
         continue # otherwise we do the same thing twice for each edge
 
-      e_name = top_rtl_parser.getFIFONameFromWire(io[-1])
-      pipeline_level = global_router.getPipelineLevelOfEdgeName(e_name)
+      if include_passby:
+        pipeline_level = 1
+      else:
+        e_name = top_rtl_parser.getFIFONameFromWire(io[-1])
+        pipeline_level = global_router.getPipelineLevelOfEdgeName(e_name)
 
       # assign the input wire equals the output wire
       if pipeline_level == 0:
@@ -194,7 +197,7 @@ def getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals, ta
   
   return slot_insts
 
-def CreateTopRTL(top_rtl_parser, wrapper_creater, top_module_name, global_router):
+def CreateTopRTL(top_rtl_parser, wrapper_creater, top_module_name, global_router, include_passby=True):
   slot_to_io = wrapper_creater.getSlotToIO()
   target = wrapper_creater.target
 
@@ -205,7 +208,7 @@ def CreateTopRTL(top_rtl_parser, wrapper_creater, top_module_name, global_router
             f'module {top_module_name} (']
   top_io = getTopIO(top_rtl_parser)
   wire_decl = getWireDecl(slot_to_io, ctrl_signals, top_rtl_parser)
-  pipeline = getPipelining(slot_to_io, top_rtl_parser, global_router)
+  pipeline = getPipelining(slot_to_io, top_rtl_parser, global_router, include_passby)
   ctrl = getCtrlSignals(slot_to_io)
   slot_insts = getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals, target)
   ending = ['endmodule']

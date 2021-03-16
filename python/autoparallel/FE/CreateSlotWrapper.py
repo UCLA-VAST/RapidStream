@@ -8,12 +8,13 @@ import shutil
 from autoparallel.FE.FIFOTemplate import fifo_template
 
 class CreateSlotWrapper:
-  def __init__(self, graph, top_rtl_parser, floorplan, global_router, rebalance, target='hw', include_passby = True):
+  def __init__(self, graph, top_rtl_parser, floorplan, global_router, rebalance, slot_manager, target='hw', include_passby = True):
     self.graph = graph
     self.top_rtl_parser = top_rtl_parser
     self.floorplan = floorplan
     self.global_router = global_router
     self.rebalance = rebalance
+    self.slot_manager = slot_manager
     self.target = target
     self.include_passby = include_passby
 
@@ -80,12 +81,13 @@ class CreateSlotWrapper:
   def __getEnding(self):
     return ['endmodule']
 
-  def __getIODecl(self, slot : Slot):
+  def __getIODecl(self, slot : Slot, is_data_slot = True):
     """
     get the IO of each wrapper
     1. inter-slot edges
     2. top-level IOs
     3. pass-by wires
+    Differentiate whether targeting a pure routing slot or normal data slot
     """
     IO_section = []
     v_set = set(self.s2v[slot])
@@ -173,11 +175,14 @@ class CreateSlotWrapper:
             else: # outbound
               IO_section.append(f'{dir} {wire_width} {wire_name}_pass_0;')
 
-    addAXISignals()
-    addDataSignals()
-    if self.include_passby:
+    if is_data_slot:
+      addAXISignals()
+      addDataSignals()
+      if self.include_passby:
+        addPassingEdges()
+      addCtrlSignals()
+    else: # for pure routing slot
       addPassingEdges()
-    addCtrlSignals()
 
     return IO_section
 
@@ -473,24 +478,48 @@ class CreateSlotWrapper:
       wrapper += [fifo_template]
     return wrapper
 
+  def createPureRoutingSlot(self, routing_slot):
+    """ if a slot only contains passing wires """
+    assert routing_slot not in self.s2v
+    
+    header = self.__getHeader(routing_slot)
+    io_decl = self.__getIODecl(routing_slot, is_data_slot=False)
+
+    stmt = []
+    self.__connectPassingWires(stmt, routing_slot)
+    self.__addIndent(stmt)
+
+    ending = self.__getEnding()
+
+    return header + io_decl + stmt + ending
+
   def createSlotWrapperForAll(self, dir='wrapper_rtl'):
     if os.path.isdir(dir):
       shutil.rmtree(dir)
     os.mkdir(dir)
+
+    gen = lambda s, wrapper: open(dir + '/' + s.getRTLModuleName()+'.v', 'w').write('\n'.join(wrapper))
     for s in self.s2e.keys():
       wrapper = self.createSlotWrapper(s)
-      f = open(dir + '/' + s.getRTLModuleName()+'.v', 'w')
-      f.write('\n'.join(wrapper))
+      gen(s, wrapper)
+
+    for rs in self.slot_manager.getPureRoutingSlots():
+      wrapper = self.createPureRoutingSlot(rs)
+      gen(rs, wrapper)
 
   def getSlotToIO(self):
-    slot_2_io = {}
-    for slot in self.s2e.keys():
-      io_decl = self.__getIODecl(slot)
+    data_slot_2_io = {slot: self.__getIODecl(slot) for slot in self.s2e.keys()}
+    routing_slot_2_io = {slot : self.__getIODecl(slot, is_data_slot=False) \
+      for slot in self.slot_manager.getPureRoutingSlots()}
+    slot_2_io = {**data_slot_2_io, **routing_slot_2_io}
+    
+    slot_name_2_io = {}
+    for slot, io_decl in slot_2_io.items():
       io_decl = [io.replace(';', '') for io in io_decl]
       io_decl = [io.split() for io in io_decl] # ensure that no space in width, e.g., [1+2:0]
       
-      slot_2_io[slot.getRTLModuleName()] = io_decl
-    return slot_2_io
+      slot_name_2_io[slot.getRTLModuleName()] = io_decl
+    return slot_name_2_io
 
   # to be used as black box
   def getEmptyWrappers(self):
