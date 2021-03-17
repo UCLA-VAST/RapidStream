@@ -95,7 +95,7 @@ class CreateResultJson:
     result['FloorplanVertex'] = self.floorplan.getSlotNameToVertexNames()
     result['FloorplanEdge'] = self.floorplan.getSlotNameToEdgeNames()
     
-    result['SlotIO'] = self.wrapper_creater.getSlotToIO()
+    result['SlotIO'] = self.wrapper_creater.getSlotNameToIOList()
     result['SlotWrapperRTL'] = self.__getSlotWrapperRTLSection()
     result['NewTopRTL'] = self.new_top_rtl
     

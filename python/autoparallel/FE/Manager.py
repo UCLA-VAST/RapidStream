@@ -7,6 +7,7 @@ from autoparallel.FE.DataflowGraph import DataflowGraph
 from autoparallel.FE.TopRTLParser import TopRTLParser
 from autoparallel.FE.Floorplan import Floorplanner
 from autoparallel.FE.CreateSlotWrapper import CreateSlotWrapper
+from autoparallel.FE.CreateRoutingSlotWrapper import CreateRoutingSlotWrapper
 from autoparallel.FE.CreateResultJson import CreateResultJson
 from autoparallel.FE.GlobalRouting import GlobalRouting
 from autoparallel.FE.SlotManager import SlotManager
@@ -43,17 +44,20 @@ class Manager:
     # latency balancing
     rebalance = LatencyBalancing(graph, floorplan, global_router)
 
-    wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan, global_router, rebalance, self.target)
+    compute_wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan, global_router, rebalance, self.target)
+    compute_wrapper_creater.createSlotWrapperForAll(dir='wrapper_rtl')
 
-    new_top_rtl = CreateTopRTL(top_rtl_parser, wrapper_creater, hls_prj_manager.getTopModuleName(), global_router)
+    routing_wrapper_create = CreateRoutingSlotWrapper(compute_wrapper_creater, floorplan, global_router, top_rtl_parser)
+    routing_wrapper_create.createRoutingInclusiveWrapperForAll(dir='wrapper_rtl')
+
+    new_top_rtl = CreateTopRTL(top_rtl_parser, compute_wrapper_creater, hls_prj_manager.getTopModuleName(), global_router)
     
-    wrapper_creater.createSlotWrapperForAll(dir='wrapper_rtl')
     open(f'wrapper_rtl/{hls_prj_manager.getTopModuleName()}.v', 'w').write(new_top_rtl)
       
     logging.info(f'generating front end results...')
     json_creater = CreateResultJson(
                     floorplan, 
-                    wrapper_creater, 
+                    compute_wrapper_creater, 
                     global_router, 
                     self.board, 
                     hls_prj_manager, 

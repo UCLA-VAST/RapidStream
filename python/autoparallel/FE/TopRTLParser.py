@@ -291,7 +291,7 @@ class TopRTLParser:
 
   def getWidthOfRegOrWire(self, name):
     width = self.reg_wire_name_to_width[name]
-    assert ' ' not in width, 'Spaces in width express will result in error in getSlotToIO()'
+    assert ' ' not in width, 'Spaces in width express will result in error in getSlotNameToIOList()'
     return width
 
   def getIntegerWidthOfRegOrWire(self, name):
