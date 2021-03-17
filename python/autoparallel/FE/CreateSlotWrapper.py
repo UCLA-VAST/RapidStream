@@ -387,14 +387,18 @@ class CreateSlotWrapper:
       f = open(dir + '/' + s.getRTLModuleName()+'.v', 'w')
       f.write('\n'.join(wrapper))
 
-  def getSlotToIO(self):
+  def getSlotNameToIOList(self):
+    slot_2_io = self.getSlotToIOList()
+    return {slot.getRTLModuleName() : io_list for slot, io_list in slot_2_io.items()}
+
+  def getSlotToIOList(self):
     slot_2_io = {}
     for slot in self.s2e.keys():
       io_decl = self.__getIODecl(slot)
       io_decl = [io.replace(';', '') for io in io_decl]
       io_decl = [io.split() for io in io_decl] # ensure that no space in width, e.g., [1+2:0]
       
-      slot_2_io[slot.getRTLModuleName()] = io_decl
+      slot_2_io[slot] = io_decl
     return slot_2_io
 
   # to be used as black box

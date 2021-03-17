@@ -195,7 +195,7 @@ def getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals, ta
   return slot_insts
 
 def CreateTopRTL(top_rtl_parser, wrapper_creater, top_module_name, global_router):
-  slot_to_io = wrapper_creater.getSlotToIO()
+  slot_to_io = wrapper_creater.getSlotNameToIOList()
   target = wrapper_creater.target
 
   ctrl_signals = set(['ap_start', 'ap_done', 'ap_idle', 'ap_ready', 'ap_continue', 'ap_rst_n'])
