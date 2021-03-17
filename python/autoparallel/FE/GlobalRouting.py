@@ -185,6 +185,9 @@ class GlobalRouting:
   def getPathLength(self, e_name):
     return len(self.e_name2path[e_name])
 
+  def getPureRoutingSlots(self):
+    return self.slot_manager.getPureRoutingSlots()
+
 if __name__ == '__main__':
   json_path = './BE_pass1_anchored.json'
   json_hub = json.loads(open(json_path, 'r').read())

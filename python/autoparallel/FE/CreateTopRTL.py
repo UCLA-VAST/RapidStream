@@ -50,9 +50,10 @@ def getWireDecl(slot_to_io, ctrl_signals, top_rtl_parser):
         wire_decl.append('  wire ' + ' '.join(io[1:]) + '_in;')
   return wire_decl
 
-def getPipelining(slot_to_io, top_rtl_parser, global_router):
+def getPipelining(slot_to_io, top_rtl_parser, global_router, routing_inclusive):
   """
   add pipeline registers to connect the slots
+  Differentiate whether we include the interconnect registesr in slot wrappers
   """
 
   pipeline = []
@@ -65,8 +66,12 @@ def getPipelining(slot_to_io, top_rtl_parser, global_router):
       if io[0] != 'output': 
         continue # otherwise we do the same thing twice for each edge
 
-      e_name = top_rtl_parser.getFIFONameFromWire(io[-1])
-      pipeline_level = global_router.getPipelineLevelOfEdgeName(e_name)
+      # if the interconnect pipelines are merged into slots
+      if routing_inclusive:
+        pipeline_level = 1
+      else:
+        e_name = top_rtl_parser.getFIFONameFromWire(io[-1])
+        pipeline_level = global_router.getPipelineLevelOfEdgeName(e_name)
 
       # assign the input wire equals the output wire
       if pipeline_level == 0:
@@ -163,7 +168,7 @@ def getCtrlSignals(slot_to_io):
 
   return ctrl_section
 
-def getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals, target):
+def getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals, target, routing_inclusive):
   # instantiate each slot
   slot_insts = []
   
@@ -171,7 +176,11 @@ def getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals, ta
     # if targeting implementation, we mark the modules as black box
     # so that they can be replaced later by separately implemented DCPs
     tag = '(* black_box *)' if target == 'hw' else ''
-    slot_insts.append(f'\n\n {tag}  {slot} {slot}_U0 (')
+
+    # if we add another layer of wrapper to include routing
+    suffix = '_routing' if routing_inclusive else ''
+
+    slot_insts.append(f'\n\n {tag}  {slot}{suffix} {slot}{suffix}_U0 (')
     for io in io_list:
       if io[-1] in ctrl_signals:
         # seperately handle ap signals
@@ -194,7 +203,7 @@ def getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals, ta
   
   return slot_insts
 
-def CreateTopRTL(top_rtl_parser, wrapper_creater, top_module_name, global_router):
+def CreateTopRTL(top_rtl_parser, wrapper_creater, top_module_name, global_router, routing_inclusive = True):
   slot_to_io = wrapper_creater.getSlotNameToIOList()
   target = wrapper_creater.target
 
@@ -205,9 +214,9 @@ def CreateTopRTL(top_rtl_parser, wrapper_creater, top_module_name, global_router
             f'module {top_module_name} (']
   top_io = getTopIO(top_rtl_parser)
   wire_decl = getWireDecl(slot_to_io, ctrl_signals, top_rtl_parser)
-  pipeline = getPipelining(slot_to_io, top_rtl_parser, global_router)
+  pipeline = getPipelining(slot_to_io, top_rtl_parser, global_router, routing_inclusive)
   ctrl = getCtrlSignals(slot_to_io)
-  slot_insts = getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals, target)
+  slot_insts = getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals, target, routing_inclusive)
   ending = ['endmodule']
 
   # append our fifo template at the end. Separate files may not be detected by HLS when packing into xo 
