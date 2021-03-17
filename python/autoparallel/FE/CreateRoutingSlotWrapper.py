@@ -9,6 +9,8 @@ class CreateRoutingSlotWrapper:
     self.floorplan = floorplan
     self.global_router = global_router
     self.top_rtl_parser = top_rtl_parser
+    self.pure_routing_slots = global_router.getPureRoutingSlots()
+    self.target = compute_wrapper_creater.target # maintain the same interface with CreateSlotWrapper
 
     self.inbound_dir = {'_din' : 'input', '_write' : 'input', '_full_n' : 'output'}
     self.outbound_dir = {'_din' : 'output', '_write' : 'output', '_full_n' : 'input'}
@@ -89,11 +91,28 @@ class CreateRoutingSlotWrapper:
 
     return ctrl_io
 
-  def getIOSection(self, slot):
-    passing_e_io = self.getPassingEdgeIO(slot)
-    inter_slot_e_io = self.getInterSlotEdgeIO(slot)
-    ctrl_io = self.getWrapperCtrlIO(slot, inter_slot_e_io)
-    io_section = passing_e_io + inter_slot_e_io + ctrl_io
+  def getIOSection(self, slot, is_pure_routing = False):
+    """
+    Differentiate compute slots and pure routing slots
+    Add ap signals for pure routing signals for compatibility
+    """
+    inter_slot_e_io = self.getPassingEdgeIO(slot)
+    io_section = inter_slot_e_io
+
+    if not is_pure_routing:
+      io_section += self.getInterSlotEdgeIO(slot)
+      io_section += self.getWrapperCtrlIO(slot, inter_slot_e_io)
+    else:
+      # add pseudo control signals to maintain the same interface format
+      io_section += [
+        'input ap_start,',
+        'output ap_done,',
+        'output ap_idle,',
+        'output ap_ready,',
+        'input ap_continue,',
+        'input ap_clk,',
+        'input ap_rst_n,'
+      ]
 
     io_section = [io.replace(';', ',') for io in io_section]
     io_section[-1] = io_section[-1].replace(',', '')
@@ -148,7 +167,7 @@ class CreateRoutingSlotWrapper:
             wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
             connection_stmt.append(f'assign {wire_name}_pass_{path_len} = {wire_name};')
 
-        else: # out-bound edges
+        else: # out-bound edges. Note the direction of assignment is reversed than the inbound case
           # _din and _write are output
           if port_name.endswith('_din') or port_name.endswith('_write'):
             wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
@@ -161,7 +180,7 @@ class CreateRoutingSlotWrapper:
     return connection_stmt
 
   def getInnerWrapperInst(self, slot):
-    # instantiate each slot
+    """ instantiate each slot """
     slot_inst = []
     
     # if targeting implementation, we mark the modules as black box
@@ -177,37 +196,77 @@ class CreateRoutingSlotWrapper:
     
     return slot_inst
 
-  def getRoutingInclusiveWrapper(self, slot):
-    wrapper = []
+  def getRoutingInclusiveWrapper(self, slot, is_pure_routing=False):
+    wrapper = ['\n\n`timescale 1 ns / 1 ps']
 
-    wrapper.append(f'module {slot.getRTLModuleName()}_routing (')
-    wrapper += self.getIOSection(slot)
+    wrapper.append(f'\n\nmodule {slot.getRTLModuleName()}_routing (')
+    wrapper += self.getIOSection(slot, is_pure_routing)
     wrapper.append(f');')
 
     wrapper += self.connectPassingWires(slot)
-    wrapper += self.connectInterSlotEdgeWiresToIO(slot)
-    wrapper += self.getInnerWrapperInst(slot)
+
+    if not is_pure_routing:
+      wrapper += self.connectInterSlotEdgeWiresToIO(slot)
+      wrapper += self.getInnerWrapperInst(slot)
+    else:
+      wrapper += [
+        'assign ap_done = 1;',
+        'assign ap_idle = 1;',
+        'assign ap_ready = 1;'
+      ]
 
     wrapper.append(f'endmodule')
 
     return wrapper
 
   def createRoutingInclusiveWrapperForAll(self, dir='wrapper_rtl'):
+    def generateWrapper(wrapper, slot):
+      f = open(dir + '/' + slot.getRTLModuleName()+'_routing.v', 'w')
+      f.write('\n'.join(wrapper))
+
     for slot, wrapper_io_list in self.compute_slot_to_io.items():
       routing_wrapper = self.getRoutingInclusiveWrapper(slot)
-      f = open(dir + '/' + slot.getRTLModuleName()+'_routing.v', 'w')
-      f.write('\n'.join(routing_wrapper))
+      generateWrapper(routing_wrapper, slot)
 
-  def getRoutingSlotToIOList(self):
+    for slot in self.pure_routing_slots:
+      print(slot.getRTLModuleName())
+      routing_wrapper = self.getRoutingInclusiveWrapper(slot, is_pure_routing=True)
+      generateWrapper(routing_wrapper, slot)    
+
+  def getSlotToIOList(self):
+    """maintain the same interface as CreateSlotWrapper """
+    def processIODecl(io_decl):
+      io_decl = [io.replace(',', '') for io in io_decl]
+      io_decl = [io.split() for io in io_decl] # ensure that no space in width, e.g., [1+2:0]
+      return io_decl
+
     routing_slot_2_io = {}
     for slot in self.compute_slot_to_io.keys():
       io_decl = self.getIOSection(slot)
-      io_decl = [io.replace(';', '') for io in io_decl]
-      io_decl = [io.split() for io in io_decl] # ensure that no space in width, e.g., [1+2:0]
-      
-      routing_slot_2_io[slot.getRTLModuleName()] = io_decl
+      io_decl = processIODecl(io_decl)
+      routing_slot_2_io[slot] = io_decl
+
+    for slot in self.pure_routing_slots:
+      io_decl = self.getIOSection(slot, is_pure_routing=True)
+      io_decl = processIODecl(io_decl)
+      routing_slot_2_io[slot] = io_decl
+
     return routing_slot_2_io
 
-  def getRoutingSlotNameToIOList(self):
-    routing_slot_2_io = self.getRoutingSlotToIOList()
+  def getSlotNameToIOList(self):
+    routing_slot_2_io = self.getSlotToIOList()
     return {slot.getRTLModuleName() : io_list for slot, io_list in routing_slot_2_io.items()}
+
+  def getEmptyWrappers(self):
+    """
+    in vivado flow, to declare a module instance as black box, we must have an empty initilization
+    """
+    empty_wrappers = []
+    routing_slot_2_io = self.getSlotToIOList()
+    for slot, io_decl in routing_slot_2_io.items():
+      empty_wrappers.append(f'\n\nmodule {slot.getRTLModuleName()}_routing (')
+      empty_wrappers += [' '.join(io) + ',' for io in io_decl]
+      empty_wrappers[-1].replace(',', '')
+      empty_wrappers.append(f');')
+      empty_wrappers.append(f'endmodule')
+    return empty_wrappers
