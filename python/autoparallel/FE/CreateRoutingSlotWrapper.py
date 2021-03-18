@@ -5,6 +5,7 @@ from typing import List
 class CreateRoutingSlotWrapper:
 
   def __init__(self, compute_wrapper_creater, floorplan, global_router, top_rtl_parser):
+    self.compute_wrapper_creater = compute_wrapper_creater
     self.compute_slot_to_io = compute_wrapper_creater.getSlotToIOList()
     self.floorplan = floorplan
     self.global_router = global_router
@@ -146,8 +147,6 @@ class CreateRoutingSlotWrapper:
     v_set = set(s2v[slot])
     intra_edges, inter_edges = self.floorplan.getIntraAndInterEdges(s2v[slot])
 
-    print(slot.getRTLModuleName())
-
     for e in inter_edges:
       path_len = self.global_router.getPathLength(e.name)
 
@@ -217,6 +216,10 @@ class CreateRoutingSlotWrapper:
 
     wrapper.append(f'endmodule')
 
+    # include the inner wrapper
+    if not is_pure_routing:
+      wrapper += self.compute_wrapper_creater.createSlotWrapper(slot)
+
     return wrapper
 
   def createRoutingInclusiveWrapperForAll(self, dir='wrapper_rtl'):
@@ -229,7 +232,6 @@ class CreateRoutingSlotWrapper:
       generateWrapper(routing_wrapper, slot)
 
     for slot in self.pure_routing_slots:
-      print(slot.getRTLModuleName())
       routing_wrapper = self.getRoutingInclusiveWrapper(slot, is_pure_routing=True)
       generateWrapper(routing_wrapper, slot)    
 

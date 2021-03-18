@@ -57,7 +57,7 @@ class Manager:
     logging.info(f'generating front end results...')
     json_creater = CreateResultJson(
                     floorplan, 
-                    compute_wrapper_creater, 
+                    routing_wrapper_create, 
                     global_router, 
                     self.board, 
                     hls_prj_manager, 

@@ -13,11 +13,11 @@ class GlobalRouting:
     self.s2v = floorplan.getSlotToVertices()
     self.s2e = floorplan.getSlotToEdges()
     self.e_name2lat = {}
-    self.e_name2path = {} # from edge to all slots passed
+    self.e_name2path = {} # from edge to all slots passed, exclude src and dst
     self.slot2e_names = {} # from slot to all edges passed through
+    self.slot_to_dir_to_edges = defaultdict(lambda: defaultdict(list))
 
     self.naiveGlobalRouting()
-    self.__initEdgeLatency()
 
   def naiveGlobalRouting(self):
     """
@@ -25,6 +25,11 @@ class GlobalRouting:
     assume all slots are of the same size and are aligned
     the slot_path exclude the src slot and the dst slot
     """
+    def __initEdgeLatency():
+      for e_list in self.s2e.values():
+        for e in e_list:
+          self.e_name2lat[e.name] = self.__getPipelineLevelOfEdge(e)
+
     for e_list in self.s2e.values():
       for e in e_list:
         slot_path = []
@@ -66,67 +71,62 @@ class GlobalRouting:
     for slot, e_names in self.slot2e_names.items():
         logging.info(f'{slot.getName()} will be passed by: \n\t' + '\n\t'.join(e_names))
 
-  def getSlotToDirToEdges(self):
+    __initEdgeLatency()
+
+  def getDirectionOfPassingEdges(self):
     """
-    for each slot and for each direction, get all edges that leave through that direction
+    In which directions (UP, DOWN, LEFT, RIGHT) do the edges come and go
+    slot -> dir & in or out -> edges
     """
-    slot_to_dir = {}
-    for this_slot, v_list in self.s2v.items():
-      intra_edges, inter_edges = self.floorplan.getIntraAndInterEdges(v_list)
-      dir_to_edge = defaultdict(list)
+    for e_list in self.s2e.values():
+      for e in e_list:
+        src_slot = self.v2s[e.src]
+        dst_slot = self.v2s[e.dst]
+        
+        # ignore intra slot edges
+        if src_slot == dst_slot:
+          continue
 
-      for e in inter_edges:
-        if self.v2s[e.src] == this_slot:
-          that_slot = self.v2s[e.dst]
-          e_dir = '_OUT'
-        elif self.v2s[e.dst] == this_slot:
-          that_slot = self.v2s[e.src]
-          e_dir = '_IN'
-        else:
-          assert False
-        assert that_slot != this_slot
+        logging.debug(f'from {src_slot.getRTLModuleName()} to {dst_slot.getRTLModuleName()}')
+        slot_path = self.e_name2path[e.name]
 
-        # first quadrant
-        if that_slot.getPositionY() > this_slot.getPositionY() and that_slot.getPositionX() > this_slot.getPositionX():
-          crossing_loc = 'RIGHT'
-        # Y axis positive
-        elif that_slot.getPositionY() > this_slot.getPositionY() and that_slot.getPositionX() == this_slot.getPositionX():
-          crossing_loc = 'UP'
-        # second quadrant
-        elif that_slot.getPositionY() > this_slot.getPositionY() and that_slot.getPositionX() < this_slot.getPositionX():
-          crossing_loc = 'LEFT'
-        # X axis negtive
-        elif that_slot.getPositionY() == this_slot.getPositionY() and that_slot.getPositionX() < this_slot.getPositionX():
-          crossing_loc = 'LEFT'
-        # third quadrant
-        elif that_slot.getPositionY() < this_slot.getPositionY() and that_slot.getPositionX() < this_slot.getPositionX():
-          crossing_loc = 'LEFT'
-        # Y axis negtive
-        elif that_slot.getPositionY() < this_slot.getPositionY() and that_slot.getPositionX() == this_slot.getPositionX():
-          crossing_loc = 'DOWN'
-        # fourth quadrant
-        elif that_slot.getPositionY() < this_slot.getPositionY() and that_slot.getPositionX() > this_slot.getPositionX():
-          crossing_loc = 'RIGHT'
-        # X axis positive
-        elif that_slot.getPositionY() == this_slot.getPositionY() and that_slot.getPositionX() > this_slot.getPositionX():
-          crossing_loc = 'RIGHT'
-        else:
-          assert False
+        prev = src_slot
+        for slot in slot_path + [dst_slot]:
+          curr_name = slot.getRTLModuleName()
+          prev_name = prev.getRTLModuleName()
+          if slot.isAbove(prev):
+            logging.debug('Go up')
+            self.slot_to_dir_to_edges[curr_name]['DOWN_IN'].append(e.name)
+            self.slot_to_dir_to_edges[prev_name]['UP_OUT'].append(e.name)
+          elif slot.isBelow(prev):
+            logging.debug('Go down')
+            self.slot_to_dir_to_edges[curr_name]['UP_IN'].append(e.name)
+            self.slot_to_dir_to_edges[prev_name]['DOWN_OUT'].append(e.name)
+          elif slot.isToTheLeftOf(prev):
+            logging.debug('Go left')
+            self.slot_to_dir_to_edges[curr_name]['RIGHT_IN'].append(e.name)
+            self.slot_to_dir_to_edges[prev_name]['LEFT_OUT'].append(e.name)
+          elif slot.isToTheRightOf(prev):
+            logging.debug('Go right')
+            self.slot_to_dir_to_edges[curr_name]['LEFT_IN'].append(e.name)
+            self.slot_to_dir_to_edges[prev_name]['RIGHT_OUT'].append(e.name)
+          else:
+            assert False
 
-        dir_to_edge[crossing_loc + e_dir].append(e.name)
-        # --- end of inner loop ---
+          prev = slot
 
-      slot_to_dir[this_slot.getRTLModuleName()] = dir_to_edge
-      # --- end of outer loop ---
+    # remove the defualt dict property to prevent unexpected contamination
+    self.slot_to_dir_to_edges = json.loads(json.dumps(self.slot_to_dir_to_edges))
 
-    return slot_to_dir
+    return self.slot_to_dir_to_edges
 
-  def getPathPlanningWire(self, slot_to_dir):
+  def getDirectionOfPassingEdgeWires(self):
     """
     get the map: slot -> each direction -> all wires of all the edges that leave through this direction
+    Note that the routing inclusive wrapper will rename the wires
     """
     slot_to_dir_to_wires = {}
-    for slot, dir_to_fifos in slot_to_dir.items():
+    for slot, dir_to_fifos in self.slot_to_dir_to_edges.items():
       dir_to_wires = {}
       for dir, fifos in dir_to_fifos.items():
         dir_to_wires[dir] = []
@@ -136,9 +136,6 @@ class GlobalRouting:
 
       slot_to_dir_to_wires[slot] = dir_to_wires
     return slot_to_dir_to_wires
-
-  def getSlotToDirToEdgeWires(self):
-    return self.getPathPlanningWire(self.getSlotToDirToEdges())
 
   def __getPipelineLevelOfEdge(self, e : Edge) -> int:
     src_slot = self.v2s[e.src]
@@ -156,11 +153,6 @@ class GlobalRouting:
     logging.info(f'edge {e.name}: ({src_x}, {src_y}) -> ({dst_x}, {dst_y}); pipeline level : {pipeline_level}')
     
     return pipeline_level
-
-  def __initEdgeLatency(self):
-    for e_list in self.s2e.values():
-      for e in e_list:
-        self.e_name2lat[e.name] = self.__getPipelineLevelOfEdge(e)
 
   def getPipelineLevelOfEdge(self, e : Edge) -> int:
     return self.e_name2lat[e.name]

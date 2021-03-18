@@ -8,7 +8,7 @@ class CreateResultJson:
       self, 
       floorplan, 
       wrapper_creater, 
-      path_planner, 
+      global_router, 
       board, 
       hls_prj_manager, 
       slot_manager, 
@@ -18,7 +18,7 @@ class CreateResultJson:
     self.s2v = floorplan.getSlotToVertices()
     self.s2e = floorplan.getSlotToEdges()
     self.wrapper_creater = wrapper_creater
-    self.path_planner = path_planner
+    self.global_router = global_router
     self.board = board
     self.hls_prj_manager = hls_prj_manager
     self.slot_manager = slot_manager
@@ -82,7 +82,7 @@ class CreateResultJson:
   def __getSlotWrapperRTLSection(self):
     slot_to_rtl = {}
     for slot in self.s2v.keys():
-      slot_to_rtl[slot.getRTLModuleName()] = self.wrapper_creater.createSlotWrapper(slot)
+      slot_to_rtl[slot.getRTLModuleName()] = self.wrapper_creater.getRoutingInclusiveWrapper(slot)
     return slot_to_rtl
 
   def createResultJson(self, file = 'front_end_result.json'):
@@ -99,8 +99,8 @@ class CreateResultJson:
     result['SlotWrapperRTL'] = self.__getSlotWrapperRTLSection()
     result['NewTopRTL'] = self.new_top_rtl
     
-    result['PathPlanningFIFO'] = self.path_planner.getSlotToDirToEdges()
-    result['PathPlanningWire'] = self.path_planner.getSlotToDirToEdgeWires()
+    result['PathPlanningFIFO'] = self.global_router.getDirectionOfPassingEdges()
+    result['PathPlanningWire'] = self.global_router.getDirectionOfPassingEdgeWires()
     
     result['Utilization'] = self.floorplan.getUtilization()
     result['Neighbors'] = self.__getNeighborSection()
