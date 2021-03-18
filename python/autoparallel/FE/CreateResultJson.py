@@ -27,9 +27,9 @@ class CreateResultJson:
 
   def __getNeighborSection(self):
     neighbors = defaultdict(dict)
-    for slot in self.s2v.keys():
+    for slot in self.slot_manager.getActiveSlotsIncludeRouting():
       for dir in ['UP', 'DOWN', 'LEFT', 'RIGHT']:
-        neighbor_slots = self.slot_manager.getNeighborSlots(slot, dir)
+        neighbor_slots = self.slot_manager.getNeighborSlotsIncludeRouting(slot, dir)
         neighbors[slot.getRTLModuleName()][dir] = [s.getRTLModuleName() for s in neighbor_slots]
     return neighbors
 
@@ -108,6 +108,9 @@ class CreateResultJson:
     
     result['Utilization'] = self.floorplan.getUtilization()
     result['Neighbors'] = self.__getNeighborSection()
+
+    result['ComputeSlots'] = [ s.getRTLModuleName() for s in self.slot_manager.getComputeSlots() ]
+    result['PureRoutingSlots'] = [ s.getRTLModuleName() for s in self.slot_manager.getPureRoutingSlots() ]
 
     f = open(file, 'w')
     f.write(json.dumps(result, indent=2))

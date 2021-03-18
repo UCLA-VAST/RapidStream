@@ -51,6 +51,9 @@ class SlotManager:
         for pblock in self.pblock_to_routing_slot.keys() \
         if pblock not in self.pblock_to_slot]
 
+  def getComputeSlots(self):
+    return self.pblock_to_slot.values()
+
   def removeSlotNonBlocking(self, pblock : str):
     if pblock in self.pblock_to_slot:
       self.pblock_to_slot.pop(pblock)
@@ -88,46 +91,51 @@ class SlotManager:
   def __haveOverlappedXRange(self, a : Slot, b : Slot):
     return min(a.getOrigUpRightX(), b.getOrigUpRightX()) > max(a.getOrigDownLeftX(), b.getOrigDownLeftX())
   
-  def getLeftNeighborSlots(self, slot):
+  def getLeftNeighborSlots(self, slot, potential_target_slots):
     neighbors = []
-    for candidate in self.pblock_to_slot.values():
+    for candidate in potential_target_slots.values():
       if candidate.getOrigUpRightX()+1 == slot.getOrigDownLeftX():
         if self.__haveOverlappedYRange(candidate, slot):
           neighbors.append(candidate)
     return neighbors
   
-  def getRightNeighborSlots(self, slot):
+  def getRightNeighborSlots(self, slot, potential_target_slots):
     neighbors = []
-    for candidate in self.pblock_to_slot.values():
+    for candidate in potential_target_slots.values():
       if slot.getOrigUpRightX()+1 == candidate.getOrigDownLeftX():
         if self.__haveOverlappedYRange(candidate, slot):
           neighbors.append(candidate)
     return neighbors
   
-  def getUpNeighborSlots(self, slot):
+  def getUpNeighborSlots(self, slot, potential_target_slots):
     neighbors = []
-    for candidate in self.pblock_to_slot.values():
+    for candidate in potential_target_slots.values():
       if slot.getOrigUpRightY()+1 == candidate.getOrigDownLeftY():
         if self.__haveOverlappedXRange(candidate, slot):
           neighbors.append(candidate)
     return neighbors
   
-  def getDownNeighborSlots(self, slot):
+  def getDownNeighborSlots(self, slot, potential_target_slots):
     neighbors = []
-    for candidate in self.pblock_to_slot.values():
+    for candidate in potential_target_slots.values():
       if candidate.getOrigUpRightY()+1 == slot.getOrigDownLeftY():
         if self.__haveOverlappedXRange(candidate, slot):
           neighbors.append(candidate)
     return neighbors
 
-  def getNeighborSlots(self, slot, dir):
+  def getNeighborSlotsIncludeRouting(self, slot, dir):
+    potential_target_slots = {**self.pblock_to_slot, **self.pblock_to_routing_slot}
+
     if dir == 'UP':
-      return self.getUpNeighborSlots(slot)
+      return self.getUpNeighborSlots(slot, potential_target_slots)
     elif dir == 'DOWN':
-      return self.getDownNeighborSlots(slot)
+      return self.getDownNeighborSlots(slot, potential_target_slots)
     elif dir == 'LEFT':
-      return self.getLeftNeighborSlots(slot)
+      return self.getLeftNeighborSlots(slot, potential_target_slots)
     elif dir == 'RIGHT':
-      return self.getRightNeighborSlots(slot)
+      return self.getRightNeighborSlots(slot, potential_target_slots)
     else:
       assert False, f'wrong direction: {dir}'
+
+  def getActiveSlotsIncludeRouting(self):
+    return {**self.pblock_to_slot, **self.pblock_to_routing_slot}.values()
