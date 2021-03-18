@@ -123,7 +123,8 @@ class GlobalRouting:
   def getDirectionOfPassingEdgeWires(self):
     """
     get the map: slot -> each direction -> all wires of all the edges that leave through this direction
-    Note that the routing inclusive wrapper will rename the wires
+    Note that the routing inclusive wrapper will rename the wires.
+    Thus the routing wrapper creater should take care of the renaming
     """
     slot_to_dir_to_wires = {}
     for slot, dir_to_fifos in self.slot_to_dir_to_edges.items():

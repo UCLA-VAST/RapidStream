@@ -45,8 +45,12 @@ class CreateResultJson:
     else:
       assert False, f'inccorect direction {dir}'
 
-  # collect the shared anchors with immediate neighbors in each direction
   def __getSharedAnchorSection(self, neighbors, path_planning_wire):
+    """ 
+    [obsolete] collect the shared anchors with immediate neighbors in each direction
+    If we do not include passing edges to the wrapper, not all IOs are to immediate neighbors
+    Right now each slot will only connect with direct neighbors
+    """
     shared_anchors = defaultdict(dict)
     for slot_name in neighbors.keys():
       for dir in ['UP', 'DOWN', 'LEFT', 'RIGHT']:
@@ -100,11 +104,10 @@ class CreateResultJson:
     result['NewTopRTL'] = self.new_top_rtl
     
     result['PathPlanningFIFO'] = self.global_router.getDirectionOfPassingEdges()
-    result['PathPlanningWire'] = self.global_router.getDirectionOfPassingEdgeWires()
+    result['PathPlanningWire'] = self.wrapper_creater.getDirectionOfPassingEdgeWiresUpdated()
     
     result['Utilization'] = self.floorplan.getUtilization()
     result['Neighbors'] = self.__getNeighborSection()
-    result['SharedAnchors'] = self.__getSharedAnchorSection(result['Neighbors'], result['PathPlanningWire'])
 
     f = open(file, 'w')
     f.write(json.dumps(result, indent=2))
