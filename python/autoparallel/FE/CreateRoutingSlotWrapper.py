@@ -13,6 +13,8 @@ class CreateRoutingSlotWrapper:
     self.pure_routing_slots = global_router.getPureRoutingSlots()
     self.target = compute_wrapper_creater.target # maintain the same interface with CreateSlotWrapper
 
+    self.edge_wire_to_suffix_index = {}
+
     self.inbound_dir = {'_din' : 'input', '_write' : 'input', '_full_n' : 'output'}
     self.outbound_dir = {'_din' : 'output', '_write' : 'output', '_full_n' : 'input'}
 
@@ -272,3 +274,63 @@ class CreateRoutingSlotWrapper:
       empty_wrappers.append(f');')
       empty_wrappers.append(f'endmodule')
     return empty_wrappers
+
+  def getDirectionOfPassingEdgeWiresUpdated(self):
+    """
+    Since the routing wrapper will rename the wires
+    the mapping from boudary to wires from global routing will be outdated
+    Here the mapping is updated by attaching suffixes to the wire name
+    The problem is that the same wire will go in and out of the same slot, though through different boundary
+    To correctly set the index in their appendix, we start with the IN side
+    And we sort the list of modified IO
+    For each wire of inbound edges, we look for the first partial match in the list of modified IO
+    for a passing edge, the one with smaller index will be used.
+    Then we remove the used ones from the list of modified IO
+    After all inbound edges are processed, we go with outbound edges.
+    Example: a slot may have input "foobar_din_pass_0" on one edge
+    and output "foo_bar_din_pass_1" on the other edge
+    The original slot_to_wire mapping will have two "foobar_din" on two different directions
+    We need to change each of them accordingly to add the suffix
+    The wire at the IN side always has a smaller index 
+    """
+
+    def partialMatchAndRemove():
+      updated_wire_list = []
+      for orig_wire in orig_wire_list:
+        for updated_wire in routing_wrapper_wire_list[:] :
+          if f'{orig_wire}_pass_' in updated_wire:
+            updated_wire_list.append(updated_wire)
+
+            # remove so that this io will not be matched again
+            routing_wrapper_wire_list.remove(updated_wire)
+
+            # break to prevent redundant matching
+            break
+
+      dir_to_wires[dir] = updated_wire_list
+
+    slot_to_dir_to_wires = self.global_router.getDirectionOfPassingEdgeWires()
+    routing_slot_2_io = self.getSlotNameToIOList() # the return has separated direction, width and wire name
+
+    for slot, dir_to_wires in slot_to_dir_to_wires.items():
+      routing_wrapper_io_list = routing_slot_2_io[slot]
+      routing_wrapper_wire_list = [io[-1] for io in routing_wrapper_io_list]
+
+      # sort the updated io list so that small index comes first
+      routing_wrapper_wire_list.sort()
+
+      # first match the IN side because inbound edges have smaller indices
+      for dir, orig_wire_list in dir_to_wires.items():
+        if '_IN' in dir:
+          partialMatchAndRemove()
+        
+      # next match the OUT side. Previously matched IOs have been removed
+      for dir, orig_wire_list in dir_to_wires.items():
+        if '_OUT' in dir:
+          partialMatchAndRemove()
+
+      # only ctrl IOs should be left
+      assert all(wire.startswith('ap_') or '_axi' in wire or 'interrupt' in wire \
+        for wire in routing_wrapper_wire_list)
+
+    return slot_to_dir_to_wires
