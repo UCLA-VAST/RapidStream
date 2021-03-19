@@ -139,3 +139,8 @@ class SlotManager:
 
   def getActiveSlotsIncludeRouting(self):
     return {**self.pblock_to_slot, **self.pblock_to_routing_slot}.values()
+
+  def isPureRoutingSlot(self, slot):
+    slot_name = slot.getName()
+    return slot_name in self.pblock_to_routing_slot and slot_name not in self.pblock_to_slot
+

@@ -181,6 +181,9 @@ class GlobalRouting:
   def getPureRoutingSlots(self):
     return self.slot_manager.getPureRoutingSlots()
 
+  def isPureRoutingSlot(self, slot):
+    return self.slot_manager.isPureRoutingSlot(slot)
+
 if __name__ == '__main__':
   json_path = './BE_pass1_anchored.json'
   json_hub = json.loads(open(json_path, 'r').read())

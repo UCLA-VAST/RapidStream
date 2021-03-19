@@ -15,8 +15,6 @@ class CreateResultJson:
       top_rtl_parser, 
       new_top_rtl):
     self.floorplan = floorplan
-    self.s2v = floorplan.getSlotToVertices()
-    self.s2e = floorplan.getSlotToEdges()
     self.wrapper_creater = wrapper_creater
     self.global_router = global_router
     self.board = board
@@ -85,7 +83,7 @@ class CreateResultJson:
 
   def __getSlotWrapperRTLSection(self):
     slot_to_rtl = {}
-    for slot in self.s2v.keys():
+    for slot in self.slot_manager.getActiveSlotsIncludeRouting():
       slot_to_rtl[slot.getRTLModuleName()] = self.wrapper_creater.getRoutingInclusiveWrapper(slot)
     return slot_to_rtl
 
