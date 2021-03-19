@@ -292,32 +292,38 @@ class CreateRoutingSlotWrapper:
     The original slot_to_wire mapping will have two "foobar_din" on two different directions
     We need to change each of them accordingly to add the suffix
     The wire at the IN side always has a smaller index 
+
+    change 1: slot -> dir -> wires 
+    change 2: routing inclusive wrapper causes the wires to have duplications, add suffix to differentiate them
+    change 3: add the width information as well because of backend's need
     """
 
     def partialMatchAndRemove():
-      updated_wire_list = []
+      updated_io_list = []
       for orig_wire in orig_wire_list:
-        for updated_wire in routing_wrapper_wire_list[:] :
-          if f'{orig_wire}_pass_' in updated_wire:
-            updated_wire_list.append(updated_wire)
+        for updated_io in routing_wrapper_io_list[:] :
+          if f'{orig_wire}_pass_' in updated_io[-1]:
+            updated_io_list.append(updated_io)
 
             # remove so that this io will not be matched again
-            routing_wrapper_wire_list.remove(updated_wire)
+            routing_wrapper_io_list.remove(updated_io)
 
             # break to prevent redundant matching
             break
 
-      dir_to_wires[dir] = updated_wire_list
+      dir_to_wires[dir] = updated_io_list
 
+    # at this point no width or i/o direction is appended
     slot_to_dir_to_wires = self.global_router.getDirectionOfPassingEdgeWires()
+    
     routing_slot_2_io = self.getSlotNameToIOList() # the return has separated direction, width and wire name
-
+    
     for slot, dir_to_wires in slot_to_dir_to_wires.items():
       routing_wrapper_io_list = routing_slot_2_io[slot]
       routing_wrapper_wire_list = [io[-1] for io in routing_wrapper_io_list]
 
       # sort the updated io list so that small index comes first
-      routing_wrapper_wire_list.sort()
+      routing_wrapper_io_list.sort(key=lambda io : io[-1])
 
       # first match the IN side because inbound edges have smaller indices
       for dir, orig_wire_list in dir_to_wires.items():
@@ -330,7 +336,8 @@ class CreateRoutingSlotWrapper:
           partialMatchAndRemove()
 
       # only ctrl IOs should be left
-      assert all(wire.startswith('ap_') or '_axi' in wire or 'interrupt' in wire \
-        for wire in routing_wrapper_wire_list)
+      assert all(io[-1].startswith('ap_') or '_axi' in io[-1] or 'interrupt' in io[-1] \
+        for io in routing_wrapper_io_list)
 
+    # the width and i/o direction is also attached
     return slot_to_dir_to_wires
