@@ -197,7 +197,9 @@ class CreateRoutingSlotWrapper:
     
     return slot_inst
 
-  def getRoutingInclusiveWrapper(self, slot, is_pure_routing=False):
+  def getRoutingInclusiveWrapper(self, slot):
+    is_pure_routing = self.global_router.isPureRoutingSlot(slot)
+
     wrapper = ['\n\n`timescale 1 ns / 1 ps']
 
     wrapper.append(f'\n\nmodule {slot.getRTLModuleName()}_routing (')
@@ -234,7 +236,7 @@ class CreateRoutingSlotWrapper:
       generateWrapper(routing_wrapper, slot)
 
     for slot in self.pure_routing_slots:
-      routing_wrapper = self.getRoutingInclusiveWrapper(slot, is_pure_routing=True)
+      routing_wrapper = self.getRoutingInclusiveWrapper(slot)
       generateWrapper(routing_wrapper, slot)    
 
   def getSlotToIOList(self):
