@@ -272,7 +272,7 @@ class CreateRoutingSlotWrapper:
     for slot, io_decl in routing_slot_2_io.items():
       empty_wrappers.append(f'\n\nmodule {slot.getRTLModuleName()}_routing (')
       empty_wrappers += [' '.join(io) + ',' for io in io_decl]
-      empty_wrappers[-1].replace(',', '')
+      empty_wrappers[-1] = empty_wrappers[-1].replace(',', '')
       empty_wrappers.append(f');')
       empty_wrappers.append(f'endmodule')
     return empty_wrappers
