@@ -26,6 +26,7 @@ if __name__ == '__main__':
   assert os.path.isdir(orig_rtl_path)
   
   for slot_name in hub['SlotIO'].keys():
+    logging.info(f'processing slot {slot_name}...')
     dir = f'{backend_run_dir}/{slot_name}'
     os.mkdir(dir)
     
@@ -33,7 +34,7 @@ if __name__ == '__main__':
     target_rtl_path = f'{dir}/rtl'
     os.mkdir(target_rtl_path)
     createAnchorWrapper(hub, slot_name, output_path=target_rtl_path)  
-    duplicateSourceRTL(orig_rtl_path, target_rtl_path, slot_name, FloorplanVertex)
+    # duplicateSourceRTL(orig_rtl_path, target_rtl_path, slot_name, FloorplanVertex)
 
     # create pblock constraints for each anchored wrapper
     createPBlockScript(hub, slot_name, output_path=dir)

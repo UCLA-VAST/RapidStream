@@ -13,13 +13,17 @@ def createFreeRunScript(
   script.append(f'set_part {fpga_part_name}')
 
   # read in the original RTLs by HLS
-  # the new wrapper is placed in the same directory
-  script.append(f'set RTL_PATH "{output_path}/rtl"') 
-  script.append(r'set orig_rtl_files [glob ${RTL_PATH}/*.v]') 
+  script.append(f'set ORIG_RTL_PATH "{orig_rtl_path}"') 
+  script.append(r'set orig_rtl_files [glob ${ORIG_RTL_PATH}/*.v]') 
   script.append(r'read_verilog ${orig_rtl_files}') 
 
-  # instantiate IPs used in the RTL
-  script.append(r'set orig_ip_files [glob -nocomplain ${RTL_PATH}/*.tcl]') 
+  # read in the generated wrappers
+  script.append(f'set WRAPPER_PATH "{output_path}/rtl"') 
+  script.append(r'set wrapper_files [glob ${WRAPPER_PATH}/*.v]') 
+  script.append(r'read_verilog ${wrapper_files}') 
+
+  # instantiate IPs used in the RTL. Use "-nocomplain" in case no IP is used
+  script.append(r'set orig_ip_files [glob -nocomplain ${ORIG_RTL_PATH}/*.tcl]') 
   script.append(r'foreach ip_tcl ${orig_ip_files} { source ${ip_tcl} }') 
 
   # clock xdc
