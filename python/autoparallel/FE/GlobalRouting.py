@@ -2,7 +2,7 @@
 import logging
 import json
 from collections import defaultdict 
-from autoparallel.FE.DataflowGraph import Vertex, Edge
+from autobridge.Opt.DataflowGraph import Vertex, Edge
 
 class GlobalRouting:
   def __init__(self, floorplan, top_rtl_parser, slot_manager):
