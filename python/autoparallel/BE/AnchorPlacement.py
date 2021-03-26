@@ -1,11 +1,18 @@
 import logging
 import json
 import sys
+import re
 
 def __getSharedAnchorPlacement(hub, slot_name, backend_run_path):
+  """
+  In the anchored run, we first extract from neighbor DCPs where are the anchors placed
+  Then we directly place those anchors at the exact same location
+  As a result, the interface between neighbors will naturally align
+  With routing inclusive wrappers, all anchors on each boundary will be shared by the neighbors
+  """
   # get neighbors
   dir_to_neighbors = hub['Neighbors'][slot_name]
-  dir_to_shared_anchors = hub['SharedAnchors'][slot_name] # dir -> wire name -> width
+  dir_to_shared_anchors = hub['PathPlanningWire'][slot_name] # dir -> list of [i/o dir, width (if >1), name]
 
   anchor_name_to_loc = {}
   for dir, neighbor_slots in dir_to_neighbors.items():
@@ -14,21 +21,24 @@ def __getSharedAnchorPlacement(hub, slot_name, backend_run_path):
       anchor_placement_json = f'{backend_run_path}/{neighbor_slot}/{neighbor_slot}_anchor_placement.json'
       anchor_placement = json.loads(open(anchor_placement_json, 'r').read())
 
-      shared_anchors = {}
+      shared_anchors = []
       if f'{dir}_IN' in dir_to_shared_anchors:
-        shared_anchors.update(dir_to_shared_anchors[f'{dir}_IN'])
+        shared_anchors += dir_to_shared_anchors[f'{dir}_IN']
       if f'{dir}_OUT' in dir_to_shared_anchors:
-        shared_anchors.update(dir_to_shared_anchors[f'{dir}_OUT'])
+        shared_anchors += dir_to_shared_anchors[f'{dir}_OUT']
 
-      for anchor, width in shared_anchors.items():
-        if width == 1:
-          anchor_name = f'{anchor}_anchor_reg'
+      for io in shared_anchors:
+        if len(io) == 2: # width == 1
+          anchor_name = f'{io[-1]}_anchor_reg'
 
           assert anchor_name in anchor_placement, f'anchor {anchor_name} of slot {slot_name} not found in post-placement records'
           anchor_name_to_loc[anchor_name] = anchor_placement[anchor_name]
         else:
-          for i in range(width):
-            anchor_name = f'{anchor}_anchor_reg[{i}]'
+          # io[1] is a string of "[X:0]" or "[a-b:0]"
+          width = int(eval(re.search('\[(.+):', io[1]).group(1)) )
+
+          for i in range(width+1): # notice the +1 here
+            anchor_name = f'{io[-1]}_anchor_reg[{i}]'
 
             assert anchor_name in anchor_placement, f'anchor {anchor_name} of slot {slot_name} not found in post-placement records'
             anchor_name_to_loc[anchor_name] = anchor_placement[anchor_name]
