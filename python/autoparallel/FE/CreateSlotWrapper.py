@@ -1,11 +1,10 @@
 #! /usr/bin/python3.6
 import logging
-from autoparallel.FE.Slot import Slot
 import re
 import copy
 import os
 import shutil
-from autoparallel.FE.FIFOTemplate import fifo_template
+from autobridge.Codegen.FIFOTemplate import fifo_template
 
 class CreateSlotWrapper:
   def __init__(self, graph, top_rtl_parser, floorplan, global_router, rebalance, target='hw'):
@@ -25,19 +24,19 @@ class CreateSlotWrapper:
     self.s2v = floorplan.getSlotToVertices()
     self.s2e = floorplan.getSlotToEdges()
 
-  def __getWireDeclCopy(self, slot : Slot) -> str:
+  def __getWireDeclCopy(self, slot) -> str:
     """
     Different wrappers will filter out different wires
     To avoid interference, we make a deep copy of the entire wire list from the original top RTL
     """
     return copy.deepcopy(self.top_rtl_parser.getAllDeclExceptIO())
 
-  def __getVertexInstances(self, slot : Slot):
+  def __getVertexInstances(self, slot):
     v_list = self.s2v[slot]
     logging.debug(f'slot {slot.getRTLModuleName()} has {len(v_list)} v insts')
     return [self.top_rtl_parser.getRTLOfInst(v.name) for v in v_list]
 
-  def __getEdgeInstances(self, slot : Slot):
+  def __getEdgeInstances(self, slot):
     """
     get the RTL snippet of each FIFO instantiation
     replace the original HLS fifo by our almost-full template
@@ -55,7 +54,7 @@ class CreateSlotWrapper:
     
     return edge_insts
 
-  def __getHeader(self, slot : Slot):
+  def __getHeader(self, slot):
     """
     note the difference between getHeader and getIOSec:
     getHeader -> module xxx (a, b, c, ...)
@@ -79,7 +78,7 @@ class CreateSlotWrapper:
   def __getEnding(self):
     return ['endmodule']
 
-  def __getIODecl(self, slot : Slot):
+  def __getIODecl(self, slot):
     """
     get the IO of each wrapper
     1. inter-slot edges
@@ -347,7 +346,7 @@ class CreateSlotWrapper:
     stmt.append('  ap_rst_n_pipe <= ap_rst_n_p2;')
     stmt.append('end')
 
-  def createSlotWrapper(self, slot : Slot):
+  def createSlotWrapper(self, slot):
     header = self.__getHeader(slot)
     decl = self.__getWireDeclCopy(slot)
     io_decl = self.__getIODecl(slot)
@@ -382,7 +381,7 @@ class CreateSlotWrapper:
     if os.path.isdir(dir):
       shutil.rmtree(dir)
     os.mkdir(dir)
-    for s in self.s2e.keys():
+    for s in self.s2v.keys():
       wrapper = self.createSlotWrapper(s)
       f = open(dir + '/' + s.getRTLModuleName()+'.v', 'w')
       f.write('\n'.join(wrapper))
@@ -393,7 +392,7 @@ class CreateSlotWrapper:
 
   def getSlotToIOList(self):
     slot_2_io = {}
-    for slot in self.s2e.keys():
+    for slot in self.s2v.keys():
       io_decl = self.__getIODecl(slot)
       io_decl = [io.replace(';', '') for io in io_decl]
       io_decl = [io.split() for io in io_decl] # ensure that no space in width, e.g., [1+2:0]
@@ -407,7 +406,7 @@ class CreateSlotWrapper:
     in vivado flow, to declare a module instance as black box, we must have an empty initilization
     """
     empty_wrappers = []
-    for s in self.s2e.keys():
+    for s in self.s2v.keys():
       empty_wrappers += self.__getHeader(s)
       empty_wrappers += self.__getIODecl(s)
       empty_wrappers += self.__getEnding()

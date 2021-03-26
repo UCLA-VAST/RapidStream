@@ -1,18 +1,20 @@
 #! /usr/bin/python3.6
 import sys
 from collections import defaultdict
-from autoparallel.FE.HLSProjectManager import HLSProjectManager
-from autoparallel.FE.DeviceManager import DeviceManager
-from autoparallel.FE.DataflowGraph import DataflowGraph
-from autoparallel.FE.TopRTLParser import TopRTLParser
-from autoparallel.FE.Floorplan import Floorplanner
+from autobridge.HLSParser.vivado_hls.HLSProjectManager import HLSProjectManager
+from autobridge.Device.DeviceManager import DeviceManager
+from autobridge.Opt.DataflowGraph import DataflowGraph
+from autobridge.HLSParser.vivado_hls.TopRTLParser import TopRTLParser
+from autobridge.Opt.Floorplan import Floorplanner
+from autobridge.Opt.SlotManager import SlotManager
+from autobridge.Opt.LatencyBalancing import LatencyBalancing
+
+from autoparallel.FE.GlobalRouting import GlobalRouting
 from autoparallel.FE.CreateSlotWrapper import CreateSlotWrapper
 from autoparallel.FE.CreateRoutingSlotWrapper import CreateRoutingSlotWrapper
 from autoparallel.FE.CreateResultJson import CreateResultJson
-from autoparallel.FE.GlobalRouting import GlobalRouting
-from autoparallel.FE.SlotManager import SlotManager
 from autoparallel.FE.CreateTopRTL import CreateTopRTL
-from autoparallel.FE.LatencyBalancing import LatencyBalancing
+
 import logging
 import json
 import re

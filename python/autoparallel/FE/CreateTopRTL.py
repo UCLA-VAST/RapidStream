@@ -1,8 +1,8 @@
 #! /usr/bin/python3.6
 import logging
-from autoparallel.FE.Slot import Slot
-from autoparallel.FE.TopRTLParser import TopRTLParser
-from autoparallel.FE.FIFOTemplate import fifo_template
+from autobridge.HLSParser.vivado_hls.TopRTLParser import TopRTLParser
+from autobridge.Codegen.FIFOTemplate import fifo_template
+
 from autoparallel.FE.GlobalRouting import GlobalRouting
 import re
 
