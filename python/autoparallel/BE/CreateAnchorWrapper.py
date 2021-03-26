@@ -83,7 +83,7 @@ def createAnchorWrapper(fe_result, slot_name, output_path='.'):
   wrapper.append('  ' + 'end')
 
   # instantiate slot wrapper. DO NOT change the suffix '_U0'
-  wrapper.append('  ' + f'(* keep_hierarchy = "yes" *) {slot_name} {slot_name}_U0 (' )
+  wrapper.append('  ' + f'(* keep_hierarchy = "yes" *) {slot_name}_routing {slot_name}_U0 (' )
   for io in io_list: # try to preserve order
     if io in data_io:
       if io[0] == 'input':
