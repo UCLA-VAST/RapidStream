@@ -95,20 +95,21 @@ class CreateResultJson:
     result['ORIG_RTL_PATH'] = self.hls_prj_manager.getRTLDir()
 
     result['FloorplanVertex'] = self.floorplan.getSlotNameToVertexNames()
-    result['FloorplanEdge'] = self.floorplan.getSlotNameToEdgeNames()
+    # result['FloorplanEdge'] = self.floorplan.getSlotNameToEdgeNames()
     
     result['SlotIO'] = self.wrapper_creater.getSlotNameToIOList()
     result['SlotWrapperRTL'] = self.__getSlotWrapperRTLSection()
     result['NewTopRTL'] = self.new_top_rtl
     
-    result['PathPlanningFIFO'] = self.global_router.getDirectionOfPassingEdges()
+    # result['PathPlanningFIFO'] = self.global_router.getDirectionOfPassingEdges()
     result['PathPlanningWire'] = self.wrapper_creater.getDirectionOfPassingEdgeWiresUpdated()
     
-    result['Utilization'] = self.floorplan.getUtilization()
-    result['Neighbors'] = self.__getNeighborSection()
+    # result['Utilization'] = self.floorplan.getUtilization()
+    # result['Neighbors'] = self.__getNeighborSection()
 
     result['ComputeSlots'] = [ s.getRTLModuleName() for s in self.slot_manager.getComputeSlots() ]
     result['PureRoutingSlots'] = [ s.getRTLModuleName() for s in self.slot_manager.getPureRoutingSlots() ]
+    result['ComputeSlotPairs'] = [[p[0].getRTLModuleName(), p[1].getRTLModuleName()] for p in self.slot_manager.getComputeSlotPairs()]
 
     f = open(file, 'w')
     f.write(json.dumps(result, indent=2))
