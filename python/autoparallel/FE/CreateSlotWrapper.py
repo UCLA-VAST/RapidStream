@@ -24,6 +24,9 @@ class CreateSlotWrapper:
     self.s2v = floorplan.getSlotToVertices()
     self.s2e = floorplan.getSlotToEdges()
 
+    self.slot2wrapper = {}
+    self.__initSlotWrapper()
+    
   def __getWireDeclCopy(self, slot) -> str:
     """
     Different wrappers will filter out different wires
@@ -247,6 +250,7 @@ class CreateSlotWrapper:
   def __setApIdle(self, stmt):
     stmt.append('assign ap_idle = ap_done;')
 
+  # TODO: this one is too slow
   def __filterUnusedDecl(self, decl, v_insts, e_insts, io_decl):
     """
     we start with the complete wire/reg declaration from the original top file
@@ -346,6 +350,11 @@ class CreateSlotWrapper:
     stmt.append('  ap_rst_n_pipe <= ap_rst_n_p2;')
     stmt.append('end')
 
+  def __initSlotWrapper(self):
+    for s in self.s2v.keys():
+      wrapper = self.createSlotWrapper(s)
+      self.slot2wrapper[s] = wrapper
+
   def createSlotWrapper(self, slot):
     header = self.__getHeader(slot)
     decl = self.__getWireDeclCopy(slot)
@@ -377,14 +386,17 @@ class CreateSlotWrapper:
       wrapper += [fifo_template]
     return wrapper
 
-  def createSlotWrapperForAll(self, dir='wrapper_rtl'):
+  def getSlotWrapperForAll(self, dir='wrapper_rtl'):
     if os.path.isdir(dir):
       shutil.rmtree(dir)
     os.mkdir(dir)
     for s in self.s2v.keys():
-      wrapper = self.createSlotWrapper(s)
+      wrapper = self.slot2wrapper[s]
       f = open(dir + '/' + s.getRTLModuleName()+'.v', 'w')
       f.write('\n'.join(wrapper))
+
+  def getSlotWrapper(self, slot):
+    return self.slot2wrapper[slot]
 
   def getSlotNameToIOList(self):
     slot_2_io = self.getSlotToIOList()

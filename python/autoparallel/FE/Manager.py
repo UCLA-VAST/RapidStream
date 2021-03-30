@@ -48,7 +48,7 @@ class Manager:
 
     logging.info(f'Creating compute wrappers...')
     compute_wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan, global_router, rebalance, self.target)
-    compute_wrapper_creater.createSlotWrapperForAll(dir='wrapper_rtl')
+    compute_wrapper_creater.getSlotWrapperForAll(dir='wrapper_rtl')
 
     logging.info(f'Creating routing inclusive wrappers...')
     routing_wrapper_create = CreateRoutingSlotWrapper(compute_wrapper_creater, floorplan, global_router, top_rtl_parser)

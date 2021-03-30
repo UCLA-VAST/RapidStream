@@ -222,7 +222,7 @@ class CreateRoutingSlotWrapper:
 
     # include the inner wrapper
     if not is_pure_routing:
-      wrapper += self.compute_wrapper_creater.createSlotWrapper(slot)
+      wrapper += self.compute_wrapper_creater.getSlotWrapper(slot)
 
     return wrapper
 
