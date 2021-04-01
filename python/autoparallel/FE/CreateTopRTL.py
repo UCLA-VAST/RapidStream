@@ -54,6 +54,8 @@ def getPipelining(slot_to_io, top_rtl_parser, global_router, routing_inclusive):
   """
   add pipeline registers to connect the slots
   Differentiate whether we include the interconnect registesr in slot wrappers
+  Now that we decide to put the pipeline of passing edges inside the slot, 
+  we should not pipeline them outside slots
   """
 
   pipeline = []
@@ -66,12 +68,19 @@ def getPipelining(slot_to_io, top_rtl_parser, global_router, routing_inclusive):
       if io[0] != 'output': 
         continue # otherwise we do the same thing twice for each edge
 
-      # if the interconnect pipelines are merged into slots
-      if routing_inclusive:
+      # the interconnect pipelines are merged into slots
+      assert routing_inclusive
+
+      # check if the io belongs to a passing wire
+      orig_io_name = io[-1].split('_pass_')[0]
+      count = len([io for io in io_list if orig_io_name in io[-1]])
+
+      if count == 2:
+        pipeline_level = 0
+      elif count == 1:
         pipeline_level = 1
       else:
-        e_name = top_rtl_parser.getFIFONameFromWire(io[-1])
-        pipeline_level = global_router.getPipelineLevelOfEdgeName(e_name)
+        assert False
 
       # assign the input wire equals the output wire
       if pipeline_level == 0:
