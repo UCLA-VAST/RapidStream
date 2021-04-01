@@ -153,12 +153,16 @@ def createVivadoScriptForSlotPair(
   # read in the dcp of slots
   for name, path in dcp_name2path.items():
     script.append(f'read_checkpoint -cell {name}_U0 {path}')
+    # delete pblocks immediately after reading incase conflict
+    script.append(f'delete_pblock [get_pblock *]')
 
   # constrain the pipeline registers. get the pblocks based on slot names
-  script.append(f'delete_pblock [get_pblock *]')
   script.append(f'create_pblock wrapper')
   script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks wrapper]')
-  script.append( 'add_cells_to_pblock [get_pblocks wrapper] [get_cells -regexp {.*_reg.*} ]')
+
+  # corner case: there may be no anchors between two slots
+  script.append( 'catch {add_cells_to_pblock [get_pblocks wrapper] [get_cells -regexp {.*_reg.*} ] }')
+  
   for name, path in dcp_name2path.items():
     # convert slot name to pblock
     pblock = name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
