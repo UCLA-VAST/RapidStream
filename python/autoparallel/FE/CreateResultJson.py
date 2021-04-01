@@ -101,7 +101,7 @@ class CreateResultJson:
     result['SlotWrapperRTL'] = self.__getSlotWrapperRTLSection()
     result['NewTopRTL'] = self.new_top_rtl
     
-    # result['PathPlanningFIFO'] = self.global_router.getDirectionOfPassingEdges()
+    result['PathPlanningFIFO'] = self.global_router.getDirectionOfPassingEdges()
     result['PathPlanningWire'] = self.wrapper_creater.getDirectionOfPassingEdgeWiresUpdated()
     
     # result['Utilization'] = self.floorplan.getUtilization()

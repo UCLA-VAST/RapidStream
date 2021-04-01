@@ -122,20 +122,49 @@ class CreateRoutingSlotWrapper:
 
     return io_section
 
-  def connectPassingWires(self, slot):
+  def connectPassingWires(self, slot, pipeline_level = 1):
     """ 
-    use wire to connect the input and output port of passing wires
-    The actual pipeline registers appear as anchor registers
+    connect the input and output port of passing edges
+    if pipeline_level == 0, connect using wire
     """
     stmt = []
     passing_e_names = self.global_router.getPassingEdgeNamesOfSlot(slot)
     for e_name in passing_e_names:
       index = self.global_router.getIndexOfSlotInPath(e_name, slot)
       for port_name, wire_name in self.top_rtl_parser.getWiresOfFIFOName(e_name):
-        if port_name.endswith('_din') or port_name.endswith('_write'):
-          stmt.append(f'assign {wire_name}_pass_{index+1} = {wire_name}_pass_{index};')
-        elif port_name.endswith('_full_n'):
-          stmt.append(f'assign {wire_name}_pass_{index} = {wire_name}_pass_{index+1};')
+        # only process data wires 
+        if not any(port_name.endswith(suffix) for suffix in ['_din', '_write', '_full_n']):
+          continue
+
+        # direct wire connection of passing edge
+        if pipeline_level == 0:
+          if port_name.endswith('_din') or port_name.endswith('_write'):
+            stmt.append(f'assign {wire_name}_pass_{index+1} = {wire_name}_pass_{index};')
+          elif port_name.endswith('_full_n'):
+            stmt.append(f'assign {wire_name}_pass_{index} = {wire_name}_pass_{index+1};')
+
+        # pipeline the passing edge
+        else:
+          # define the pipeline reg
+          wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
+          for i in range(pipeline_level):
+            stmt.append(f'  (* dont_touch = "yes" *) reg {wire_width} {wire_name}_q{i};')
+          
+          # connect the pipeline reg
+          stmt.append(f'  always @ (posedge ap_clk) begin')
+          for i in range(1, pipeline_level):
+            stmt.append(f'    {wire_name}_q{i} <= {wire_name}_q{i-1};')
+          stmt.append(f'  end')
+
+          # connect to interface port
+          def connect_to_interface(src_idx, dst_idx):
+            stmt.append(f'  always @ (posedge ap_clk) {wire_name}_q0 <= {wire_name}_pass_{src_idx};')
+            stmt.append(f'  assign {wire_name}_pass_{dst_idx} = {wire_name}_q{pipeline_level-1};')   
+
+          if port_name.endswith('_din') or port_name.endswith('_write'):
+            connect_to_interface(index, index+1)
+          elif port_name.endswith('_full_n'):
+            connect_to_interface(index+1, index)           
 
     return stmt
 

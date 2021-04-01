@@ -150,6 +150,9 @@ class GlobalRouting:
 
     # add a register every 2 clock regions
     # note that the pipeline level excludes the inherent 1 cycle of latency of the FIFO 
+    # the pipeline registers are put into each intermediate slots
+    # [ src ] -> [ reg ] -> [ reg ] -> [ dst ]. dist = 3, lat = dist-1 => 2
+    # however, immediate neighbors will have one pipeline in between. So skip the -1 here
     pipeline_level = int(dist / 2) 
     logging.info(f'edge {e.name}: ({src_x}, {src_y}) -> ({dst_x}, {dst_y}); pipeline level : {pipeline_level}')
     
