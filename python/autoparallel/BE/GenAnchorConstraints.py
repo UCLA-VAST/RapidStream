@@ -3,9 +3,9 @@ import logging
 import json
 import re
 from autoparallel.BE import CreateAnchorWrapper
-from autoparallel.FE import DeviceManager
+from autobridge.Device import DeviceManager
 
-def createAnchorPlacementExtractScript(hub, slot_name, output_path):
+def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
   """
   after the free run, extract the placement of anchor registers
   create a script for vivado to print the information into a json file
@@ -14,18 +14,17 @@ def createAnchorPlacementExtractScript(hub, slot_name, output_path):
   tcl.append(f'set fileId [open {slot_name}_anchor_placement.json "w"]')
   tcl.append('puts $fileId "{"')
 
-  io_list = hub['SlotIO'][slot_name]
   print_cmd = r'catch {{ puts $fileId [format "  \"%s\" : \"%s/%s\"," {reg_name} [get_property LOC [get_cells {reg_name}]] [lindex [split [get_property BEL [get_cells {reg_name}]] "."] 1] ] }}'
   for io in io_list:
     if CreateAnchorWrapper.isCtrlIO(io[-1]):
       continue
 
     if len(io) == 2: # width of io is 1 so the width info is not shown
-      tcl.append(print_cmd.format(reg_name = f'{io[1]}_anchor_reg'))
+      tcl.append(print_cmd.format(reg_name = f'{io[1]}_reg')) # append the suffix "_reg" according to vivado naming convention
     elif len(io) == 3:
       width = int(eval(re.search('\[(.+):', io[1]).group(1)) )
       for i in range(width+1): # notice the +1 here
-        tcl.append(print_cmd.format(reg_name = f'{io[2]}_anchor_reg[{i}]'))
+        tcl.append(print_cmd.format(reg_name = f'{io[2]}_reg[{i}]'))
     else:
       assert False
 
@@ -34,7 +33,7 @@ def createAnchorPlacementExtractScript(hub, slot_name, output_path):
   tcl.append('puts $fileId "}"')
   tcl.append(f'close $fileId')
 
-  open(f'{output_path}/{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
+  open(f'{output_dir}/{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
 
 def __generateConstraints(pblock_name, pblock_def, targets, comments = [], contain_routing = 1, exclude_laguna = False):
   tcl = []
@@ -63,7 +62,9 @@ def __constrainSlotBody(hub, slot_name, output_path = '.', step = 'ROUTE'):
   targets = [f'{slot_name}_U0']
   comments = ['# Slot Body']
 
+  # FIXME: only support U250 for now
   if step == 'PLACE':
+    assert 'xcu250' in hub['FPGA_PART_NAME'] 
     pblock_def = DeviceManager.DeviceU250.shrinkClockRegionPblock(pblock_def)
   return __generateConstraints(pblock_name, pblock_def, targets, comments)
 
