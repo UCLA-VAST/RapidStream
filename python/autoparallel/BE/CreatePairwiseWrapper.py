@@ -2,6 +2,7 @@
 import logging
 import json
 import sys
+from autoparallel.BE.GenAnchorConstraints import createAnchorPlacementExtractScript
 
 def getHeader(slot1_name, slot2_name):
   header = ['\n\n`timescale 1 ns / 1 ps',
@@ -22,33 +23,53 @@ def getIODecl(slot1_io : dict, slot2_io : dict, top_io : dict):
   io_decl += ['  input ap_rst_n);']
   return io_decl
 
-def getPipeline(inner_connection, pipeline_level):
-  pipeline = []
+def getConnection(inner_connection, top_io, pipeline_level):
+  """
+  get the RTL to connect the slots
+  data links will be pipelined
+  wires of passing edge will be directly connected
+  @param connection: the RTL section
+  @param pipeline_reg: all the pipeline registers instantiated
+  """
+  connection = []
+  pipeline_regs = []
   for io, dir_width in inner_connection.items():
     # filter control signals
     if io.startswith('ap_'):
       continue
 
+    width = dir_width[1] if len(dir_width) == 2 else ''
+    connection.append(f'  wire {width} {io}_in;')
+    connection.append(f'  wire {width} {io}_out;')
+
+    # wires of passing edges should not be pipelined
+    # if the same io with different suffix index exists in top_io
+    orig_io_name = io.split('_pass_')[0]
+    if any(orig_io_name in top_io_name for top_io_name in top_io):
+      connection.append(f'  assign {io}_in = {io}_out;')
+      continue
+
     # assign the input wire equals the output wire
     if pipeline_level == 0:
-      pipeline.append(f'  assign {io}_in = {io}_out;')
+      connection.append(f'  assign {io}_in = {io}_out;')
     else:
       # add the pipeline registers
       for i in range(pipeline_level):
-        width = dir_width[1] if len(dir_width) == 2 else ''
-        pipeline.append(f'  (* dont_touch = "yes" *) reg {width} {io}_q{i};')
-        pipeline.append(f'  wire {width} {io}_in;')
-        pipeline.append(f'  wire {width} {io}_out;')
+        connection.append(f'  (* dont_touch = "yes" *) reg {width} {io}_q{i};')
+        
+        # format: input/output width name
+        # to be used for placement extraction
+        pipeline_regs.append(dir_width + [f'{io}_q{i}'])
     
       # connect the head and tail
-      pipeline.append(f'  always @ (posedge ap_clk) begin')
-      pipeline.append(f'    {io}_q0 <= {io}_out;')
+      connection.append(f'  always @ (posedge ap_clk) begin')
+      connection.append(f'    {io}_q0 <= {io}_out;')
       for i in range(1, pipeline_level):
-        pipeline.append(f'    {io}_q{i} <= {io}_q{i-1};')
-      pipeline.append(f'  end')
-      pipeline.append(f'  assign {io}_in = {io}_q{pipeline_level-1};')
+        connection.append(f'    {io}_q{i} <= {io}_q{i-1};')
+      connection.append(f'  end')
+      connection.append(f'  assign {io}_in = {io}_q{pipeline_level-1};')
 
-  return pipeline
+  return connection, pipeline_regs
 
 def getInstance(slot_name : str, slot_io : dict, top_io : dict, inner_connection : dict):
   instance = []
@@ -88,8 +109,12 @@ def getEmptyWrapper(slot_name, slot_io):
   empty_wrapper.append(f'endmodule')
   return empty_wrapper
 
-def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level = 1):
-  """ group together two neighbor slots """
+def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level, output_dir, wrapper_name):
+  """ 
+  group together two neighbor slots 
+  Wires of passing edges should not be pipelined
+  Also create the script to extract the placement of pipeline registers
+  """
   
   slot1_io = hub['SlotIO'][slot1_name]
   slot2_io = hub['SlotIO'][slot2_name]
@@ -110,7 +135,7 @@ def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level = 1):
   io_decl = getIODecl(slot1_io, slot2_io, top_io)
 
   # pipelined connection between the two slots
-  pipeline = getPipeline(inner_connection, pipeline_level)
+  connection, pipeline_reg = getConnection(inner_connection, top_io, pipeline_level)
 
   slot1_inst = getInstance(slot1_name, slot1_io, top_io, inner_connection)
   slot2_inst = getInstance(slot2_name, slot2_io, top_io, inner_connection)
@@ -119,13 +144,14 @@ def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level = 1):
   slot1_def = getEmptyWrapper(slot1_name, slot1_io)
   slot2_def = getEmptyWrapper(slot2_name, slot2_io)
 
-  return header + io_decl + pipeline + slot1_inst + slot2_inst + ending + slot1_def + slot2_def
+  pair_wrapper = header + io_decl + connection + slot1_inst + slot2_inst + ending + slot1_def + slot2_def
 
-def createWrapperForAllSlotPairs(hub):
-  pairs = hub['ComputeSlotPairs']
-  for pair in pairs:
-    pair_wrapper = CreateWrapperForSlotPair(hub, pair[0], pair[1])
-    open(f'{"_AND_".join(pair)}.v', 'w').write('\n'.join(pair_wrapper))
+  open(f'{output_dir}/{wrapper_name}.v', 'w').write('\n'.join(pair_wrapper))
+
+  # in the meantime create the placement extraction script
+  createAnchorPlacementExtractScript(f'{slot1_name}_AND_{slot2_name}', pipeline_reg, output_dir)
+
+  return pair_wrapper
 
 def createVivadoScriptForSlotPair(
     hub, 
@@ -172,12 +198,8 @@ def createVivadoScriptForSlotPair(
   script.append(f'place_design')
 
   # extract anchor placement
+  script.append(f'source {wrapper_name}_print_anchor_placement.tcl')
 
   script.append(f'write_checkpoint {wrapper_name}_placed.dcp')
 
   open(f'{output_dir}/place.tcl', 'w').write('\n'.join(script))
-
-if __name__ == '__main__':
-  hub_addr = sys.argv[1]
-  hub = json.loads(open(hub_addr, 'r').read())
-  createWrapperForAllSlotPairs(hub)

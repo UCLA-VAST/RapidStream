@@ -16,8 +16,10 @@ def parallelAnchorPlacement(
     stitch_dir):
   """
   for each pair of neighbor slots, group them and place & router the anchors in between
-  TODO: extract the anchor placement 
   """
+
+  parallel_task = []
+
   pair_list = hub["ComputeSlotPairs"]
   for pair in pair_list:
     wrapper_name = '_AND_'.join(pair)
@@ -25,9 +27,8 @@ def parallelAnchorPlacement(
     os.mkdir(dir)
     
     # generate wrapper rtl
-    pair_wrapper = CreateWrapperForSlotPair(hub, pair[0], pair[1])
     wrapper_path = f'{dir}/{wrapper_name}.v'
-    open(wrapper_path, 'w').write('\n'.join(pair_wrapper))
+    pair_wrapper = CreateWrapperForSlotPair(hub, pair[0], pair[1], 1, dir, wrapper_name)
 
     # generate clock constraint
     createClockXDC(wrapper_name, dir)
@@ -37,6 +38,12 @@ def parallelAnchorPlacement(
     dcp_path = lambda name : f'{run_dir}/{name}/{name}_routed_free_run/{name}_routed_free_run.dcp'
     dcp_name2path = {name : dcp_path(name) for name in pair}
     createVivadoScriptForSlotPair(hub, wrapper_name, wrapper_path, dcp_name2path, clock_xdc_path, dir)
+
+    # add to task queue
+    parallel_task.append(f'cd {dir} && VIV_VER=2019.2 vivado -mode batch -source place.tcl')
+
+  # create GNU parallel script
+  open(f'{stitch_dir}/run_parallel.txt', 'w').write('\n'.join(parallel_task))
 
 def parallelSlotRun(hub, run_dir):
   """
@@ -73,7 +80,10 @@ def parallelSlotRun(hub, run_dir):
                           output_path=dir, 
                           placement_strategy='AltSpreadLogic_high')
     
-    createAnchorPlacementExtractScript(hub, slot_name, dir)
+    # extract anchor placement. Note that anchor registers are appended the suffix "_anchor"
+    io_list = hub['SlotIO'][slot_name]
+    anchor_list = [f'{io}_anchor' for io in io_list]
+    createAnchorPlacementExtractScript(slot_name, anchor_list, dir)
 
     # TODO: monitor when the placement of the free run is finished
     # createAnchorPlacementScript(hub, slot_name, backend_run_dir)
