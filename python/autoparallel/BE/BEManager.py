@@ -9,10 +9,11 @@ from autoparallel.BE.CreateVivadoRun import *
 from autoparallel.BE.AnchorPlacement import *
 from autoparallel.BE.DuplicateRTL import *
 from autoparallel.BE.CreatePairwiseWrapper import *
+from autoparallel.BE.CreateTopRun import createTopRunScript
 
 def parallelAnchorPlacement(
     hub, 
-    run_dir,
+    parallel_run_dir,
     stitch_dir):
   """
   for each pair of neighbor slots, group them and place & router the anchors in between
@@ -35,7 +36,7 @@ def parallelAnchorPlacement(
     clock_xdc_path = f'{dir}/{wrapper_name}_clk.xdc' # TODO: redundancy
 
     # generate vivado script
-    dcp_path = lambda name : f'{run_dir}/{name}/{name}_routed_free_run/{name}_routed_free_run.dcp'
+    dcp_path = lambda name : f'{parallel_run_dir}/{name}/{name}_routed_free_run/{name}_routed_free_run.dcp'
     dcp_name2path = {name : dcp_path(name) for name in pair}
     createVivadoScriptForSlotPair(hub, wrapper_name, wrapper_path, dcp_name2path, clock_xdc_path, dir)
 
@@ -45,7 +46,7 @@ def parallelAnchorPlacement(
   # create GNU parallel script
   open(f'{stitch_dir}/run_parallel.txt', 'w').write('\n'.join(parallel_task))
 
-def parallelSlotRun(hub, run_dir):
+def parallelSlotRun(hub, parallel_run_dir):
   """
   generate scripts to place & route each slot independently
   """
@@ -58,7 +59,7 @@ def parallelSlotRun(hub, run_dir):
   # TODO: take care of pure routing slots
   for slot_name in hub['SlotIO'].keys():
     logging.info(f'processing slot {slot_name}...')
-    dir = f'{run_dir}/{slot_name}'
+    dir = f'{parallel_run_dir}/{slot_name}'
     os.mkdir(dir)
     
     # duplicate source RTL and add unique prefix
@@ -88,7 +89,19 @@ def parallelSlotRun(hub, run_dir):
     # TODO: monitor when the placement of the free run is finished
     # createAnchorPlacementScript(hub, slot_name, backend_run_dir)
 
-  createGNUParallelScript(hub, run_dir)
+  createGNUParallelScript(hub, parallel_run_dir)
+
+def topRun(hub, top_run_dir, parallel_run_dir):
+  # the new top RTL
+  new_top_rtl = hub["NewTopRTL"]
+  top_rtl_path = f'{top_run_dir}/final_top.v'
+  open(top_rtl_path, 'w').write(new_top_rtl)
+
+  # clock xdc
+  createClockXDC('final_top', top_run_dir)
+
+  top_run_script = createTopRunScript(hub, top_rtl_path, f'{top_run_dir}/final_top_clk.xdc', parallel_run_dir)
+  open(f'{top_run_dir}/final_top.tcl', 'w').write('\n'.join(top_run_script))
 
 if __name__ == '__main__':
   assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
@@ -99,12 +112,15 @@ if __name__ == '__main__':
     raise f'target directory already exists: {backend_run_dir}'
   os.mkdir(backend_run_dir)
 
-  run_dir = f'{backend_run_dir}/parallel_run'
+  parallel_run_dir = f'{backend_run_dir}/parallel_run'
   stitch_dir = f'{backend_run_dir}/parallel_stitch'
-  os.mkdir(run_dir)
+  top_run_dir = f'{backend_run_dir}/top_run'
+  os.mkdir(parallel_run_dir)
   os.mkdir(stitch_dir)
+  os.mkdir(top_run_dir)
 
   hub = json.loads(open(fe_result_path, 'r').read())
 
-  parallelSlotRun(hub, run_dir)
-  parallelAnchorPlacement(hub, run_dir, stitch_dir)
+  parallelSlotRun(hub, parallel_run_dir)
+  parallelAnchorPlacement(hub, parallel_run_dir, stitch_dir)
+  topRun(hub, top_run_dir, parallel_run_dir)
