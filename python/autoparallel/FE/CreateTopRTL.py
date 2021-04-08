@@ -73,11 +73,14 @@ def getPipelining(slot_to_io, top_rtl_parser, global_router, routing_inclusive):
 
       # check if the io belongs to a passing wire
       orig_io_name = io[-1].split('_pass_')[0]
-      count = len([io for io in io_list if orig_io_name in io[-1]])
+      e_name = top_rtl_parser.getFIFONameFromWire(orig_io_name)
+      edge_latency = global_router.getPipelineLevelOfEdgeName(e_name)
 
-      if count == 2:
+      if edge_latency > 1: # the edge will pass through other slots
+        # the actual pipelining registers are in the passed slots
         pipeline_level = 0
-      elif count == 1:
+      elif edge_latency == 1: # the edge connect two neighbors
+        # the pipelining registers are between the two neighbors
         pipeline_level = 1
       else:
         assert False

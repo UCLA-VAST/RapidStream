@@ -28,7 +28,7 @@ class GlobalRouting:
     def __initEdgeLatency():
       for e_list in self.s2e.values():
         for e in e_list:
-          self.e_name2lat[e.name] = self.__getPipelineLevelOfEdge(e)
+          self.e_name2lat[e.name] = self.__getPipelineLevelOfEdge(e) # FIXME: should be based on the global routing results
 
     for e_list in self.s2e.values():
       for e in e_list:
