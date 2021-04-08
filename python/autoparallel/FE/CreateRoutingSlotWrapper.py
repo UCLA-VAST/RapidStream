@@ -215,7 +215,7 @@ class CreateRoutingSlotWrapper:
     
     # if targeting implementation, we mark the modules as black box
     # so that they can be replaced later by separately implemented DCPs
-    slot_inst.append(f'\n\n  {slot.getRTLModuleName()} {slot.getRTLModuleName()}_U0 (')
+    slot_inst.append(f'\n\n  (* dont_touch = "yes" *) {slot.getRTLModuleName()} {slot.getRTLModuleName()}_U0 (')
 
     compute_slot_io_list = self.compute_slot_to_io[slot]
     for io in compute_slot_io_list:
