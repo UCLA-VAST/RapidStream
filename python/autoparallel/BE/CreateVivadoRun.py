@@ -43,11 +43,21 @@ def createFreeRunScript(
   script.append(f'place_design -directive {placement_strategy}')
   script.append(f'phys_opt_design')
 
-  # write out results
+  # lock design
+  script.append(f'lock_design -level placement')
+
+  # write out routing wrapper
   script.append(f'exec mkdir {output_path}/{slot_name}_placed_free_run')
-  script.append(f'write_checkpoint {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp')
-  script.append(f'write_edif {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.edf')
-  
+  script.append(f'write_checkpoint -cell {slot_name}_U0 {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp')
+  script.append(f'write_edif -cell {slot_name}_U0 {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.edf')
+
+  # write out the inner compute wrapper
+  dcp_name = f'{slot_name}_placed_free_run_compute'
+  compute_wrapper_placed = f'{output_path}/{dcp_name}'
+  script.append(f'exec mkdir {compute_wrapper_placed}')
+  script.append(f'write_checkpoint -cell {slot_name}_U0/{slot_name}_U0 {compute_wrapper_placed}/{dcp_name}.dcp')
+  script.append(f'write_edif -cell {slot_name}_U0/{slot_name}_U0 {compute_wrapper_placed}/{dcp_name}.edf')
+
   # extract anchor placement
   script.append(f'source "{output_path}/{slot_name}_print_anchor_placement.tcl"')
 
@@ -62,6 +72,13 @@ def createFreeRunScript(
   script.append(f'exec mkdir {output_path}/{slot_name}_routed_free_run')
   script.append(f'write_checkpoint -cell {slot_name}_U0 {output_path}/{slot_name}_routed_free_run/{slot_name}_routed_free_run.dcp')
   script.append(f'write_edif -cell {slot_name}_U0 {output_path}/{slot_name}_routed_free_run/{slot_name}_routed_free_run.edf')
+
+  # write out the inner compute wrapper
+  dcp_name = f'{slot_name}_routed_free_run_compute'
+  compute_wrapper_routed = f'{output_path}/{dcp_name}'
+  script.append(f'exec mkdir {compute_wrapper_routed}')
+  script.append(f'write_checkpoint -cell {slot_name}_U0/{slot_name}_U0 {compute_wrapper_routed}/{dcp_name}.dcp')
+  script.append(f'write_edif -cell {slot_name}_U0/{slot_name}_U0 {compute_wrapper_routed}/{dcp_name}.edf')
 
   open(f'{output_path}/{slot_name}_free_run.tcl', 'w').write('\n'.join(script))
 
@@ -125,6 +142,9 @@ def createGNUParallelScript(hub, target_dir):
   free_run = []
   anchored_run = []
   for slot_name in hub['SlotIO'].keys():
+    if slot_name in hub['PureRoutingSlots']:
+      continue
+
     free_run.append(f'cd {target_dir}/{slot_name} && vivado -mode batch -source {slot_name}_free_run.tcl')
     anchored_run.append(f'cd {target_dir}/{slot_name} && vivado -mode batch -source {slot_name}_anchored_run.tcl')
 

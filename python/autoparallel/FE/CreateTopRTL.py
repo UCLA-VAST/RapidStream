@@ -185,14 +185,10 @@ def getSlotInst(slot_to_io, ctrl_signals, top_rtl_parser, s_axi_ctrl_signals, ta
   slot_insts = []
   
   for slot, io_list in slot_to_io.items():
-    # if targeting implementation, we mark the modules as black box
-    # so that they can be replaced later by separately implemented DCPs
-    tag = '(* black_box *)' if target == 'hw' else ''
-
     # if we add another layer of wrapper to include routing
     suffix = '_routing' if routing_inclusive else ''
 
-    slot_insts.append(f'\n\n {tag}  {slot}{suffix} {slot}{suffix}_U0 (')
+    slot_insts.append(f'\n\n  (* keep_hierarchy = "yes" *) {slot}{suffix} {slot}{suffix}_U0 (')
     for io in io_list:
       if io[-1] in ctrl_signals:
         # seperately handle ap signals
@@ -234,8 +230,4 @@ def CreateTopRTL(top_rtl_parser, wrapper_creater, top_module_name, global_router
   # append our fifo template at the end. Separate files may not be detected by HLS when packing into xo 
   new_top = header + top_io + wire_decl + pipeline + ctrl + slot_insts + ending + [fifo_template]
 
-  # add empty wrappers for compatibility with black box if targeting implementation
-  if target == 'hw':
-    new_top += wrapper_creater.getEmptyWrappers()
-  
   return '\n'.join(new_top)

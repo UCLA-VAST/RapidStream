@@ -9,7 +9,7 @@ from autoparallel.BE.CreateVivadoRun import *
 from autoparallel.BE.AnchorPlacement import *
 from autoparallel.BE.DuplicateRTL import *
 from autoparallel.BE.CreatePairwiseWrapper import *
-from autoparallel.BE.CreateTopRun import createTopRunScript
+from autoparallel.BE.CreateTopRun import createTopRunScript, setupTopRunRTL
 
 def parallelAnchorPlacement(
     hub, 
@@ -58,6 +58,11 @@ def parallelSlotRun(hub, parallel_run_dir):
   
   # TODO: take care of pure routing slots
   for slot_name in hub['SlotIO'].keys():
+    
+    # do not create a separate run for pure routing slots
+    if slot_name in hub['PureRoutingSlots']:
+      continue
+
     logging.info(f'processing slot {slot_name}...')
     dir = f'{parallel_run_dir}/{slot_name}'
     os.mkdir(dir)
@@ -83,7 +88,7 @@ def parallelSlotRun(hub, parallel_run_dir):
     
     # extract anchor placement. Note that anchor registers are appended the suffix "_anchor"
     io_list = hub['SlotIO'][slot_name]
-    anchor_list = [f'{io}_anchor' for io in io_list]
+    anchor_list = [ io[:-1] + [f'{io[-1]}_anchor'] for io in io_list]
     createAnchorPlacementExtractScript(slot_name, anchor_list, dir)
 
     # TODO: monitor when the placement of the free run is finished
@@ -92,16 +97,19 @@ def parallelSlotRun(hub, parallel_run_dir):
   createGNUParallelScript(hub, parallel_run_dir)
 
 def topRun(hub, top_run_dir, parallel_run_dir):
-  # the new top RTL
-  new_top_rtl = hub["NewTopRTL"]
-  top_rtl_path = f'{top_run_dir}/final_top.v'
-  open(top_rtl_path, 'w').write(new_top_rtl)
+  """
+  Assemble the post-place DCPs and post-route DCPs
+  """
+  setupTopRunRTL(hub, top_run_dir)
 
   # clock xdc
   createClockXDC('final_top', top_run_dir)
 
-  top_run_script = createTopRunScript(hub, top_rtl_path, f'{top_run_dir}/final_top_clk.xdc', parallel_run_dir)
-  open(f'{top_run_dir}/final_top.tcl', 'w').write('\n'.join(top_run_script))
+  # two set of top run
+  # overlap the placement of interconnects with the routing of compute slots
+  for target in ['placed', 'routed']:
+    top_run_script = createTopRunScript(hub, f'{top_run_dir}/rtl', f'{top_run_dir}/final_top_clk.xdc', parallel_run_dir, target)
+    open(f'{top_run_dir}/final_top.tcl', 'w').write('\n'.join(top_run_script))
 
 if __name__ == '__main__':
   assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
