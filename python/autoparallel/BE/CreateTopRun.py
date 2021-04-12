@@ -38,7 +38,6 @@ def createTopRunScript(hub, rtl_path, xdc_path, parallel_run_dir, target):
   script.append('wait_on_run synth_1')
   script.append('update_compile_order -fileset sources_1')
   script.append('open_run synth_1 -name synth_1')
-  script.append(f'write_checkpoint before_{target}.dcp')
 
   # guard - wait for all black box DCPs to be available
   compute_slots = hub["ComputeSlots"]
