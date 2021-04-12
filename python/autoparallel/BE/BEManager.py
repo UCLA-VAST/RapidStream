@@ -109,7 +109,7 @@ def topRun(hub, top_run_dir, parallel_run_dir):
   # overlap the placement of interconnects with the routing of compute slots
   for target in ['placed', 'routed']:
     top_run_script = createTopRunScript(hub, f'{top_run_dir}/rtl', f'{top_run_dir}/final_top_clk.xdc', parallel_run_dir, target)
-    open(f'{top_run_dir}/final_top.tcl', 'w').write('\n'.join(top_run_script))
+    open(f'{top_run_dir}/final_top_{target}.tcl', 'w').write('\n'.join(top_run_script))
 
 if __name__ == '__main__':
   assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'

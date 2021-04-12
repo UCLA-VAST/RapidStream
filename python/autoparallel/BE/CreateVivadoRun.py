@@ -57,30 +57,46 @@ def createFreeRunScript(
   script.append(f'exec mkdir {compute_wrapper_placed}')
   script.append(f'write_checkpoint -cell {slot_name}_U0/{slot_name}_U0 {compute_wrapper_placed}/{dcp_name}.dcp')
   script.append(f'write_edif -cell {slot_name}_U0/{slot_name}_U0 {compute_wrapper_placed}/{dcp_name}.edf')
+  script.append(f'exec touch {compute_wrapper_placed}/{dcp_name}.done.flag') # signal that the DCP generation is finished
 
   # extract anchor placement
   script.append(f'source "{output_path}/{slot_name}_print_anchor_placement.tcl"')
 
+  # invoke routing
+  script.append(f'source {output_path}/{slot_name}_free_run_routing.tcl')
+  
+  open(f'{output_path}/{slot_name}_free_run.tcl', 'w').write('\n'.join(script))
+
+  #####################################################################
+
   # routing
-  script.append(f'source "{output_path}/{slot_name}_floorplan_routing_free_run.tcl"')
-  script.append(f'route_design')
-  script.append(f'phys_opt_design')
+  routing_script = []
+  routing_script.append(f'open_checkpoint {compute_wrapper_placed}/{dcp_name}.dcp')
+  routing_script.append(f'read_xdc "{output_path}/{slot_name}_clk.xdc"')
 
-  # lock design
-  script.append(f'lock_design -level routing')
+  # the previous pblocks will have been lost
+  routing_script.append(f'create_pblock {slot_name}')
+  vivado_clock_region = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
+  routing_script.append(f'resize_pblock {slot_name} -add {vivado_clock_region}')
+  routing_script.append(f'add_cells_to_pblock {slot_name} -top')
+  routing_script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
+  
+  routing_script.append(f'route_design')
+  routing_script.append(f'phys_opt_design')
 
-  script.append(f'exec mkdir {output_path}/{slot_name}_routed_free_run')
-  script.append(f'write_checkpoint -cell {slot_name}_U0 {output_path}/{slot_name}_routed_free_run/{slot_name}_routed_free_run.dcp')
-  script.append(f'write_edif -cell {slot_name}_U0 {output_path}/{slot_name}_routed_free_run/{slot_name}_routed_free_run.edf')
+  # lock design before writing to checkpoint
+  routing_script.append(f'lock_design -unlock -level placement')
 
   # write out the inner compute wrapper
   dcp_name = f'{slot_name}_routed_free_run_compute'
   compute_wrapper_routed = f'{output_path}/{dcp_name}'
-  script.append(f'exec mkdir {compute_wrapper_routed}')
-  script.append(f'write_checkpoint -cell {slot_name}_U0/{slot_name}_U0 {compute_wrapper_routed}/{dcp_name}.dcp')
-  script.append(f'write_edif -cell {slot_name}_U0/{slot_name}_U0 {compute_wrapper_routed}/{dcp_name}.edf')
+  routing_script.append(f'exec mkdir {compute_wrapper_routed}')
+  routing_script.append(f'write_checkpoint {compute_wrapper_routed}/{dcp_name}.dcp')
+  routing_script.append(f'write_edif {compute_wrapper_routed}/{dcp_name}.edf')
+  routing_script.append(f'exec touch {compute_wrapper_routed}/{dcp_name}.done.flag')
 
-  open(f'{output_path}/{slot_name}_free_run.tcl', 'w').write('\n'.join(script))
+  open(f'{output_path}/{slot_name}_free_run_routing.tcl', 'w').write('\n'.join(routing_script))
+
 
 def createAnchoredRunScript(
     fpga_part_name, 
