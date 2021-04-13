@@ -36,8 +36,6 @@ def createTopRunScript(hub, rtl_path, xdc_path, parallel_run_dir, target):
   # run synthesis of the top
   script.append('launch_runs synth_1 -jobs 56')
   script.append('wait_on_run synth_1')
-  script.append('update_compile_order -fileset sources_1')
-  script.append('open_run synth_1 -name synth_1')
 
   # guard - wait for all black box DCPs to be available
   compute_slots = hub["ComputeSlots"]
@@ -58,6 +56,10 @@ def createTopRunScript(hub, rtl_path, xdc_path, parallel_run_dir, target):
     dcp_name = f'{slot_name}_{target}_free_run_compute'
     dcp_dir = f'{parallel_run_dir}/{slot_name}/{dcp_name}'
     script.append(f'read_checkpoint -cell {cell_name} {dcp_dir}/{dcp_name}.dcp')
+
+  # open the synthesized top along with the dcps
+  script.append('update_compile_order -fileset sources_1')
+  script.append('open_run synth_1 -name synth_1')
 
   if target == 'placed':
     # restore pblocks
