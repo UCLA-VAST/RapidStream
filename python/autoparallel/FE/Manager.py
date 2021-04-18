@@ -14,6 +14,8 @@ from autoparallel.FE.CreateSlotWrapper import CreateSlotWrapper
 from autoparallel.FE.CreateRoutingSlotWrapper import CreateRoutingSlotWrapper
 from autoparallel.FE.CreateResultJson import CreateResultJson
 from autoparallel.FE.CreateTopRTL import CreateTopRTL
+from autoparallel.FE.PatternOpt import getPatternBasedGrouping
+from autoparallel.FE.UnifyVertexType import unifyModuleTypesInTopRTL
 
 import logging
 import json
@@ -31,6 +33,10 @@ class Manager:
     self.loggingSetup()
 
     hls_prj_manager = HLSProjectManager(self.top_rtl_name, self.hls_prj_path, self.hls_solution_name)
+
+    # first unify the module types in top RTL
+    unifyModuleTypesInTopRTL(hls_prj_manager.getRTLDir(), hls_prj_manager.getTopRTLPath())
+
     top_rtl_parser = TopRTLParser(hls_prj_manager.getTopRTLPath())
     graph = DataflowGraph(hls_prj_manager, top_rtl_parser)
 
@@ -38,7 +44,9 @@ class Manager:
 
     user_constraint_s2v = self.parseUserConstraints(graph, slot_manager)
 
-    floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager)
+    # extract patterns to facilitate floorplanning
+    pattern_insts = getPatternBasedGrouping(graph, self.peregrine_home)
+    floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager, pattern_insts)
 
     # grid routing of edges 
     global_router = GlobalRouting(floorplan, top_rtl_parser, slot_manager)
@@ -88,6 +96,8 @@ class Manager:
     else:
       self.target = "hw"
 
+    self.peregrine_home = os.getenv('PEREGRINE_HOME')
+
   def loggingSetup(self):
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
@@ -132,8 +142,8 @@ class Manager:
         floorplan.naiveFineGrainedFloorplan()
       elif choice == 'IterativeDivisionToHalfSLR':
         floorplan.coarseGrainedFloorplan()
-      elif choice == 'IterativeDivisionToTwoCRs':
-        floorplan.naiveTwoCRGranularityFloorplan()
+      elif choice == 'PatternBasedFineGrainedFloorplan':
+        floorplan.patternBasedFineGrainedFloorplan()
       elif choice == 'EightWayDivisionToHalfSLR':
         floorplan.eightWayPartition()
       else:
