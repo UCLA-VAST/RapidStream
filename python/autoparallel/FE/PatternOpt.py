@@ -8,11 +8,12 @@ from collections import defaultdict
 from mip import Model, BINARY, xsum, maximize, OptimizationStatus
 
 # collect graph data and invoke Peregrine
+# Note that Vitis libraries will conflict with Peregrine
 def patternMining(graph : DataflowGraph, peregrine_home : str):
   # prepare for Peregrine inputs
   int_e_list, int_v_labels = graph.getIntegerGraph()
 
-  fsm_dir = 'pattern_mining'
+  fsm_dir = f'{os.getcwd()}/pattern_mining'
   os.mkdir(fsm_dir)
   os.mkdir(f'{fsm_dir}/graph_src')
   os.mkdir(f'{fsm_dir}/graph_pg')
@@ -29,11 +30,17 @@ def patternMining(graph : DataflowGraph, peregrine_home : str):
   fsm_size = '4'
   fsm_threshold = '50'
   induce_type = 'v'
-  pg_output_raw = subprocess.check_output([f'{peregrine_home}/bin/fsm', 
+
+  try:
+    pg_output_raw = subprocess.check_output([f'{peregrine_home}/bin/fsm', 
                                       f'{fsm_dir}/graph_pg', 
                                       fsm_size, 
                                       fsm_threshold, 
-                                      induce_type])
+                                      induce_type],
+                                      stderr=subprocess.STDOUT)
+  except subprocess.CalledProcessError as e:
+    raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))  
+
   pg_output = pg_output_raw.decode('utf-8').split('\n') # format conversion
 
   return pg_output
@@ -68,6 +75,7 @@ def parsePeregrine(pg_output : list, int_2_v_name):
 # compute a weight for each pattern
 def annotatePatternWeights(patterns : list, graph):
   for pat in patterns:
+    # TODO: run multiple pattern instances to verify Peregrine results
     inst = pat['Instances'][0] # list of vertex names in the pattern instance
     inter_edges = set()
     
@@ -87,7 +95,7 @@ def annotatePatternWeights(patterns : list, graph):
     interface_width = sum(e.width for e in inter_edges) 
     
     # get the total interface width of each vertex in the pattern
-    e_list_of_each_v = [v.getAllEdges() for v in v_list] # list of list
+    e_list_of_each_v = [v.getEdges() for v in v_list] # list of list
     width_of_each_v = [sum(e.width for e in e_list) for e_list in e_list_of_each_v]
     vertex_total_width = sum(width_of_each_v)
 
@@ -117,7 +125,7 @@ def patternSelection(patterns : list):
     m += xsum(inst2var[inst] for inst in insts_with_v) == 1
 
   # maximize total pattern weight. Insts of the same pattern have the same weight
-  m.objective = maximize(sum(pat['Weight'] * inst2var[inst] for inst in pat for pat in patterns) )
+  m.objective = maximize(xsum(pat['Weight'] * inst2var[inst] for pat in patterns for inst in pat['Instances'] ) )
 
   status = m.optimize(max_seconds=60)
   if status == OptimizationStatus.OPTIMAL:
@@ -128,9 +136,14 @@ def patternSelection(patterns : list):
     logging.critical('pattern selection failed!')
 
   # extract pattern selection results
-  selected_pattern_insts = [inst for inst in pattern['Instances'] for pattern in patterns \
+  selected_pattern_insts = [inst for pattern in patterns for inst in pattern['Instances'] \
                             if inst2var[inst].x]
 
   return selected_pattern_insts
 
 # dump grouping constraints
+def getPatternBasedGrouping(graph : DataflowGraph, peregrine_home):
+  pg_output = patternMining(graph, peregrine_home)
+  patterns = parsePeregrine(pg_output, graph.getIntIdToVName())
+  annotatePatternWeights(patterns, graph)
+  selected_pattern_insts = patternSelection(patterns)
