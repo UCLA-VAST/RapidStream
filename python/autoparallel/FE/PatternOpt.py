@@ -46,7 +46,7 @@ def patternMining(graph : DataflowGraph, peregrine_home : str):
   return pg_output
 
 # parse Peregrine results, collect all patterns and instances
-def parsePeregrine(pg_output : list, int_2_v_name):
+def parsePeregrine(pg_output : list, int_2_v_name : dict, int_2_v_type : dict):
   patterns = []
   curr = {}
 
@@ -63,12 +63,13 @@ def parsePeregrine(pg_output : list, int_2_v_name):
       # [vertex 1,label1-vertex 2,label 2]
       pattern_edges = re.findall('\[(\d+),(\d+)-(\d+),(\d+)\]', line)
       curr['PatternEdges'] = [(int(e[0]), int(e[2])) for e in pattern_edges]
+      curr['PatternType'] = [(int_2_v_type[int(e[1])], int_2_v_type[int(e[3])]) for e in pattern_edges]
       curr['Instances'] = []
 
     elif '[Instance]' in line:
       # [Instance] v1 v2 v3 v4
-      vertices_of_inst = (int_2_v_name[int(id)] for id in line.split()[1:])
-      curr['Instances'].append(vertices_of_inst)
+      vertices_of_inst = [int_2_v_name[int(id)] for id in line.split()[1:]]
+      curr['Instances'].append(tuple(vertices_of_inst))
 
   return patterns
 
@@ -101,6 +102,8 @@ def annotatePatternWeights(patterns : list, graph):
 
     # define weight as the reduction rate of width
     pat['Weight'] = vertex_total_width / interface_width
+
+    logging.info(f'Assign weight {pat["Weight"]} to pattern {pat["PatternType"]}')
 
 # pattern selection
 # TODO: transit to CONTINUOUS
@@ -138,12 +141,15 @@ def patternSelection(patterns : list):
   # extract pattern selection results
   selected_pattern_insts = [inst for pattern in patterns for inst in pattern['Instances'] \
                             if inst2var[inst].x]
+  for inst in selected_pattern_insts:
+    logging.info(f'{inst}')
 
   return selected_pattern_insts
 
 # dump grouping constraints
 def getPatternBasedGrouping(graph : DataflowGraph, peregrine_home):
   pg_output = patternMining(graph, peregrine_home)
-  patterns = parsePeregrine(pg_output, graph.getIntIdToVName())
+  patterns = parsePeregrine(pg_output, graph.getIntIdToVName(), graph.getIntIdToVType())
   annotatePatternWeights(patterns, graph)
   selected_pattern_insts = patternSelection(patterns)
+  return selected_pattern_insts
