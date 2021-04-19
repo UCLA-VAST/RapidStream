@@ -259,6 +259,19 @@ class CreateSlotWrapper:
     insts = v_insts + e_insts
     decl_filter = []
     ap_signals = ['ap_start', 'ap_done', 'ap_ready', 'ap_idle']
+
+    # find out the io names
+    io_names = set([re.search(' ([^ ]+)[ ]*;', line).group(1) for line in io_decl])
+
+    # find out which wires are used by the instances
+    used_wires_in_insts = set()
+    for inst in insts:
+      inst_list = inst.split('\n')
+      for line in inst_list:
+        match = re.search('\.[^\(]+\([ ]*([^ ]+)[ ]*\)', line)
+        if match:
+          used_wires_in_insts.add(match.group(1))
+
     for d in decl:
       # remove the original ap signals
       if any(re.search(f' {signal}', d) for signal in ap_signals):
@@ -283,12 +296,12 @@ class CreateSlotWrapper:
         # we do not want redundant wire and IO declaration
         # add a space before name for exact match
         # avoid filtering out a wire unexpectedly
-        if any([re.search(fr' {name}[ ]*;', line) for line in io_decl]):
+        if name in io_names:
           logging.debug(f'filter out {name} due to io redundancy')
           continue
         # if a wire is used & it is not an IO
         # no exact match here as it is OK to add more wires
-        elif any([name in inst for inst in insts]):
+        elif name in used_wires_in_insts:
           decl_filter.append(d)
         else:
           logging.debug(f'filter out {name} due to no match')
