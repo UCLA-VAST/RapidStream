@@ -80,6 +80,9 @@ class Manager:
     json_creater.createResultJson()
 
   def basicSetup(self):
+    # for designs with lots of modules, pyverilog may go very deep
+    sys.setrecursionlimit(3000)
+
     self.device_manager = DeviceManager(self.config["Board"])
     self.board = self.device_manager.getBoard()
 
