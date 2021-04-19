@@ -68,6 +68,5 @@ def applyUnificationToTopRTL(top_rtl_path, old2new):
   shutil.move('new_top_unified_type.v', top_rtl_path)
   
 def unifyModuleTypesInTopRTL(rtl_dir, top_rtl_path):
-  rtl_dir = '/home/einsx7/auto-parallel/benchmark/cnn_13x16/cnn_13x10/solution/syn/verilog'
   old2new = unifyVertexType(rtl_dir)
   applyUnificationToTopRTL(top_rtl_path, old2new)
