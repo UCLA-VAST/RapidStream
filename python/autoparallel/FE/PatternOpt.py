@@ -125,7 +125,7 @@ def patternSelection(patterns : list):
         vname2insts_with_v[vname].append(inst)
 
   for vname, insts_with_v in vname2insts_with_v.items():
-    m += xsum(inst2var[inst] for inst in insts_with_v) == 1
+    m += xsum(inst2var[inst] for inst in insts_with_v) <= 1
 
   # maximize total pattern weight. Insts of the same pattern have the same weight
   m.objective = maximize(xsum(pat['Weight'] * inst2var[inst] for pat in patterns for inst in pat['Instances'] ) )
