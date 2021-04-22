@@ -65,7 +65,10 @@ class CreateSlotWrapper:
     """
     io_decl = self.__getIODecl(slot)
     io_decl_with_comma = [io.replace(';', ',') for io in io_decl]
-    io_header = [re.sub(r'input[ ]*|output[ ]*', '', io) for io in io_decl_with_comma]
+
+    # need to consider if the IO name contains "input" or "output"
+    io_header = [re.sub(r'^[ ]*input[ ]*|^[ ]*output[ ]*', '', io) for io in io_decl_with_comma]
+    
     io_header = [re.sub(r'[ ]*\[.*\][ ]*', '', io) for io in io_header]
     io_header[-1] = io_header[-1].replace(',', '') # the last io does not have comma
 

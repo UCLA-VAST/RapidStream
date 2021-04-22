@@ -148,7 +148,9 @@ def setupTopRunRTL(hub, top_run_dir):
         for j in range(i, len(rtl_list_copy)):
           if 'endmodule' in rtl_list_copy[j]:
             break
-          if 'input' in rtl_list_copy[j] or 'output' in rtl_list_copy[j]:
+
+          # corner case: io name may contain "input"
+          if re.search('^[ ]*input|^[ ]*output',rtl_list_copy[j]):
             io.append(rtl_list_copy[j])
 
         # remove the contents of the inner module
