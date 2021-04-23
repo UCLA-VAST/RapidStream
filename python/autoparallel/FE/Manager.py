@@ -43,10 +43,13 @@ class Manager:
     slot_manager = SlotManager(self.board)
 
     user_constraint_s2v = self.parseUserConstraints(graph, slot_manager)
+    grouping_constraints = top_rtl_parser.getStrictGroupingConstraints()
 
     # extract patterns to facilitate floorplanning
     pattern_insts = getPatternBasedGrouping(graph, self.peregrine_home)
-    floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager, pattern_insts)
+    floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager, 
+                                      grouping_hints=pattern_insts, 
+                                      grouping_constraints=grouping_constraints)
 
     # grid routing of edges 
     global_router = GlobalRouting(floorplan, top_rtl_parser, slot_manager)
@@ -129,7 +132,7 @@ class Manager:
 
     return user_constraint_s2v
 
-  def runFloorplanning(self, graph, user_constraint_s2v, slot_manager, hls_prj_manager, grouping_constraints=[]):
+  def runFloorplanning(self, graph, user_constraint_s2v, slot_manager, hls_prj_manager, grouping_hints, grouping_constraints):
     floorplan = Floorplanner(
       graph, 
       user_constraint_s2v, 
@@ -137,7 +140,8 @@ class Manager:
       total_usage=hls_prj_manager.getTotalArea(), 
       board=self.device_manager.getBoard(),
       user_max_usage_ratio=self.config['AreaUtilizationRatio'],
-      grouping_constrants=grouping_constraints)
+      grouping_hints=grouping_hints,
+      grouping_constraints=grouping_constraints)
     
     if 'FloorplanMethod' in self.config:
       choice = self.config['FloorplanMethod']
