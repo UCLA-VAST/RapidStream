@@ -1,0 +1,13 @@
+{
+  "Board" : "U280",
+  "HLSProjectPath" : "./bucket_sort",
+  "HLSSolutionName" : "solution",
+  "TopName" : "bucket_sort",
+
+  "FloorplanMethod": "PatternBasedFineGrainedFloorplan",
+  "AreaUtilizationRatio" : 0.75,
+
+  "LoggingLevel" : "DEBUG",
+  "Target" : "hw_emu"
+
+}
