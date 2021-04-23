@@ -76,14 +76,27 @@ def getPipelining(slot_to_io, top_rtl_parser, global_router, routing_inclusive):
       e_name = top_rtl_parser.getFIFONameFromWire(orig_io_name)
       edge_latency = global_router.getPipelineLevelOfEdgeName(e_name)
 
-      if edge_latency > 1: # the edge will pass through other slots
-        # the actual pipelining registers are in the passed slots
-        pipeline_level = 0
-      elif edge_latency == 1: # the edge connect two neighbors
-        # the pipelining registers are between the two neighbors
+      # [a potential equivalent implementation]
+      # ------------------------------------------------
+      # if edge_latency > 1: # the edge will pass through other slots
+      #   # the actual pipelining registers are in the passed slots
+      #   pipeline_level = 0
+
+      #   # corner case: still add the pipelining for the first segment, only for the income full_n
+      #   # otherwise the broadcast issue of the full_n will be serious
+        
+      # elif edge_latency == 1: # the edge connect two neighbors
+      #   # the pipelining registers are between the two neighbors
+      #   pipeline_level = 1
+      # else:
+      #   assert False
+      # -------------------------------------------------
+      # Do it in a easier way. Just check '_pass_0'
+      if re.search('_pass_0', io[-1]):
         pipeline_level = 1
       else:
-        assert False
+        pipeline_level = 0
+        print(f'passing wire: {io[-1]}')
 
       # assign the input wire equals the output wire
       if pipeline_level == 0:
