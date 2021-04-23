@@ -44,10 +44,13 @@ def getConnection(inner_connection, top_io, pipeline_level):
 
     # wires of passing edges should not be pipelined
     # if the same io with different suffix index exists in top_io
-    orig_io_name = io.split('_pass_')[0]
-    if any(orig_io_name in top_io_name for top_io_name in top_io):
+    # orig_io_name = io.split('_pass_')[0]
+    # if any(orig_io_name in top_io_name for top_io_name in top_io):
+    #   connection.append(f'  assign {io}_in = {io}_out;')
+    #   continue
+    if '_pass_0_' not in io:
       connection.append(f'  assign {io}_in = {io}_out;')
-      continue
+      continue     
 
     # assign the input wire equals the output wire
     if pipeline_level == 0:

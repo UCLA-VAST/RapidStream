@@ -148,12 +148,23 @@ class GlobalRouting:
     dst_y = dst_slot.getPositionY()
     dist = abs(src_x - dst_x) + abs(src_y - dst_y)
 
+    # note that the current implementation relies on 4-CR slot size
+    def check_size(s):
+      assert s.getOrigUpRightX() == s.getOrigDownLeftX() + 1
+      assert s.getOrigUpRightY() == s.getOrigDownLeftY() + 1
+
+    check_size(src_slot)
+    check_size(dst_slot)
+
     # add a register every 2 clock regions
     # note that the pipeline level excludes the inherent 1 cycle of latency of the FIFO 
     # the pipeline registers are put into each intermediate slots
-    # [ src ] -> [ reg ] -> [ reg ] -> [ dst ]. dist = 3, lat = dist-1 => 2
+    # [ src ] *[reg]* -> [ reg ] -> [ reg ] -> [ dst ]. dist = 3, lat = dist-1 => 2
     # however, immediate neighbors will have one pipeline in between. So skip the -1 here
-    pipeline_level = int(dist / 2) 
+    # ---------------------------------------------------
+    # UPDATE: note that we always add pipelining near the source of the edge.
+    # thus the pipeline level is equal to the distance
+    pipeline_level = int(dist / 2)
     logging.info(f'edge {e.name}: ({src_x}, {src_y}) -> ({dst_x}, {dst_y}); pipeline level : {pipeline_level}')
     
     return pipeline_level
