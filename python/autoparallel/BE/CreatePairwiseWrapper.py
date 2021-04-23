@@ -48,7 +48,7 @@ def getConnection(inner_connection, top_io, pipeline_level):
     # if any(orig_io_name in top_io_name for top_io_name in top_io):
     #   connection.append(f'  assign {io}_in = {io}_out;')
     #   continue
-    if '_pass_0_' not in io:
+    if '_pass_0' not in io:
       connection.append(f'  assign {io}_in = {io}_out;')
       continue     
 

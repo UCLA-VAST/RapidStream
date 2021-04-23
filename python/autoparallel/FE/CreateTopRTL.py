@@ -96,7 +96,6 @@ def getPipelining(slot_to_io, top_rtl_parser, global_router, routing_inclusive):
         pipeline_level = 1
       else:
         pipeline_level = 0
-        print(f'passing wire: {io[-1]}')
 
       # assign the input wire equals the output wire
       if pipeline_level == 0:
