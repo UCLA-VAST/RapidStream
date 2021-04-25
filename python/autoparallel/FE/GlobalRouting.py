@@ -17,6 +17,7 @@ class GlobalRouting:
     self.slot2e_names = {} # from slot to all edges passed through
     self.slot_to_dir_to_edges = defaultdict(lambda: defaultdict(list))
 
+    logging.critical('current latency counting depends on 4-CR slot size')
     self.naiveGlobalRouting()
 
   def naiveGlobalRouting(self):

@@ -35,7 +35,7 @@ class Manager:
     hls_prj_manager = HLSProjectManager(self.top_rtl_name, self.hls_prj_path, self.hls_solution_name)
 
     # first unify the module types in top RTL
-    unifyModuleTypesInTopRTL(hls_prj_manager.getRTLDir(), hls_prj_manager.getTopRTLPath())
+    # unifyModuleTypesInTopRTL(hls_prj_manager.getRTLDir(), hls_prj_manager.getTopRTLPath())
 
     top_rtl_parser = TopRTLParser(hls_prj_manager.getTopRTLPath())
     graph = DataflowGraph(hls_prj_manager, top_rtl_parser)
@@ -145,7 +145,7 @@ class Manager:
     
     if 'FloorplanMethod' in self.config:
       choice = self.config['FloorplanMethod']
-      if choice == 'IterativeDivisionToFourCRs':
+      if choice == 'NaiveFineGrainedFloorplan':
         floorplan.naiveFineGrainedFloorplan()
       elif choice == 'IterativeDivisionToHalfSLR':
         floorplan.coarseGrainedFloorplan()
@@ -153,12 +153,13 @@ class Manager:
         floorplan.patternBasedFineGrainedFloorplan()
       elif choice == 'EightWayDivisionToHalfSLR':
         floorplan.eightWayPartition()
+      elif choice == 'hetero4CRFloorplan':
+        floorplan.hetero4CRFloorplan()
       else:
         assert False, f'unsupported floorplan method: {choice}'
     else:
       floorplan.coarseGrainedFloorplan() # by default
 
-    floorplan.printFloorplan()
     return floorplan
 
   def help(self):

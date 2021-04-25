@@ -2,6 +2,7 @@
 import logging
 from autobridge.Opt.DataflowGraph import DataflowGraph
 import os
+import shutil
 import subprocess
 import re
 from collections import defaultdict
@@ -14,6 +15,8 @@ def patternMining(graph : DataflowGraph, peregrine_home : str):
   int_e_list, int_v_labels = graph.getIntegerGraph()
 
   fsm_dir = f'{os.getcwd()}/pattern_mining'
+  if os.path.isdir(fsm_dir):
+    shutil.rmtree(fsm_dir)
   os.mkdir(fsm_dir)
   os.mkdir(f'{fsm_dir}/graph_src')
   os.mkdir(f'{fsm_dir}/graph_pg')
@@ -28,7 +31,7 @@ def patternMining(graph : DataflowGraph, peregrine_home : str):
 
   # run frequent pattern mining
   fsm_size = '4'
-  fsm_threshold = '50'
+  fsm_threshold = '5'
   induce_type = 'v'
 
   try:
@@ -42,6 +45,9 @@ def patternMining(graph : DataflowGraph, peregrine_home : str):
     raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))  
 
   pg_output = pg_output_raw.decode('utf-8').split('\n') # format conversion
+  logging.debug('Peregrine output:')
+  for line in pg_output:
+    logging.debug(line)
 
   return pg_output
 
@@ -58,6 +64,9 @@ def parsePeregrine(pg_output : list, int_2_v_name : dict, int_2_v_type : dict):
 
       # new pattern
       curr = {}
+
+      freq = re.search(r': (\d+)', line).group(1)
+      curr['MNIFrequency'] = int(freq)
 
       # extract the connection between vertices in the pattern
       # [vertex 1,label1-vertex 2,label 2]
