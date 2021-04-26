@@ -1,5 +1,6 @@
 #! /usr/bin/python3.6
 import logging
+import copy
 
 class CreateCtrlSlotWrapper:
   def __init__(
@@ -305,3 +306,46 @@ class CreateCtrlSlotWrapper:
   def getSlotNameToIOList(self):
     slot_2_io = self.getSlotToIOList()
     return {slot.getRTLModuleName() : io_list for slot, io_list in slot_2_io.items()}
+
+  # include all signals except top-level ports
+  def getSlotToDirToWires(self):
+
+    # note that routing_slot_to_dir_to_wires excludes all ap signals
+    routing_slot_to_dir_to_wires = self.routing_wrapper_creater.getDirectionOfPassingEdgeWiresUpdated()
+
+    ctrl_slot_to_dir_to_wires = copy.deepcopy(routing_slot_to_dir_to_wires)
+
+    # get rid of the 'IN' and 'OUT'
+    # TODO: remove them from the global router
+    for slot, dir_to_wires in ctrl_slot_to_dir_to_wires.items():
+      for dir in ['UP', 'DOWN', 'RIGHT', 'LEFT']:
+        wires = []
+        if f'{dir}_IN' in dir_to_wires:
+          wires += dir_to_wires[f'{dir}_IN']
+          dir_to_wires.pop(f'{dir}_IN')
+        if f'{dir}_OUT' in dir_to_wires:
+          wires += dir_to_wires[f'{dir}_OUT']          
+          dir_to_wires.pop(f'{dir}_OUT')
+
+        if wires:
+          dir_to_wires[dir] = wires
+
+    for slot, dir_to_wires in ctrl_slot_to_dir_to_wires.items():
+      if slot == self.s_axi_slot:
+        ctrl_io_list = self.__getSAxiSlotCtrlIO(slot)
+      else:
+        ctrl_io_list= self.__getOtherSlotCtrlIO(slot)
+
+      for dir in ['UP', 'DOWN', 'RIGHT', 'LEFT']:
+        boundary_name = slot.getBoundarySegmentName(dir)
+        for io in ctrl_io_list:
+          if boundary_name in io[-1]:
+            dir_to_wires[dir].append(io)
+
+    return ctrl_slot_to_dir_to_wires
+
+  def getSlotNameToDirToWires(self):
+    ctrl_slot_to_dir_to_wires = self.getSlotToDirToWires()
+    ctrl_slotname_to_dir_to_wires = {slot.getRTLModuleName() : dir_to_wires \
+                                    for slot, dir_to_wires in ctrl_slot_to_dir_to_wires.items()}
+    return ctrl_slotname_to_dir_to_wires

@@ -12,8 +12,9 @@ from autobridge.Opt.LatencyBalancing import LatencyBalancing
 from autoparallel.FE.GlobalRouting import GlobalRouting
 from autoparallel.FE.CreateSlotWrapper import CreateSlotWrapper
 from autoparallel.FE.CreateRoutingSlotWrapper import CreateRoutingSlotWrapper
+from autoparallel.FE.CreateCtrlSlotWrapper import CreateCtrlSlotWrapper
 from autoparallel.FE.CreateResultJson import CreateResultJson
-from autoparallel.FE.CreateTopRTL import CreateTopRTL
+from autoparallel.FE.CreateTopRTLForCtrlWrappers import CreateTopRTLForCtrlWrappers
 from autoparallel.FE.PatternOpt import getPatternBasedGrouping
 from autoparallel.FE.UnifyVertexType import unifyModuleTypesInTopRTL
 
@@ -62,18 +63,23 @@ class Manager:
     compute_wrapper_creater.getSlotWrapperForAll(dir='wrapper_rtl')
 
     logging.info(f'Creating routing inclusive wrappers...')
-    routing_wrapper_create = CreateRoutingSlotWrapper(compute_wrapper_creater, floorplan, global_router, top_rtl_parser)
-    routing_wrapper_create.createRoutingInclusiveWrapperForAll(dir='wrapper_rtl')
+    routing_wrapper_creater = CreateRoutingSlotWrapper(compute_wrapper_creater, floorplan, global_router, top_rtl_parser)
+    routing_wrapper_creater.createRoutingInclusiveWrapperForAll(dir='wrapper_rtl')
+
+    logging.info(f'Creating ctrl inclusive wrappers...')
+    ctrl_wrapper_creater = CreateCtrlSlotWrapper(routing_wrapper_creater, floorplan, slot_manager)
+    ctrl_wrapper_creater.createCtrlInclusiveWrapperForAll(dir='wrapper_rtl')
+
 
     logging.info(f'Creating the new top RTL file...')
-    new_top_rtl = CreateTopRTL(top_rtl_parser, routing_wrapper_create, hls_prj_manager.getTopModuleName(), global_router)
+    new_top_rtl = CreateTopRTLForCtrlWrappers(top_rtl_parser, ctrl_wrapper_creater, hls_prj_manager.getTopModuleName(), global_router)
     
     open(f'wrapper_rtl/{hls_prj_manager.getTopModuleName()}.v', 'w').write(new_top_rtl)
       
     logging.info(f'generating front end results...')
     json_creater = CreateResultJson(
                     floorplan, 
-                    routing_wrapper_create, 
+                    ctrl_wrapper_creater, 
                     global_router, 
                     self.board, 
                     hls_prj_manager, 

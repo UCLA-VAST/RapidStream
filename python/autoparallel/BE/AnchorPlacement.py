@@ -22,10 +22,8 @@ def __getSharedAnchorPlacement(hub, slot_name, backend_run_path):
       anchor_placement = json.loads(open(anchor_placement_json, 'r').read())
 
       shared_anchors = []
-      if f'{dir}_IN' in dir_to_shared_anchors:
-        shared_anchors += dir_to_shared_anchors[f'{dir}_IN']
-      if f'{dir}_OUT' in dir_to_shared_anchors:
-        shared_anchors += dir_to_shared_anchors[f'{dir}_OUT']
+      if dir in dir_to_shared_anchors:
+        shared_anchors += dir_to_shared_anchors[dir]
 
       for io in shared_anchors:
         if len(io) == 2: # width == 1
