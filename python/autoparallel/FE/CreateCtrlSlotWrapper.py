@@ -161,7 +161,7 @@ class CreateCtrlSlotWrapper:
     connect.append('wire ap_start_orig;')
     out_bound_ap_start = [io[-1] for io in ctrl_io_list if 'ap_start' in io[-1] ]
     for sig in out_bound_ap_start:
-      connect.append(f'(* dont_touch = "yes" *) reg {sig}_q;')
+      connect.append(f'(* keep = "true" *) reg {sig}_q;')
       connect.append(f'always @ (posedge ap_clk) {sig}_q <= ap_start_orig;')
       connect.append(f'assign {sig} = {sig}_q;')
     connect.append(f'assign ap_start = ap_start_orig;') # connect to self
@@ -169,15 +169,20 @@ class CreateCtrlSlotWrapper:
     # connect ap_rst_n
     out_bound_ap_rst_n = [io[-1] for io in ctrl_io_list if 'ap_rst_n_' in io[-1] ]
     for sig in out_bound_ap_rst_n:
-      connect.append(f'(* dont_touch = "yes" *) reg {sig}_q;')
+      connect.append(f'(* keep = "true" *) reg {sig}_q;')
       connect.append(f'always @ (posedge ap_clk) {sig}_q <= ap_rst_n;') # ap_rst_n connect to top level port
       connect.append(f'assign {sig} = {sig}_q;')
 
     # connect ap_done
     in_bound_ap_done = [io[-1] for io in ctrl_io_list if 'ap_done' in io[-1] ]
     for sig in in_bound_ap_done:
-      connect.append(f'(* dont_touch = "yes" *) reg {sig}_q;')
-      connect.append(f'always @ (posedge ap_clk) {sig}_q <= {sig};')
+      connect.append(f'(* keep = "true" *) reg {sig}_q;')
+
+      # hold each individual ap_done to deal with synchronous ending
+      connect.append(f'always @ (posedge ap_clk) begin')
+      connect.append(f'  if (!ap_rst_n) {sig}_q <= 0;')
+      connect.append(f'  else {sig}_q <= {sig}_q | {sig};')
+      connect.append(f'end')
 
     in_bound_ap_done_reg = [f'{sig}_q' for sig in in_bound_ap_done]
     in_bound_ap_done_reg.append('ap_done') # connect to self
@@ -205,7 +210,7 @@ class CreateCtrlSlotWrapper:
     connect.append(f'wire ap_continue = 1;')
 
     # ap_start
-    connect.append(f'(* dont_touch = "yes" *) reg ap_start_{in_boundary_name}_q;')
+    connect.append(f'(* keep = "true" *) reg ap_start_{in_boundary_name}_q;')
     connect.append(f'always @ (posedge ap_clk) ap_start_{in_boundary_name}_q <= ap_start_{in_boundary_name};')
     for dir in ctrl_fanout_dir:
       fanout_boundary_name = slot.getBoundarySegmentName(dir)
@@ -213,19 +218,24 @@ class CreateCtrlSlotWrapper:
     connect.append(f'assign ap_start = ap_start_{in_boundary_name}_q;') # for the inner wrapper
 
     # ap_rst_n
-    connect.append(f'(* dont_touch = "yes" *) reg ap_rst_n_{in_boundary_name}_q;')
+    connect.append(f'(* keep = "true" *) reg ap_rst_n_{in_boundary_name}_q;')
     connect.append(f'always @ (posedge ap_clk) ap_rst_n_{in_boundary_name}_q <= ap_rst_n_{in_boundary_name};')
     for dir in ctrl_fanout_dir:
       fanout_boundary_name = slot.getBoundarySegmentName(dir)
       connect.append(f'assign ap_rst_n_{fanout_boundary_name} = ap_rst_n_{in_boundary_name}_q;')
+    connect.append(f'assign ap_rst_n = ap_rst_n_{in_boundary_name}_q;')
 
     # ap_done, in reverse direction
     out_bound_ap_done_reg = []
     for dir in ctrl_fanout_dir:
       fanout_boundary_name = slot.getBoundarySegmentName(dir)
       ap_done_name = f'ap_done_{fanout_boundary_name}'
-      connect.append(f'(* dont_touch = "yes" *) reg {ap_done_name}_q;')
-      connect.append(f'always @ (posedge ap_clk) {ap_done_name}_q <= {ap_done_name};')
+      connect.append(f'(* keep = "true" *) reg {ap_done_name}_q;')
+      connect.append(f'always @ (posedge ap_clk) begin')
+      connect.append(f'  if (!ap_rst_n) {ap_done_name}_q <= 0;')
+      connect.append(f'  else {ap_done_name}_q <= {ap_done_name}_q | {ap_done_name};')
+      connect.append(f'end')
+
       out_bound_ap_done_reg.append(f'{ap_done_name}_q')
 
     out_bound_ap_done_reg.append('ap_done') # collect the ap_done of the current slot
@@ -276,3 +286,22 @@ class CreateCtrlSlotWrapper:
       wrapper = self.getCtrlInclusiveWrapper(slot)
       f = open(dir + '/' + slot.getRTLModuleName()+'_ctrl.v', 'w')
       f.write('\n'.join(wrapper))
+
+  def getSlotToIOList(self):
+    """maintain the same interface as CreateSlotWrapper """
+    def processIODecl(io_decl):
+      io_decl = [io.replace(',', '') for io in io_decl]
+      io_decl = [io.split() for io in io_decl] # ensure that no space in width, e.g., [1+2:0]
+      return io_decl
+
+    slot_2_io = {}
+    for slot in self.all_active_slots:
+      io_section = self.__getIOSection(slot)
+      io_section = processIODecl(io_section)
+      slot_2_io[slot] = io_section
+
+    return slot_2_io
+
+  def getSlotNameToIOList(self):
+    slot_2_io = self.getSlotToIOList()
+    return {slot.getRTLModuleName() : io_list for slot, io_list in slot_2_io.items()}
