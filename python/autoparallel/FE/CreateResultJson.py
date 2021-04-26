@@ -84,7 +84,7 @@ class CreateResultJson:
   def __getSlotWrapperRTLSection(self):
     slot_to_rtl = {}
     for slot in self.slot_manager.getActiveSlotsIncludeRouting():
-      slot_to_rtl[slot.getRTLModuleName()] = self.wrapper_creater.getRoutingInclusiveWrapper(slot)
+      slot_to_rtl[slot.getRTLModuleName()] = self.wrapper_creater.getCtrlInclusiveWrapper(slot)
     return slot_to_rtl
 
   def createResultJson(self, file = 'front_end_result.json'):
@@ -101,8 +101,7 @@ class CreateResultJson:
     result['SlotWrapperRTL'] = self.__getSlotWrapperRTLSection()
     result['NewTopRTL'] = self.new_top_rtl
     
-    result['PathPlanningFIFO'] = self.global_router.getDirectionOfPassingEdges()
-    result['PathPlanningWire'] = self.wrapper_creater.getDirectionOfPassingEdgeWiresUpdated()
+    result['PathPlanningWire'] = self.wrapper_creater.getSlotNameToDirToWires()
     
     # result['Utilization'] = self.floorplan.getUtilization()
     # result['Neighbors'] = self.__getNeighborSection()

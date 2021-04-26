@@ -95,16 +95,11 @@ def __constrainSlotWires(hub, slot_name, output_path = '.'):
 def __constraintBoundary(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y):
   slot_wires = hub['PathPlanningWire'][slot_name]
   # no wire crossing in a certain boundary segment
-  if f'{dir}_IN' not in slot_wires and f'{dir}_OUT' not in slot_wires:
+  if dir not in slot_wires:
     return []
 
   # all interface wires
-  pblock_wires = []
-  if f'{dir}_IN' in slot_wires:
-    pblock_wires += slot_wires[f'{dir}_IN']
-  if f'{dir}_OUT' in slot_wires:
-    pblock_wires += slot_wires[f'{dir}_OUT']
-  
+  pblock_wires = slot_wires[dir]
   assert pblock_wires, f'empty boundary should not appear in the json: {slot_name} -> {dir}' 
 
   # generate the script
