@@ -347,7 +347,7 @@ class CreateRoutingSlotWrapper:
     # at this point no width or i/o direction is appended
     slot_to_dir_to_wires = self.global_router.getDirectionOfPassingEdgeWires()
     
-    routing_slot_2_io = self.getSlotNameToIOList() # the return has separated direction, width and wire name
+    routing_slot_2_io = self.getSlotToIOList() # the return has separated direction, width and wire name
     
     for slot, dir_to_wires in slot_to_dir_to_wires.items():
       routing_wrapper_io_list = routing_slot_2_io[slot]

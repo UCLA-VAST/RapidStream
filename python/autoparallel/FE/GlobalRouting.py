@@ -16,9 +16,10 @@ class GlobalRouting:
     self.e_name2path = {} # from edge to all slots passed, exclude src and dst
     self.slot2e_names = {} # from slot to all edges passed through
     self.slot_to_dir_to_edges = defaultdict(lambda: defaultdict(list))
-
+    
     logging.critical('current latency counting depends on 4-CR slot size')
     self.naiveGlobalRouting()
+    self.__initDirectionOfPassingEdges()
 
   def naiveGlobalRouting(self):
     """
@@ -74,7 +75,7 @@ class GlobalRouting:
 
     __initEdgeLatency()
 
-  def getDirectionOfPassingEdges(self):
+  def __initDirectionOfPassingEdges(self):
     """
     In which directions (UP, DOWN, LEFT, RIGHT) do the edges come and go
     slot -> dir & in or out -> edges
@@ -93,31 +94,29 @@ class GlobalRouting:
 
         prev = src_slot
         for slot in slot_path + [dst_slot]:
-          curr_name = slot.getRTLModuleName()
-          prev_name = prev.getRTLModuleName()
           if slot.isAbove(prev):
             logging.debug('Go up')
-            self.slot_to_dir_to_edges[curr_name]['DOWN_IN'].append(e.name)
-            self.slot_to_dir_to_edges[prev_name]['UP_OUT'].append(e.name)
+            self.slot_to_dir_to_edges[slot]['DOWN_IN'].append(e.name)
+            self.slot_to_dir_to_edges[prev]['UP_OUT'].append(e.name)
           elif slot.isBelow(prev):
             logging.debug('Go down')
-            self.slot_to_dir_to_edges[curr_name]['UP_IN'].append(e.name)
-            self.slot_to_dir_to_edges[prev_name]['DOWN_OUT'].append(e.name)
+            self.slot_to_dir_to_edges[slot]['UP_IN'].append(e.name)
+            self.slot_to_dir_to_edges[prev]['DOWN_OUT'].append(e.name)
           elif slot.isToTheLeftOf(prev):
             logging.debug('Go left')
-            self.slot_to_dir_to_edges[curr_name]['RIGHT_IN'].append(e.name)
-            self.slot_to_dir_to_edges[prev_name]['LEFT_OUT'].append(e.name)
+            self.slot_to_dir_to_edges[slot]['RIGHT_IN'].append(e.name)
+            self.slot_to_dir_to_edges[prev]['LEFT_OUT'].append(e.name)
           elif slot.isToTheRightOf(prev):
             logging.debug('Go right')
-            self.slot_to_dir_to_edges[curr_name]['LEFT_IN'].append(e.name)
-            self.slot_to_dir_to_edges[prev_name]['RIGHT_OUT'].append(e.name)
+            self.slot_to_dir_to_edges[slot]['LEFT_IN'].append(e.name)
+            self.slot_to_dir_to_edges[prev]['RIGHT_OUT'].append(e.name)
           else:
             assert False
 
           prev = slot
 
     # remove the defualt dict property to prevent unexpected contamination
-    self.slot_to_dir_to_edges = json.loads(json.dumps(self.slot_to_dir_to_edges))
+    # self.slot_to_dir_to_edges = json.loads(json.dumps(self.slot_to_dir_to_edges))
 
     return self.slot_to_dir_to_edges
 
