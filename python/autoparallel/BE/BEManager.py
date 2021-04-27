@@ -56,7 +56,6 @@ def parallelSlotRun(hub, parallel_run_dir):
 
   assert os.path.isdir(orig_rtl_path)
   
-  # TODO: take care of pure routing slots
   for slot_name in hub['SlotIO'].keys():
     
     # do not create a separate run for pure routing slots
