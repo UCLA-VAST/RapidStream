@@ -94,12 +94,22 @@ class CreateCtrlSlotWrapper:
         ctrl_source_dir = 'DOWN'
 
     # which directions the ap_starts go to
+    # if the slot is on the same row as the s_axi slot, broadcast to all directions except to the s_axi
+    # otherwise, only pass the control signal vertically away from the source
     ctrl_fanout_dir = []
-    for dir in ['UP', 'DOWN', 'RIGHT', 'LEFT']:
-      if dir == ctrl_source_dir:
-        continue
-      if slot.getNeighborSlotName(dir) in self.all_slot_names_list:
-        ctrl_fanout_dir.append(dir)
+    if is_same_row:
+      for dir in ['UP', 'DOWN', 'RIGHT', 'LEFT']:
+        if dir == ctrl_source_dir:
+          continue
+        if slot.getNeighborSlotName(dir) in self.all_slot_names_list:
+          ctrl_fanout_dir.append(dir)
+    else:
+      if is_to_the_down:
+        if slot.getNeighborSlotName('DOWN') in self.all_slot_names_list:
+          ctrl_fanout_dir = ['DOWN']
+      else:
+        if slot.getNeighborSlotName('UP') in self.all_slot_names_list:
+          ctrl_fanout_dir = ['UP']
 
     return ctrl_source_dir, ctrl_fanout_dir
 
