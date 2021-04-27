@@ -99,6 +99,8 @@ class CreateResultJson:
     
     result['SlotIO'] = self.wrapper_creater.getSlotNameToIOList()
     result['SlotWrapperRTL'] = self.__getSlotWrapperRTLSection()
+    result['TopIO'] = self.top_rtl_parser.getDirWidthNameOfAllIO()
+    
     result['NewTopRTL'] = self.new_top_rtl
     
     result['PathPlanningWire'] = self.wrapper_creater.getSlotNameToDirToWires()

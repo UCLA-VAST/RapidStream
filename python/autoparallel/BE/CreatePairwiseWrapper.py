@@ -12,18 +12,11 @@ def getHeader(slot1_name, slot2_name):
 def getIODecl(slot1_io : dict, slot2_io : dict, top_io : dict):
   slot_io_merge = {**slot1_io, **slot2_io}
   io_decl = [f'  {" ".join(slot_io_merge[io])} {io},' for io in top_io]
-  io_decl += ['  input ap_start,']
-
-  # leave the output ap signals dangling as they are not used here
-  # io_decl += ['  output ap_done,']
-  # io_decl += ['  output ap_idle,']
-  # io_decl += ['  output ap_ready,']
-  io_decl += ['  input ap_continue,']
-  io_decl += ['  input ap_clk,']
-  io_decl += ['  input ap_rst_n);']
+  io_decl[-1] = io_decl[-1].replace(',', ');')
+  
   return io_decl
 
-def getConnection(inner_connection, top_io, pipeline_level):
+def getConnection(inner_connection, top_io, pipeline_level=1):
   """
   get the RTL to connect the slots
   data links will be pipelined
@@ -31,23 +24,16 @@ def getConnection(inner_connection, top_io, pipeline_level):
   @param connection: the RTL section
   @param pipeline_reg: all the pipeline registers instantiated
   """
+  assert pipeline_level == 1, f'currently only support pipeline_level of 1'
+
   connection = []
   pipeline_regs = []
   for io, dir_width in inner_connection.items():
-    # filter control signals
-    if io.startswith('ap_'):
-      continue
-
     width = dir_width[1] if len(dir_width) == 2 else ''
     connection.append(f'  wire {width} {io}_in;')
     connection.append(f'  wire {width} {io}_out;')
 
-    # wires of passing edges should not be pipelined
-    # if the same io with different suffix index exists in top_io
-    # orig_io_name = io.split('_pass_')[0]
-    # if any(orig_io_name in top_io_name for top_io_name in top_io):
-    #   connection.append(f'  assign {io}_in = {io}_out;')
-    #   continue
+    # only pipeline _pass_0 connections
     if '_pass_0' not in io:
       connection.append(f'  assign {io}_in = {io}_out;')
       continue     
@@ -81,21 +67,12 @@ def getInstance(slot_name : str, slot_io : dict, top_io : dict, inner_connection
     if io in top_io:
       instance.append(f'    .{io}({io}),')
     elif io in inner_connection:
-      # handle ap signals
-      if io.startswith('ap_'):
-        # leave the output ap signals dangling as they are not used here
-        if io in ['ap_done', 'ap_idle', 'ap_ready']:
-          instance.append(f'    .{io}(),')
-        else:
-          instance.append(f'    .{io}({io}),')
-      # data signals    
+      if 'input' in dir_width:
+        instance.append(f'    .{io}({io}_in),')
+      elif 'output' in dir_width:
+        instance.append(f'    .{io}({io}_out),')
       else:
-        if 'input' in dir_width:
-          instance.append(f'    .{io}({io}_in),')
-        elif 'output' in dir_width:
-          instance.append(f'    .{io}({io}_out),')
-        else:
-          assert False
+        assert False
     else:
       assert False
   instance[-1] = instance[-1].replace(',', ');\n')
@@ -118,7 +95,6 @@ def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level, output
   Wires of passing edges should not be pipelined
   Also create the script to extract the placement of pipeline registers
   """
-  
   slot1_io = hub['SlotIO'][slot1_name]
   slot2_io = hub['SlotIO'][slot2_name]
 
@@ -133,6 +109,10 @@ def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level, output
   # external io of the wrapper
   top_io = slot1_io.keys() - slot2_io.keys() | \
            slot2_io.keys() - slot1_io.keys()
+
+  # deal with ap_clk
+  top_io.add('ap_clk')
+  inner_connection.pop('ap_clk')
 
   header = getHeader(slot1_name, slot2_name)
   io_decl = getIODecl(slot1_io, slot2_io, top_io)

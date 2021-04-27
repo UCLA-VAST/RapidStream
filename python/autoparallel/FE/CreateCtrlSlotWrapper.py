@@ -288,7 +288,7 @@ class CreateCtrlSlotWrapper:
     wrapper.append(f'endmodule')
 
     # include the inner wrapper
-    # wrapper += self.routing_wrapper_creater.getSlotWrapper(slot)
+    wrapper += self.routing_wrapper_creater.getRoutingInclusiveWrapper(slot)
 
     return wrapper
   

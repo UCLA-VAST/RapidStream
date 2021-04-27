@@ -15,10 +15,10 @@ def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
   tcl.append('puts $fileId "{"')
 
   print_cmd = r'catch {{ puts $fileId [format "  \"%s\" : \"%s/%s\"," {reg_name} [get_property LOC [get_cells {reg_name}]] [lindex [split [get_property BEL [get_cells {reg_name}]] "."] 1] ] }}'
-  for io in io_list:
-    if CreateAnchorWrapper.isCtrlIO(io[-1]):
-      continue
 
+  # note that top-level ports will not have anchor registers.
+  # the exception will be handled by the 'catch' in the command
+  for io in io_list:
     if len(io) == 2: # width of io is 1 so the width info is not shown
       tcl.append(print_cmd.format(reg_name = f'{io[1]}_reg')) # append the suffix "_reg" according to vivado naming convention
     elif len(io) == 3:
