@@ -32,6 +32,7 @@ def createAnchorWrapper(fe_result, slot_name, output_path='.'):
   for io in internal_io_list:
     if io[0] == 'output':
       wrapper.append('  ' + 'wire ' + ' '.join(io[1:]) + '_internal' + ';')
+      wrapper.append(f'  assign {io[-1]} = {io[-1]}_q0;')
 
   # connect anchors
   wrapper.append('  ' + 'always @ (posedge ap_clk) begin')
