@@ -8,9 +8,9 @@ def createAnchorAdjustmentScript(
     slot1_name, 
     slot2_name,
     wrapper_name,
-    global_anchor_reg2loc, 
-    global_conflict_anchor_reg2loc,
-    output_dir):
+    all_placed_anchor_reg2loc, 
+    all_idle_anchor_reg2loc,
+    pair_wrapper_proj_dir):
   """
   for the given pair, determine which anchors are in valid position
   and which ones are in conflict with others
@@ -20,7 +20,7 @@ def createAnchorAdjustmentScript(
   At this point, only the conflict anchors between the two slots are unplaced
   Run placement again to determine their new location, which should resolve the confliction
   """
-  assert len(global_anchor_reg2loc.values()) == len(set(global_anchor_reg2loc.values()))
+  assert len(all_placed_anchor_reg2loc.values()) == len(set(all_placed_anchor_reg2loc.values()))
 
   # get the anchors between the two slots
   wrapper_io, inner_connection = getTopIOAndInnerConnectionOfPair(hub, slot1_name, slot2_name)
@@ -42,30 +42,27 @@ def createAnchorAdjustmentScript(
       assert '_reg[' in netlist_name
       return netlist_name.split('_reg[')[0]
 
-  local_anchor_reg2loc = {reg : loc for reg, loc in global_anchor_reg2loc.items() \
+  local_anchor_reg2loc = {reg : loc for reg, loc in all_placed_anchor_reg2loc.items() \
                           if extract_anchor_name(reg) in local_anchor_names}
 
   # get the placement of external anchors, i.e. between on slot and outside
-  extern_anchor_reg2loc = {reg : loc for reg, loc in global_anchor_reg2loc.items() \
+  extern_anchor_reg2loc = {reg : loc for reg, loc in all_placed_anchor_reg2loc.items() \
                           if extract_anchor_name(reg) in extern_anchor_names}
 
   # get which anchors are in conflict and their locations
-  local_conflict_anchor_reg2loc = {reg : loc for reg, loc in global_conflict_anchor_reg2loc.items() \
+  local_conflict_anchor_reg2loc = {reg : loc for reg, loc in all_idle_anchor_reg2loc.items() \
                           if extract_anchor_name(reg) in local_anchor_names}
 
-  if local_conflict_anchor_reg2loc:
-    script = []
+  script = []
 
-    logging.info(f'{wrapper_name} needs anchor adjustments')
+  if local_conflict_anchor_reg2loc:
+    logging.info(f'{wrapper_name} needs to adjust {len(local_conflict_anchor_reg2loc)} anchor registers')
+
+    script.append(f'open_checkpoint {wrapper_name}_placed.dcp')
 
     # unplace the anchors with conflict. Should be very small
     for reg, loc in local_conflict_anchor_reg2loc.items():
       script.append(f'unplace_cell {reg} ;# unplace conflict anchors')
-      script.append(f'create_cell -reference FDRE placeholder_{reg}')
-      # we want a placeholder to block this position
-      # but this may cause conflict if we later want to block positions held by external anchors
-      # so we push it to the end and wrap it with catch {}
-      # script.append(f'place_cell placeholder_{reg} {loc}') 
 
     # dictate the placement of valid anchors
     for reg, loc in local_anchor_reg2loc.items():
@@ -77,55 +74,86 @@ def createAnchorAdjustmentScript(
     for reg, loc in extern_anchor_reg2loc.items():
       script.append(f'place_cell placeholder_{reg} {loc} ;# placeholder for extern anchors')
 
-    # block the previous conflict position if it has not been so.
-    for reg, loc in local_conflict_anchor_reg2loc.items():
-      script.append(f'catch {{ place_cell placeholder_{reg} {loc} }}') 
-
-    script.append('place_design')
+    script.append(f'if {{ [llength [get_cells -filter {{STATUS != FIXED && PRIMITIVE_TYPE =~ REGISTER.*.*}} ] ] != {len(local_conflict_anchor_reg2loc)} }} {{puts "mismatch in unplaced anchors!"; exit(1)}}')
+    script.append('place_design -directive RuntimeOptimized')
 
     # remove the placeholder cells
     script.append('remove_cell [get_cells -regexp placeholder.*]')
 
-    script.append(f'source {wrapper_name}_print_anchor_placement.tcl')
-    script.append(f'write_checkpoint {wrapper_name}_placed_adjusted.dcp')
+    script.append(f'source {pair_wrapper_proj_dir}/{wrapper_name}_print_anchor_placement.tcl')
+    script.append(f'write_checkpoint -force {wrapper_name}_placed.dcp')
 
-    open(f'{output_dir}/anchor_adjustment.tcl', 'w').write('\n'.join(script))
+  return script
+
+def getAllAnchorRegToLoc(stitch_run_dir):
+  json_list = glob.glob(f'{stitch_run_dir}/*/*.json')
+  reg2loc_list = [json.loads(open(f, 'r').read()) for f in json_list]
+  all_anchor_reg2loc = {}
+  for reg2loc in reg2loc_list:
+    all_anchor_reg2loc.update(reg2loc)
+  return all_anchor_reg2loc
 
 def collisionDetection(stitch_run_dir):
   """
   collect the anchor placement from each slot pair
   filter valid ones and conflict ones
   """
-  json_list = glob.glob(f'{stitch_run_dir}/*/*.json')
+  all_anchor_reg2loc = getAllAnchorRegToLoc(stitch_run_dir)
 
-  # a list of dict, each is the pipeline reg -> location mapping of a slot pair
-  reg2loc_list = [json.loads(open(f, 'r').read()) for f in json_list]
+  occupied_locs = set()
+  all_placed_anchor_reg2loc = {}
+  all_idle_anchor_reg2loc = {}
 
-  # inversed mapping
-  loc2reg_list = [{loc : reg for reg, loc in reg2loc.items()} for reg2loc in reg2loc_list]
+  for reg, loc in all_anchor_reg2loc.items():
+    if loc in occupied_locs:
+      all_idle_anchor_reg2loc[reg] = loc
+    else:
+      occupied_locs.add(loc)
+      all_placed_anchor_reg2loc[reg] = loc
 
-  # check if the same location occurs more than once
-  global_anchor_loc2reg = {}
-  global_conflict_anchor_loc2regs = {}
-  for loc2reg in loc2reg_list:
-    for loc, reg in loc2reg.items():
-      # found a collision
-      if loc in global_anchor_loc2reg:
-        conflict_reg = global_anchor_loc2reg[loc]
-        if loc not in global_conflict_anchor_loc2regs:
-          global_conflict_anchor_loc2regs[loc] = [conflict_reg]
-        global_conflict_anchor_loc2regs[loc].append(reg)
-      else:
-        global_anchor_loc2reg[loc] = reg
+  logging.info(json.dumps(all_idle_anchor_reg2loc, indent=2))
 
-  # convert data format
-  global_anchor_reg2loc = {reg : loc for loc, reg in global_anchor_loc2reg.items()}
-  global_conflict_anchor_reg2loc = {}
-  for loc, regs in  global_conflict_anchor_loc2regs.items():
-    global_conflict_anchor_reg2loc.update({reg : loc for reg in regs})
+  # do it in another way to check
+  num_unique_locs = len(set(all_anchor_reg2loc.values()))
+  assert num_unique_locs == len(occupied_locs)
+  num_total_anchors = len(all_anchor_reg2loc)
 
-  logging.info(json.dumps(global_conflict_anchor_reg2loc, indent=2))
-  logging.info(f'conflict rate: {len(global_conflict_anchor_loc2regs)} / {len(global_anchor_loc2reg) + len(global_conflict_anchor_loc2regs)} = {len(global_conflict_anchor_loc2regs) / (len(global_anchor_loc2reg)+len(global_conflict_anchor_loc2regs))} ')
+  logging.info(f'There are {num_total_anchors} anchors in total, {num_total_anchors-num_unique_locs} anchors are not placed, \
+    {(num_total_anchors-num_unique_locs)/num_total_anchors}')
 
-  return global_anchor_reg2loc, global_conflict_anchor_reg2loc
+  return all_placed_anchor_reg2loc, all_idle_anchor_reg2loc
+
+if __name__ == '__main__':
+  logging.basicConfig(level=logging.INFO)
+
+  hub_path = '/home/einsx7/auto-parallel/src/e2e_test/cnn_13x16_test_pattern/front_end_result.json'
+  base_dir = '/expr/cnn_13x16_ctrl_wrapper2'
+  stitch_run_dir = base_dir + '/parallel_stitch'
+  all_placed_anchor_reg2loc, all_idle_anchor_reg2loc = collisionDetection(stitch_run_dir)
   
+  hub = json.loads(open(hub_path, 'r').read())
+
+  pair_list = hub["ComputeSlotPairs"]
+
+  task_queue = []
+  for pair in pair_list:
+    wrapper_name = '_AND_'.join(pair)
+    slot1_name = pair[0]
+    slot2_name = pair[1]
+    wrapper_name = f'{slot1_name}_AND_{slot2_name}'
+    pair_wrapper_proj_dir = stitch_run_dir + '/' + wrapper_name
+
+    script = createAnchorAdjustmentScript(
+      hub,
+      slot1_name, 
+      slot2_name,
+      wrapper_name,
+      all_placed_anchor_reg2loc, 
+      all_idle_anchor_reg2loc,
+      pair_wrapper_proj_dir)
+
+    if script:
+      task_queue.append(f'cd {pair_wrapper_proj_dir} && VIV_VER=2020.1 vivado -mode batch -source anchor_adjustment.tcl')
+      open(f'{pair_wrapper_proj_dir}/anchor_adjustment.tcl', 'w').write('\n'.join(script))
+
+  open(f'{stitch_run_dir}/parallel-legalize.txt', 'w').write('\n'.join(task_queue))
