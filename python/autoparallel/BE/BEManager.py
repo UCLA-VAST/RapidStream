@@ -35,13 +35,13 @@ def parallelAnchorPlacement(
     createClockXDC(wrapper_name, dir)
     clock_xdc_path = f'{dir}/{wrapper_name}_clk.xdc' # TODO: redundancy
 
-    # generate vivado script
-    dcp_path = lambda name : f'{parallel_run_dir}/{name}/{name}_routed_free_run/{name}_routed_free_run.dcp'
+    # generate vivado script. Used post-placement DCP to place anchors
+    dcp_path = lambda name : f'{parallel_run_dir}/{name}/{name}_placed_free_run/{name}_ctrl_placed_free_run.dcp'
     dcp_name2path = {name : dcp_path(name) for name in pair}
     createVivadoScriptForSlotPair(hub, wrapper_name, wrapper_path, dcp_name2path, clock_xdc_path, dir)
 
     # add to task queue
-    parallel_task.append(f'cd {dir} && VIV_VER=2019.2 vivado -mode batch -source place.tcl')
+    parallel_task.append(f'cd {dir} && VIV_VER=2020.1 vivado -mode batch -source place.tcl')
 
   # create GNU parallel script
   open(f'{stitch_dir}/run_parallel.txt', 'w').write('\n'.join(parallel_task))
@@ -56,11 +56,8 @@ def parallelSlotRun(hub, parallel_run_dir):
 
   assert os.path.isdir(orig_rtl_path)
   
+  # note that pure routing slots are also implemented separately
   for slot_name in hub['SlotIO'].keys():
-    
-    # do not create a separate run for pure routing slots
-    if slot_name in hub['PureRoutingSlots']:
-      continue
 
     logging.info(f'processing slot {slot_name}...')
     dir = f'{parallel_run_dir}/{slot_name}'
