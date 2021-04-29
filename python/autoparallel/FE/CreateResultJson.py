@@ -110,7 +110,7 @@ class CreateResultJson:
 
     result['ComputeSlots'] = [ s.getRTLModuleName() for s in self.slot_manager.getComputeSlots() ]
     result['PureRoutingSlots'] = [ s.getRTLModuleName() for s in self.slot_manager.getPureRoutingSlots() ]
-    result['ComputeSlotPairs'] = [[p[0].getRTLModuleName(), p[1].getRTLModuleName()] for p in self.slot_manager.getComputeSlotPairs()]
+    result['AllSlotPairs'] = [[p[0].getRTLModuleName(), p[1].getRTLModuleName()] for p in self.slot_manager.getAllSlotPairs()]
 
     f = open(file, 'w')
     f.write(json.dumps(result, indent=2))
