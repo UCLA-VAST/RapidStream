@@ -35,9 +35,11 @@ def createAnchorAdjustmentScript(
   """
   assert len(all_placed_anchor_reg2loc.values()) == len(set(all_placed_anchor_reg2loc.values()))
 
+  in_slot_pipeline_style = hub['InSlotPipelineStyle']
+
   # get the anchors between the two slots
   wrapper_io, inner_connection = getTopIOAndInnerConnectionOfPair(hub, slot1_name, slot2_name)
-  _, local_anchors = getConnection(inner_connection, pipeline_level=1)
+  _, local_anchors = getConnection(inner_connection, 1, in_slot_pipeline_style)
   local_anchor_names = [anchor[-1] for anchor in local_anchors]
 
   # get the anchors beween either slot with other slots outside the wrapper

@@ -23,7 +23,7 @@ def getAnchoredIOAndWiredIO(hub, slot_name):
   non_top_io_list = [io for io in io_list if io[-1] not in top_io_names] # not in top_io
   return non_top_io_list
 
-def getTopLevelPorts(hub, slot_name):
+def getLocalTopLevelPorts(hub, slot_name):
   """
   get those IOs of the slot that belong to the top-level ports
   They will be left unconstrainted 
@@ -50,7 +50,7 @@ def createAnchorWrapper(hub, slot_name, output_path='.'):
   non_top_io_list = getAnchoredIOAndWiredIO(hub, slot_name)
   
   # top-level ports are unconstrained
-  local_top_io_list = getNonAnchoredIO(hub, slot_name)
+  local_top_io_list = getLocalTopLevelPorts(hub, slot_name)
 
   wrapper = []
   
