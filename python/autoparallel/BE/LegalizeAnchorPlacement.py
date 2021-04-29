@@ -3,6 +3,19 @@ import json
 import glob
 from autoparallel.BE.CreatePairwiseWrapper import getTopIOAndInnerConnectionOfPair, getConnection
 
+def getAnchorSourceNameFromFDRE(FDRE_name):
+  """
+  get the valid anchor placement
+  note that each anchor corresponds to multiple 1-bit registers
+  with suffix "_reg[...]"
+  note that we must not use '_reg[' to split, because 1-bit variables does not have '[...]' at the end
+  """
+  if FDRE_name.endswith('_reg'):
+    return FDRE_name[:-4]
+  else:
+    assert '_reg[' in FDRE_name
+    return FDRE_name.split('_reg[')[0]
+
 def createAnchorAdjustmentScript(
     hub,
     slot1_name, 
@@ -31,27 +44,16 @@ def createAnchorAdjustmentScript(
   top_ports = hub['TopIO']
   extern_anchor_names = [f'{io_name}_q0' for io_name in wrapper_io if io_name not in top_ports]
 
-  # get the valid anchor placement
-  # note that each anchor corresponds to multiple 1-bit registers
-  # with suffix "_reg[...]"
-  # note that we must not use '_reg[' to split, because 1-bit variables does not have '[...]' at the end
-  def extract_anchor_name(netlist_name):
-    if netlist_name.endswith('_reg'):
-      return netlist_name[:-4]
-    else:
-      assert '_reg[' in netlist_name
-      return netlist_name.split('_reg[')[0]
-
   local_anchor_reg2loc = {reg : loc for reg, loc in all_placed_anchor_reg2loc.items() \
-                          if extract_anchor_name(reg) in local_anchor_names}
+                          if getAnchorSourceNameFromFDRE(reg) in local_anchor_names}
 
   # get the placement of external anchors, i.e. between on slot and outside
   extern_anchor_reg2loc = {reg : loc for reg, loc in all_placed_anchor_reg2loc.items() \
-                          if extract_anchor_name(reg) in extern_anchor_names}
+                          if getAnchorSourceNameFromFDRE(reg) in extern_anchor_names}
 
   # get which anchors are in conflict and their locations
   local_conflict_anchor_reg2loc = {reg : loc for reg, loc in all_idle_anchor_reg2loc.items() \
-                          if extract_anchor_name(reg) in local_anchor_names}
+                          if getAnchorSourceNameFromFDRE(reg) in local_anchor_names}
 
   script = []
 
@@ -128,7 +130,7 @@ if __name__ == '__main__':
 
   hub_path = '/home/einsx7/auto-parallel/src/e2e_test/cnn_13x16_test_pattern/front_end_result.json'
   base_dir = '/expr/cnn_13x16_ctrl_wrapper2'
-  stitch_run_dir = base_dir + '/parallel_stitch'
+  stitch_run_dir = base_dir + '/parallel_stitch_iter2'
   all_placed_anchor_reg2loc, all_idle_anchor_reg2loc = collisionDetection(stitch_run_dir)
   
   hub = json.loads(open(hub_path, 'r').read())
@@ -157,3 +159,6 @@ if __name__ == '__main__':
       open(f'{pair_wrapper_proj_dir}/anchor_adjustment.tcl', 'w').write('\n'.join(script))
 
   open(f'{stitch_run_dir}/parallel-legalize.txt', 'w').write('\n'.join(task_queue))
+
+  if len(all_idle_anchor_reg2loc) == 0: 
+    open(f'{stitch_run_dir}/finalized_anchor_placement.json', 'w').write(json.dumps(all_placed_anchor_reg2loc, indent=2))
