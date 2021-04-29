@@ -144,9 +144,6 @@ def createGNUParallelScript(hub, target_dir):
   anchored_run = []
   max_num_per_server = 8
   for slot_name in hub['SlotIO'].keys():
-    if slot_name in hub['PureRoutingSlots']:
-      continue
-
     free_run.append(f'cd {target_dir}/{slot_name} && vivado -mode batch -source {slot_name}_free_run.tcl')
     anchored_run.append(f'cd {target_dir}/{slot_name} && vivado -mode batch -source {slot_name}_anchored_run.tcl')
 
