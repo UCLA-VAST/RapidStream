@@ -18,6 +18,8 @@ def parallelAnchorPlacement(
   """
   for each pair of neighbor slots, group them and place & router the anchors in between
   """
+  in_slot_pipeline_style = hub['InSlotPipelineStyle']
+  assert in_slot_pipeline_style == 'LUT', 'currenlty experimenting with the LUT option'
 
   parallel_task = []
 
@@ -29,7 +31,7 @@ def parallelAnchorPlacement(
     
     # generate wrapper rtl
     wrapper_path = f'{dir}/{wrapper_name}.v'
-    pair_wrapper = CreateWrapperForSlotPair(hub, pair[0], pair[1], 1, dir, wrapper_name)
+    pair_wrapper = CreateWrapperForSlotPair(hub, pair[0], pair[1], 1, dir, wrapper_name, in_slot_pipeline_style)
 
     # generate clock constraint
     createClockXDC(wrapper_name, dir)

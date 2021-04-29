@@ -12,6 +12,7 @@ class CreateRoutingSlotWrapper:
     self.top_rtl_parser = top_rtl_parser
     self.pure_routing_slots = global_router.getPureRoutingSlots()
     self.target = compute_wrapper_creater.target # maintain the same interface with CreateSlotWrapper
+    self.in_slot_pipeline_style = 'LUT'
 
     self.edge_wire_to_suffix_index = {}
 
@@ -138,6 +139,7 @@ class CreateRoutingSlotWrapper:
 
         # direct wire connection of passing edge
         if pipeline_level == 0:
+          assert False, 'This branch should be obsolete'
           if port_name.endswith('_din') or port_name.endswith('_write'):
             stmt.append(f'assign {wire_name}_pass_{index+1} = {wire_name}_pass_{index};')
           elif port_name.endswith('_full_n'):
@@ -151,20 +153,29 @@ class CreateRoutingSlotWrapper:
             stmt.append(f'  (* dont_touch = "yes" *) reg {wire_width} {wire_name}_q{i};')
           
           # connect the pipeline reg
-          stmt.append(f'  always @ (posedge ap_clk) begin')
-          for i in range(1, pipeline_level):
-            stmt.append(f'    {wire_name}_q{i} <= {wire_name}_q{i-1};')
-          stmt.append(f'  end')
+          assert pipeline_level == 1
+          # stmt.append(f'  always @ (posedge ap_clk) begin')
+          # for i in range(1, pipeline_level):
+          #   stmt.append(f'    {wire_name}_q{i} <= {wire_name}_q{i-1};')
+          # stmt.append(f'  end')
 
           # connect to interface port
-          def connect_to_interface(src_idx, dst_idx):
-            stmt.append(f'  always @ (posedge ap_clk) {wire_name}_q0 <= {wire_name}_pass_{src_idx};')
+          def connect_to_interface(src_idx, dst_idx, style):
+            if style == 'REG': # put the pipeline regs inside slots
+              stmt.append(f'  always @ (posedge ap_clk) {wire_name}_q0 <= {wire_name}_pass_{src_idx};')
+            elif style == 'LUT': # put the actual pipeline regs between slots
+              stmt.append(f'  always @ (*) {wire_name}_q0 = {wire_name}_pass_{src_idx};')
+
             stmt.append(f'  assign {wire_name}_pass_{dst_idx} = {wire_name}_q{pipeline_level-1};')   
 
+          # *************************
+          style = self.in_slot_pipeline_style # currently 'LUT'
+          # *************************
+
           if port_name.endswith('_din') or port_name.endswith('_write'):
-            connect_to_interface(index, index+1)
+            connect_to_interface(index, index+1, style)
           elif port_name.endswith('_full_n'):
-            connect_to_interface(index+1, index)           
+            connect_to_interface(index+1, index, style)           
 
     return stmt
 

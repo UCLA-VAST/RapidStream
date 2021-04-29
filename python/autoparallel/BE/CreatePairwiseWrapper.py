@@ -17,7 +17,7 @@ def getIODecl(slot1_io : dict, slot2_io : dict, wrapper_io : dict):
   
   return io_decl
 
-def getConnection(inner_connection, pipeline_level=1):
+def getConnection(inner_connection, pipeline_level, in_slot_pipeline_style):
   """
   get the RTL to connect the slots
   data links will be pipelined
@@ -34,13 +34,16 @@ def getConnection(inner_connection, pipeline_level=1):
     connection.append(f'  wire {width} {io}_in;')
     connection.append(f'  wire {width} {io}_out;')
 
-    # only pipeline _pass_0 connections
-    if '_pass_0' not in io:
-      connection.append(f'  assign {io}_in = {io}_out;')
-      continue     
+    if in_slot_pipeline_style == 'REG':
+      assert False
+      # only pipeline _pass_0 connections
+      if '_pass_0' not in io:
+        connection.append(f'  assign {io}_in = {io}_out;')
+        continue     
 
     # assign the input wire equals the output wire
     if pipeline_level == 0:
+      assert False
       connection.append(f'  assign {io}_in = {io}_out;')
     else:
       # add the pipeline registers
@@ -112,7 +115,7 @@ def getTopIOAndInnerConnectionOfPair(hub, slot1_name, slot2_name) -> Tuple[Set, 
 
   return wrapper_io, inner_connection
 
-def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level, output_dir, wrapper_name):
+def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level, output_dir, wrapper_name, in_slot_pipeline_style):
   """ 
   group together two neighbor slots 
   Wires of passing edges should not be pipelined
@@ -132,7 +135,7 @@ def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level, output
   io_decl = getIODecl(slot1_io, slot2_io, wrapper_io)
 
   # pipelined connection between the two slots
-  connection, pipeline_regs = getConnection(inner_connection, pipeline_level)
+  connection, pipeline_regs = getConnection(inner_connection, pipeline_level, in_slot_pipeline_style)
 
   slot1_inst = getInstance(slot1_name, slot1_io, wrapper_io, inner_connection)
   slot2_inst = getInstance(slot2_name, slot2_io, wrapper_io, inner_connection)

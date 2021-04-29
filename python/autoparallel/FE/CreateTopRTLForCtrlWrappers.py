@@ -63,7 +63,7 @@ def getTopApSignals(slot_to_io):
 
   assert False
 
-def getPipelining(slot_to_io, top_rtl_parser, global_router):
+def getPipelining(slot_to_io, top_rtl_parser, global_router, in_slot_pipeline_style):
   """
   add pipeline registers to connect the slots
   Differentiate whether we include the interconnect registesr in slot wrappers
@@ -103,10 +103,16 @@ def getPipelining(slot_to_io, top_rtl_parser, global_router):
       #   assert False
       # -------------------------------------------------
       # Do it in a easier way. Just check '_pass_0'
-      if re.search('_pass_0', io[-1]):
+      if in_slot_pipeline_style == 'REG':
+        assert False, 'currently we are experimenting with the LUT option'
+        if re.search('_pass_0', io[-1]):
+          pipeline_level = 1
+        else:
+          pipeline_level = 0
+      elif in_slot_pipeline_style == 'LUT':
         pipeline_level = 1
       else:
-        pipeline_level = 0
+        assert False
 
       # assign the input wire equals the output wire
       if pipeline_level == 0:
@@ -153,13 +159,16 @@ def getSlotInst(slot_to_io, top_rtl_parser):
 
 def CreateTopRTLForCtrlWrappers(top_rtl_parser, wrapper_creater, top_module_name, global_router):
   slot_to_io = wrapper_creater.getSlotNameToIOList()
+  
+  # whether the pipeline regs are in slots or between slots
+  in_slot_pipeline_style = wrapper_creater.in_slot_pipeline_style
 
   header = ['\n\n`timescale 1 ns / 1 ps',
             f'module {top_module_name} (']
   top_io = getTopIO(top_rtl_parser)
   wire_decl = getWireDecl(slot_to_io, top_rtl_parser)
   top_ap_signals = getTopApSignals(slot_to_io)
-  pipeline = getPipelining(slot_to_io, top_rtl_parser, global_router)
+  pipeline = getPipelining(slot_to_io, top_rtl_parser, global_router, in_slot_pipeline_style)
   slot_insts = getSlotInst(slot_to_io, top_rtl_parser)
   ending = ['endmodule']
 
