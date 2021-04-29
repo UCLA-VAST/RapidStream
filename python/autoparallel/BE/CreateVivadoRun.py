@@ -144,8 +144,8 @@ def createGNUParallelScript(hub, target_dir):
   anchored_run = []
   max_num_per_server = 8
   for slot_name in hub['SlotIO'].keys():
-    free_run.append(f'cd {target_dir}/{slot_name} && vivado -mode batch -source {slot_name}_free_run.tcl')
-    anchored_run.append(f'cd {target_dir}/{slot_name} && vivado -mode batch -source {slot_name}_anchored_run.tcl')
+    free_run.append(f'cd {target_dir}/{slot_name} && VIV_VER=2020.1 vivado -mode batch -source {slot_name}_free_run.tcl')
+    anchored_run.append(f'cd {target_dir}/{slot_name} && VIV_VER=2020.1  vivado -mode batch -source {slot_name}_anchored_run.tcl')
 
   for i in range(math.ceil(len(free_run) / max_num_per_server)):
     open(f'{target_dir}/parallel-free-run-{i}.txt', 'w').write('\n'.join(free_run[i * max_num_per_server : (i+1) * max_num_per_server]))
