@@ -21,7 +21,7 @@ def parallelAnchorPlacement(
 
   parallel_task = []
 
-  pair_list = hub["ComputeSlotPairs"]
+  pair_list = hub["AllSlotPairs"]
   for pair in pair_list:
     wrapper_name = '_AND_'.join(pair)
     dir = f'{stitch_dir}/' + wrapper_name

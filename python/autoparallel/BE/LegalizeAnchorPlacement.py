@@ -135,7 +135,7 @@ if __name__ == '__main__':
   
   hub = json.loads(open(hub_path, 'r').read())
 
-  pair_list = hub["ComputeSlotPairs"]
+  pair_list = hub["AllSlotPairs"]
 
   task_queue = []
   for pair in pair_list:
