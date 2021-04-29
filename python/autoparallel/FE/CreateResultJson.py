@@ -112,5 +112,7 @@ class CreateResultJson:
     result['PureRoutingSlots'] = [ s.getRTLModuleName() for s in self.slot_manager.getPureRoutingSlots() ]
     result['AllSlotPairs'] = [[p[0].getRTLModuleName(), p[1].getRTLModuleName()] for p in self.slot_manager.getAllSlotPairs()]
 
+    result['InSlotPipelineStyle'] = self.wrapper_creater.in_slot_pipeline_style
+
     f = open(file, 'w')
     f.write(json.dumps(result, indent=2))

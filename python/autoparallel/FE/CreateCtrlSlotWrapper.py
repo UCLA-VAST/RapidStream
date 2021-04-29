@@ -15,6 +15,8 @@ class CreateCtrlSlotWrapper:
     self.all_active_slots = slot_manager.getActiveSlotsIncludeRouting()
     self.all_slot_names_list = [s.getName() for s in self.all_active_slots]
     self.s_axi_slot = None
+    self.in_slot_pipeline_style = routing_wrapper_creater.in_slot_pipeline_style
+    
     self.__findSAxiSlot()
 
   def __findSAxiSlot(self):
