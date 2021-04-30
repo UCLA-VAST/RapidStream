@@ -1,6 +1,7 @@
 #! /usr/bin/python3.6
 import logging
 from typing import List
+import re
 
 class CreateRoutingSlotWrapper:
 
@@ -148,7 +149,9 @@ class CreateRoutingSlotWrapper:
         # pipeline the passing edge
         else:
           # define the pipeline reg
-          wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
+          wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name) # '[X:0]'
+          width_int = self.top_rtl_parser.getIntegerWidthOfRegOrWire(wire_name) # int, i.e. X+1
+
           for i in range(pipeline_level):
             stmt.append(f'  (* dont_touch = "yes" *) reg {wire_width} {wire_name}_q{i};')
           
@@ -162,11 +165,21 @@ class CreateRoutingSlotWrapper:
           # connect to interface port
           def connect_to_interface(src_idx, dst_idx, style):
             if style == 'REG': # put the pipeline regs inside slots
+              stmt.append(f'  (* dont_touch = "yes" *) reg {wire_width} {wire_name}_q0;')
               stmt.append(f'  always @ (posedge ap_clk) {wire_name}_q0 <= {wire_name}_pass_{src_idx};')
             elif style == 'LUT': # put the actual pipeline regs between slots
-              stmt.append(f'  always @ (*) {wire_name}_q0 = {wire_name}_pass_{src_idx};')
+              # use LUT as placeholder to avoid using pure wire connecting two ports
+              stmt.append(f'  wire {wire_width} {wire_name}_q0;')
+              if width_int == 1:
+                stmt.append(f'(* dont_touch = "yes" *) LUT1 #(.INIT(2\'b10)) {wire_name}_q0_lut ( .O({wire_name}_q0), .I0({wire_name}_pass_{src_idx}) );')
+              else:
+                for i in range(width_int):
+                  stmt.append(f'(* dont_touch = "yes" *) LUT1 #(.INIT(2\'b10)) {wire_name}_q0_{i}_lut ( .O({wire_name}_q0[{i}]), .I0({wire_name}_pass_{src_idx}[{i}]) );')
+              
+              # 'always @ *' will be synthesized into pure wire 
+              # stmt.append(f'  always @ (*) {wire_name}_q0 = {wire_name}_pass_{src_idx};')
 
-            stmt.append(f'  assign {wire_name}_pass_{dst_idx} = {wire_name}_q{pipeline_level-1};')   
+            stmt.append(f'  assign {wire_name}_pass_{dst_idx} = {wire_name}_q0;')   
 
           # *************************
           style = self.in_slot_pipeline_style # currently 'LUT'
