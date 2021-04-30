@@ -1,11 +1,17 @@
 import logging
 import json
-from autoparallel.BE.CreateAnchorWrapper import getStrictAnchoredIO
+from autoparallel.BE.CreateAnchorWrapper import getAnchoredIOAndWiredIO, getStrictAnchoredIO
 from autoparallel.BE.LegalizeAnchorPlacement import getAnchorSourceNameFromFDRE
 
-def getSlotAnchorPlacement(hub, slot_name, anchor_placement):
+def getSlotAnchorPlacement(hub, slot_name, anchor_placement, in_slot_pipeline_style):
   """ get the locations of anchors of the current slot """
-  anchored_io = getStrictAnchoredIO(hub, slot_name)
+
+  if in_slot_pipeline_style == 'LUT':
+    anchored_io = getAnchoredIOAndWiredIO(hub, slot_name) # note that passing wires are also anchored
+  else:
+    assert False
+    anchored_io = getStrictAnchoredIO(hub, slot_name)
+
   anchor_names = set(io[-1]+'_q0' for io in anchored_io)
 
   local_anchor_placement = {}
@@ -30,6 +36,8 @@ def getSlotPlacementOptScript(hub, slot_name, local_anchor_placement, dcp_path):
   # allow modification
   script.append(f'lock_design -unlock -level placement')
 
+  script.append(f'unplace_cell [get_cells -regexp .*_q0_reg.*]')
+
   # apply the placement of anchor registers
   for FDRE, loc in local_anchor_placement.items():
     script.append(f'place_cell {FDRE} {loc}')
@@ -49,6 +57,7 @@ if __name__ == '__main__':
   anchor_placement = json.loads(open(final_anchor_placement_path, 'r').read())
 
   hub = json.loads(open(hub_path, 'r').read())
+  in_slot_pipeline_style = hub['InSlotPipelineStyle']
 
   # for slot_name in hub['SlotIO'].keys():
   slot_name = 'CR_X2Y8_To_CR_X3Y9'
@@ -56,7 +65,7 @@ if __name__ == '__main__':
   slot_placement_dir = f'{slot_dir}/{slot_name}_placed_free_run'
   dcp_path = f'{slot_placement_dir}/{slot_name}_placed_free_run.dcp'
 
-  slot_anchor_placement = getSlotAnchorPlacement(hub, slot_name, anchor_placement)
+  slot_anchor_placement = getSlotAnchorPlacement(hub, slot_name, anchor_placement, in_slot_pipeline_style)
   opt_script = getSlotPlacementOptScript(hub, slot_name, slot_anchor_placement, dcp_path)
   
   opt_script_path = f'{slot_dir}/{slot_name}_placed_free_run/placement_opt.tcl'
