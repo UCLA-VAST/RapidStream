@@ -35,18 +35,24 @@ def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
 
   open(f'{output_dir}/{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
 
-def __generateConstraints(pblock_name, pblock_def, targets, comments = [], contain_routing = 1, exclude_laguna = False):
+def __generateConstraints(pblock_name, pblock_def, buffer_pblock, targets, comments, contain_routing, exclude_laguna):
   tcl = []
   tcl += comments
   tcl.append(f'\nstartgroup ')
   tcl.append(f'  create_pblock {pblock_name}')
   tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -add {{ {pblock_def} }}')
+
+  # subtract the buffer region to facilitate anchor placement
+  if buffer_pblock:
+    tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -remove {{ {buffer_pblock} }}')
+  
   tcl.append(f'  set_property CONTAIN_ROUTING {contain_routing} [get_pblocks {pblock_name}] ')
   tcl.append(f'  set_property EXCLUDE_PLACEMENT 1 [get_pblocks {pblock_name}] ')
 
   # keep anchor registers from being placed to laguna 
   if exclude_laguna:
-    tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -remove LAGUNA_X0Y0:LAGUNA_X31Y839')
+    laguna_ranges = DeviceManager.DeviceU250.getAllLagunaRange()
+    tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -remove {laguna_ranges}')
   tcl.append(f'endgroup')
 
   tcl.append(f'add_cells_to_pblock [get_pblocks {pblock_name}] [get_cells -regexp {{')
@@ -55,6 +61,12 @@ def __generateConstraints(pblock_name, pblock_def, targets, comments = [], conta
   tcl.append(f'}}] -clear_locs ')
 
   return tcl
+
+def __getBufferRegionSize(hub, slot_name):
+  # TODO
+  buffer_col_num = 4
+  buffer_row_num = 6
+  return buffer_col_num, buffer_row_num
 
 def __constrainSlotBody(hub, slot_name, output_path = '.', step = 'ROUTE'):
   pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
@@ -65,8 +77,17 @@ def __constrainSlotBody(hub, slot_name, output_path = '.', step = 'ROUTE'):
   # FIXME: only support U250 for now
   if step == 'PLACE':
     assert 'xcu250' in hub['FPGA_PART_NAME'] 
-    pblock_def = DeviceManager.DeviceU250.shrinkClockRegionPblock(pblock_def)
-  return __generateConstraints(pblock_name, pblock_def, targets, comments)
+
+    # the boundary of each slot will be left vacant to facilitate stitching
+    buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
+
+    # including vertical & horizontal buffer region, also leave a column of SLICE adjacent to lagunas empty
+    buffer_pblock = DeviceManager.DeviceU250.getSLICEVacentRegion(buffer_col_num, buffer_row_num)
+
+  elif step == 'ROUTE':
+    buffer_pblock = ''
+
+  return __generateConstraints(pblock_name, pblock_def, buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
 
 def __constrainSlotWires(hub, slot_name, output_path = '.'):
   assert re.search(r'CR_X\d+Y\d+_To_CR_X\d+Y\d+', slot_name), f'unexpected format of the slot name {slot_name}'
@@ -107,7 +128,8 @@ def __constraintBoundary(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y):
   pblock_name = pblock_def.replace(':', '_To_')
   targets = [f'{wire[-1]}.*' for wire in pblock_wires]
   comments = [f'\n# {dir} ']
-  return __generateConstraints(pblock_name, pblock_def, targets, comments, exclude_laguna=True)
+  buffer_pblock = ''
+  return __generateConstraints(pblock_name, pblock_def, buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
 
 def createPBlockScript(hub, slot_name, output_path='.'):
   """
