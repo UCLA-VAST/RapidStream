@@ -49,9 +49,9 @@ def getSlotPlacementOptScript(hub, slot_name, local_anchor_placement, dcp_path):
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
-  hub_path = '/home/einsx7/auto-parallel/src/e2e_test/cnn_13x16_test_pattern/front_end_result.json'
-  base_dir = '/expr/cnn_13x16_ctrl_wrapper2'
-  final_stitch_run_dir = base_dir + '/parallel_stitch_iter2'
+  hub_path = '/home/einsx7/auto-parallel/src/e2e_test/cnn_13x16_LUT_style/front_end_result.json'
+  base_dir = '/expr/cnn_13x16_test_non_distribute_placement'
+  final_stitch_run_dir = base_dir + '/parallel_stitch'
   parallel_run_dir = base_dir + '/parallel_run'
   final_anchor_placement_path = f'{final_stitch_run_dir}/finalized_anchor_placement.json'
   anchor_placement = json.loads(open(final_anchor_placement_path, 'r').read())

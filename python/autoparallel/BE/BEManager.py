@@ -82,7 +82,7 @@ def parallelSlotRun(hub, parallel_run_dir):
                           orig_rtl_path, 
                           slot_name,
                           output_path=dir, 
-                          placement_strategy='AltSpreadLogic_high')
+                          placement_strategy='Default')
     
     # extract anchor placement. Note that anchor registers are appended the suffix "_anchor"
     io_list = hub['SlotIO'][slot_name]

@@ -130,9 +130,9 @@ def collisionDetection(stitch_run_dir):
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
-  hub_path = '/home/einsx7/auto-parallel/src/e2e_test/cnn_13x16_test_pattern/front_end_result.json'
-  base_dir = '/expr/cnn_13x16_ctrl_wrapper2'
-  stitch_run_dir = base_dir + '/parallel_stitch_iter2'
+  hub_path = '/home/einsx7/auto-parallel/src/e2e_test/cnn_13x16_LUT_style/front_end_result.json'
+  base_dir = '/expr/cnn_13x16_test_non_distribute_placement'
+  stitch_run_dir = base_dir + '/parallel_stitch'
   all_placed_anchor_reg2loc, all_idle_anchor_reg2loc = collisionDetection(stitch_run_dir)
   
   hub = json.loads(open(hub_path, 'r').read())
@@ -161,6 +161,11 @@ if __name__ == '__main__':
       open(f'{pair_wrapper_proj_dir}/anchor_adjustment.tcl', 'w').write('\n'.join(script))
 
   open(f'{stitch_run_dir}/parallel-legalize.txt', 'w').write('\n'.join(task_queue))
+
+  # visualize the distribution of conflicts
+  show_conflict = open(f'{stitch_run_dir}/show_all_conflicts.tcl', 'w')
+  for reg, loc in all_idle_anchor_reg2loc.items():
+    show_conflict.write(f'create_cell -reference FDRE {reg}_test; catch {{ place_cell {reg}_test {loc} }} \n')
 
   if len(all_idle_anchor_reg2loc) == 0: 
     open(f'{stitch_run_dir}/finalized_anchor_placement.json', 'w').write(json.dumps(all_placed_anchor_reg2loc, indent=2))
