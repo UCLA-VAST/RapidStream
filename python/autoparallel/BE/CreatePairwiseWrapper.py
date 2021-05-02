@@ -2,7 +2,8 @@
 import logging
 import json
 import sys
-from autoparallel.BE.GenAnchorConstraints import createAnchorPlacementExtractScript
+from autoparallel.BE.GenAnchorConstraints import createAnchorPlacementExtractScript, __getBufferRegionSize
+from autobridge.Device import DeviceManager
 from typing import List, Set, Dict, Tuple
 
 def getHeader(slot1_name, slot2_name):
@@ -187,15 +188,21 @@ def createVivadoScriptForSlotPair(
   script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks wrapper]')
 
   # corner case: there may be no anchors between two slots
-  script.append( 'catch {add_cells_to_pblock [get_pblocks wrapper] [get_cells -regexp {.*_reg.*} ] }')
+  script.append( 'catch {add_cells_to_pblock [get_pblocks wrapper] [get_cells -regexp {.*q0_reg.*} ] }')
   
-  for name, path in dcp_name2path.items():
-    # convert slot name to pblock
-    pblock = name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
-    script.append(f'resize_pblock [get_pblocks wrapper] -add {pblock}')
+  assert len(dcp_name2path) == 2
+  names = list(dcp_name2path.keys())
+  col_width, row_width = __getBufferRegionSize(None, None) # TODO: should automatically choose a suitable buffer region size
+  pblock = DeviceManager.DeviceU250.getBufferRegionBetweenSlotPair(names[0], names[1], col_width, row_width)
+  all_lagunas = DeviceManager.DeviceU250.getAllLagunaRange()
+
+  # note that we need to include lagunas into the pblocks
+  # otherwise the placer will deem no SLL could be used
+  # since there are only 1 pipeline register, the registers will not be placed onto laguna sites (which require a pair)
+  script.append(f'resize_pblock [get_pblocks wrapper] -add {{{pblock all_lagunas}}}')
   
   # place and anchors
-  script.append(f'place_design')
+  script.append(f'place_design -directive RuntimeOptimized')
 
   # extract anchor placement
   script.append(f'source {wrapper_name}_print_anchor_placement.tcl')
