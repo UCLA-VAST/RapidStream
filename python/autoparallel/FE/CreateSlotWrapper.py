@@ -57,6 +57,7 @@ class CreateSlotWrapper:
       # for each unit of pipeline latency on the edge
       # we need twice the grace period
       grace_period = pipeline_level * 2 # round trip latency
+      grace_period += 1 # additional pipelining of the full_n
       
       inst = self.top_rtl_parser.getFIFOInstOfNewTemplate(e.name, e.width, e.depth + balance, grace_period)
       edge_insts.append(inst)

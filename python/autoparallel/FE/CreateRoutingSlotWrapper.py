@@ -227,9 +227,12 @@ class CreateRoutingSlotWrapper:
             wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
             connection_stmt.append(f'assign {wire_name}_pass_0 = {wire_name};')
           # _full_n is input
+          # additional pipelining to mitigate the broadcast effect
           elif port_name.endswith('_full_n'):
             wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
-            connection_stmt.append(f'assign {wire_name} = {wire_name}_pass_0;')
+            assert connection_stmt[-1] == f'wire {wire_width} {wire_name};'
+            connection_stmt[-1] = f'reg {wire_width} {wire_name}_q_for_broadcast;'
+            connection_stmt.append(f'always @ (posedge ap_clk) {wire_name}_q_for_broadcast <= {wire_name}_pass_0;')
 
     return connection_stmt
 
