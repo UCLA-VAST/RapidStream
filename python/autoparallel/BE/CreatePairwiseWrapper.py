@@ -199,7 +199,7 @@ def createVivadoScriptForSlotPair(
   # note that we need to include lagunas into the pblocks
   # otherwise the placer will deem no SLL could be used
   # since there are only 1 pipeline register, the registers will not be placed onto laguna sites (which require a pair)
-  script.append(f'resize_pblock [get_pblocks wrapper] -add {{{pblock all_lagunas}}}')
+  script.append(f'resize_pblock [get_pblocks wrapper] -add {{{pblock} {all_lagunas}}}')
   
   # place and anchors
   script.append(f'place_design -directive RuntimeOptimized')
