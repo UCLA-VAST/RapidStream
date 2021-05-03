@@ -41,6 +41,10 @@ def getConnection(inner_connection, pipeline_level, in_slot_pipeline_style):
       if '_pass_0' not in io:
         connection.append(f'  assign {io}_in = {io}_out;')
         continue     
+    else:
+      assert  in_slot_pipeline_style == 'LUT' or \
+              in_slot_pipeline_style == 'WIRE' or \
+              in_slot_pipeline_style == 'DOUBLE_REG'
 
     # assign the input wire equals the output wire
     if pipeline_level == 0:

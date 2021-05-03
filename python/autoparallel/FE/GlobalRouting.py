@@ -5,7 +5,7 @@ from collections import defaultdict
 from autobridge.Opt.DataflowGraph import Vertex, Edge
 
 class GlobalRouting:
-  def __init__(self, floorplan, top_rtl_parser, slot_manager):
+  def __init__(self, floorplan, top_rtl_parser, slot_manager, pipeline_style):
     self.floorplan = floorplan
     self.top_rtl_parser = top_rtl_parser
     self.slot_manager = slot_manager
@@ -17,6 +17,9 @@ class GlobalRouting:
     self.slot2e_names = {} # from slot to all edges passed through
     self.slot_to_dir_to_edges = defaultdict(lambda: defaultdict(list))
     
+    self.in_slot_pipeline_style = pipeline_style
+    logging.info(f'Pipeline style: {pipeline_style}')
+
     logging.critical('current latency counting depends on 4-CR slot size')
     self.naiveGlobalRouting()
     self.__initDirectionOfPassingEdges()
@@ -164,7 +167,16 @@ class GlobalRouting:
     # ---------------------------------------------------
     # UPDATE: note that we always add pipelining near the source of the edge.
     # thus the pipeline level is equal to the distance
-    pipeline_level = int(dist / 2)
+
+    if self.in_slot_pipeline_style == 'REG':
+      pipeline_level = int(dist / 2)
+    elif self.in_slot_pipeline_style == 'LUT':
+      pipeline_level = int(dist / 2)
+    elif self.in_slot_pipeline_style == 'WIRE':
+      pipeline_level = int(dist / 2)
+    elif self.in_slot_pipeline_style == 'DOUBLE_REG':
+      pipeline_level = dist 
+
     logging.info(f'edge {e.name}: ({src_x}, {src_y}) -> ({dst_x}, {dst_y}); pipeline level : {pipeline_level}')
     
     return pipeline_level
