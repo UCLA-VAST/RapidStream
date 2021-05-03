@@ -73,10 +73,20 @@ def createAnchorAdjustmentScript(
       script.append(f'place_cell {reg} {loc} ;# place valid anchors')
 
     # create placeholders for external anchors. Split the loop for locality concern
+    # if not, the replaced anchors may conflict again
     for reg, loc in extern_anchor_reg2loc.items():
       script.append(f'create_cell -reference FDRE placeholder_{reg} ;# placeholder for extern anchors')
     for reg, loc in extern_anchor_reg2loc.items():
       script.append(f'place_cell placeholder_{reg} {loc} ;# placeholder for extern anchors')
+
+    # block the conflict location if they are not yet occupied by the considered external anchors
+    for reg, loc in local_conflict_anchor_reg2loc.items():
+      # check if this conflict location has been blocked.
+      # note that the vivado command reference has an error. Should check the "IS_USED" property instead of the "IS_OCCUPIED" property
+      script.append(f'if {{ [ get_property IS_USED [get_bels {loc} ] ] == 0 }} {{')
+      script.append(f'  create_cell -reference FDRE placeholder_{reg} ;# placeholder for current conflict anchors')
+      script.append(f'  place_cell placeholder_{reg} {loc} ;# unplace conflict anchors')
+      script.append(f'}}')
 
     script.append(f'if {{ [llength [get_cells -filter {{STATUS != FIXED && PRIMITIVE_TYPE =~ REGISTER.*.*}} ] ] != {len(local_conflict_anchor_reg2loc)} }} {{puts "mismatch in unplaced anchors!"; exit(1)}}')
     script.append('place_design -directive RuntimeOptimized')
