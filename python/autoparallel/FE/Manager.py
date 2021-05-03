@@ -53,7 +53,9 @@ class Manager:
                                       grouping_constraints=grouping_constraints)
 
     # grid routing of edges 
-    global_router = GlobalRouting(floorplan, top_rtl_parser, slot_manager)
+    pipeline_style = 'DOUBLE_REG'
+    logging.info(f'Pipeline style is: {pipeline_style}')
+    global_router = GlobalRouting(floorplan, top_rtl_parser, slot_manager, pipeline_style)
 
     # latency balancing
     rebalance = LatencyBalancing(graph, floorplan, global_router)
@@ -63,7 +65,7 @@ class Manager:
     compute_wrapper_creater.getSlotWrapperForAll(dir='wrapper_rtl')
 
     logging.info(f'Creating routing inclusive wrappers...')
-    routing_wrapper_creater = CreateRoutingSlotWrapper(compute_wrapper_creater, floorplan, global_router, top_rtl_parser)
+    routing_wrapper_creater = CreateRoutingSlotWrapper(compute_wrapper_creater, floorplan, global_router, top_rtl_parser, pipeline_style)
     routing_wrapper_creater.createRoutingInclusiveWrapperForAll(dir='wrapper_rtl')
 
     logging.info(f'Creating ctrl inclusive wrappers...')

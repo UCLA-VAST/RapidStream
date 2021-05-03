@@ -104,12 +104,15 @@ def getPipelining(slot_to_io, top_rtl_parser, global_router, in_slot_pipeline_st
       # -------------------------------------------------
       # Do it in a easier way. Just check '_pass_0'
       if in_slot_pipeline_style == 'REG':
-        assert False, 'currently we are experimenting with the LUT option'
         if re.search('_pass_0', io[-1]):
           pipeline_level = 1
         else:
           pipeline_level = 0
       elif in_slot_pipeline_style == 'LUT':
+        pipeline_level = 1
+      elif in_slot_pipeline_style == 'WIRE':
+        pipeline_level = 1
+      elif in_slot_pipeline_style == 'DOUBLE_REG':
         pipeline_level = 1
       else:
         assert False

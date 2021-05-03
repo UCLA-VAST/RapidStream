@@ -5,7 +5,7 @@ import re
 
 class CreateRoutingSlotWrapper:
 
-  def __init__(self, compute_wrapper_creater, floorplan, global_router, top_rtl_parser):
+  def __init__(self, compute_wrapper_creater, floorplan, global_router, top_rtl_parser, pipeline_style):
     self.compute_wrapper_creater = compute_wrapper_creater
     self.compute_slot_to_io = compute_wrapper_creater.getSlotToIOList()
     self.floorplan = floorplan
@@ -13,7 +13,7 @@ class CreateRoutingSlotWrapper:
     self.top_rtl_parser = top_rtl_parser
     self.pure_routing_slots = global_router.getPureRoutingSlots()
     self.target = compute_wrapper_creater.target # maintain the same interface with CreateSlotWrapper
-    self.in_slot_pipeline_style = 'LUT'
+    self.in_slot_pipeline_style = pipeline_style
 
     self.edge_wire_to_suffix_index = {}
 
@@ -151,16 +151,9 @@ class CreateRoutingSlotWrapper:
           # define the pipeline reg
           wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name) # '[X:0]'
           width_int = self.top_rtl_parser.getIntegerWidthOfRegOrWire(wire_name) # int, i.e. X+1
-
-          for i in range(pipeline_level):
-            stmt.append(f'  (* dont_touch = "yes" *) reg {wire_width} {wire_name}_q{i};')
           
           # connect the pipeline reg
           assert pipeline_level == 1
-          # stmt.append(f'  always @ (posedge ap_clk) begin')
-          # for i in range(1, pipeline_level):
-          #   stmt.append(f'    {wire_name}_q{i} <= {wire_name}_q{i-1};')
-          # stmt.append(f'  end')
 
           # connect to interface port
           def connect_to_interface(src_idx, dst_idx, style):
@@ -175,14 +168,24 @@ class CreateRoutingSlotWrapper:
               else:
                 for i in range(width_int):
                   stmt.append(f'(* dont_touch = "yes" *) LUT1 #(.INIT(2\'b10)) {wire_name}_q0_{i}_lut ( .O({wire_name}_q0[{i}]), .I0({wire_name}_pass_{src_idx}[{i}]) );')
-              
+            elif style == 'WIRE':
               # 'always @ *' will be synthesized into pure wire 
-              # stmt.append(f'  always @ (*) {wire_name}_q0 = {wire_name}_pass_{src_idx};')
+              stmt.append(f'  always @ (*) {wire_name}_q0 = {wire_name}_pass_{src_idx};')
+              
+            elif style == 'DOUBLE_REG':
+              # experiment: use reg both inside and out
+              # remember also to change the latency calculation in global routing
+              stmt.append(f'  (* dont_touch = "yes" *) reg {wire_width} {wire_name}_q0_double_pipeline;')
+              stmt.append(f'  always @ (posedge ap_clk) {wire_name}_q0_double_pipeline <= {wire_name}_pass_{src_idx};')
+              stmt.append(f'  wire {wire_width} {wire_name}_q0 = {wire_name}_q0_double_pipeline;')
+            else:
+              assert False
 
-            stmt.append(f'  assign {wire_name}_pass_{dst_idx} = {wire_name}_q0;')   
+            # connect the intermedia to the interface
+            stmt.append(f'  assign {wire_name}_pass_{dst_idx} = {wire_name}_q0;')
 
           # *************************
-          style = self.in_slot_pipeline_style # currently 'LUT'
+          style = self.in_slot_pipeline_style
           # *************************
 
           if port_name.endswith('_din') or port_name.endswith('_write'):
