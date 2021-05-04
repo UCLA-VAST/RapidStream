@@ -89,7 +89,7 @@ def createAnchorAdjustmentScript(
       script.append(f'}}')
 
     script.append(f'if {{ [llength [get_cells -filter {{STATUS != FIXED && PRIMITIVE_TYPE =~ REGISTER.*.*}} ] ] != {len(local_conflict_anchor_reg2loc)} }} {{puts "mismatch in unplaced anchors!"; exit(1)}}')
-    script.append('place_design -directive RuntimeOptimized')
+    script.append('place_design -directive Quick')
 
     # remove the placeholder cells
     script.append('remove_cell [get_cells -regexp placeholder.*]')

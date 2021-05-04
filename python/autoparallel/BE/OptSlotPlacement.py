@@ -6,11 +6,14 @@ from autoparallel.BE.LegalizeAnchorPlacement import getAnchorSourceNameFromFDRE
 def getSlotAnchorPlacement(hub, slot_name, anchor_placement, in_slot_pipeline_style):
   """ get the locations of anchors of the current slot """
 
-  if in_slot_pipeline_style == 'LUT':
+  if  in_slot_pipeline_style == 'LUT' or \
+      in_slot_pipeline_style == 'WIRE' or \
+      in_slot_pipeline_style == 'DOUBLE_REG':
     anchored_io = getAnchoredIOAndWiredIO(hub, slot_name) # note that passing wires are also anchored
+  elif in_slot_pipeline_style == 'REG':
+    anchored_io = getStrictAnchoredIO(hub, slot_name)
   else:
     assert False
-    anchored_io = getStrictAnchoredIO(hub, slot_name)
 
   anchor_names = set(io[-1]+'_q0' for io in anchored_io)
 
@@ -28,13 +31,14 @@ def getSlotPlacementOptScript(hub, slot_name, local_anchor_placement, dcp_path):
 
   script.append(f'open_checkpoint {dcp_path}')
 
+  # allow modification
+  # should unlock before modifying the pblocks, otherwise vivado may crash
+  script.append(f'lock_design -unlock -level logical') # seems that "-level placement" will trigger vivado bug
+
   # remove the pblocks for anchors
   # because some anchors will be placed inside the main pblock. Avoid potential conflict
   script.append(f'delete_pblocks [get_pblocks -filter {{ NAME !~ "*{slot_name}*"}} ]')
   script.append(f'set_property EXCLUDE_PLACEMENT 0 [get_pblocks {slot_name} ]')
-
-  # allow modification
-  script.append(f'lock_design -unlock -level placement')
 
   script.append(f'unplace_cell [get_cells -regexp .*_q0_reg.*]')
 
@@ -42,7 +46,10 @@ def getSlotPlacementOptScript(hub, slot_name, local_anchor_placement, dcp_path):
   for FDRE, loc in local_anchor_placement.items():
     script.append(f'place_cell {FDRE} {loc}')
 
-  # TODO: optimize the slot based on the given anchor placement
+  # optimize the slot based on the given anchor placement
+  # do placement only so that we could track the change from the log
+  script.append(f'phys_opt_design -placement_opt -verbose')
+  script.append(f'write_checkpoint post_placed_opt.dcp')
 
   return script
 
@@ -59,14 +66,18 @@ if __name__ == '__main__':
   hub = json.loads(open(hub_path, 'r').read())
   in_slot_pipeline_style = hub['InSlotPipelineStyle']
 
-  # for slot_name in hub['SlotIO'].keys():
-  slot_name = 'CR_X2Y8_To_CR_X3Y9'
-  slot_dir = f'{parallel_run_dir}/{slot_name}'
-  slot_placement_dir = f'{slot_dir}/{slot_name}_placed_free_run'
-  dcp_path = f'{slot_placement_dir}/{slot_name}_placed_free_run.dcp'
+  parallel_tasks = []
+  for slot_name in hub['SlotIO'].keys():
+    slot_dir = f'{parallel_run_dir}/{slot_name}'
+    slot_placement_dir = f'{slot_dir}/{slot_name}_placed_free_run'
+    dcp_path = f'{slot_placement_dir}/{slot_name}_placed_free_run.dcp'
 
-  slot_anchor_placement = getSlotAnchorPlacement(hub, slot_name, anchor_placement, in_slot_pipeline_style)
-  opt_script = getSlotPlacementOptScript(hub, slot_name, slot_anchor_placement, dcp_path)
+    slot_anchor_placement = getSlotAnchorPlacement(hub, slot_name, anchor_placement, in_slot_pipeline_style)
+    opt_script = getSlotPlacementOptScript(hub, slot_name, slot_anchor_placement, dcp_path)
+    
+    opt_script_path = f'{slot_dir}/{slot_name}_placed_free_run/placement_opt.tcl'
+    open(opt_script_path, 'w').write('\n'.join(opt_script))
+
+    parallel_tasks.append(f'cd {slot_dir}/{slot_name}_placed_free_run/ && VIV_VER=2020.1 vivado -mode batch -source placement_opt.tcl')
   
-  opt_script_path = f'{slot_dir}/{slot_name}_placed_free_run/placement_opt.tcl'
-  open(opt_script_path, 'w').write('\n'.join(opt_script))
+  open(f'{parallel_run_dir}/parallel_opt_placement.txt', 'w').write('\n'.join(parallel_tasks))
