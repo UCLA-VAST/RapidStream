@@ -35,7 +35,7 @@ def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
 
   open(f'{output_dir}/{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
 
-def __generateConstraints(pblock_name, pblock_def, buffer_pblock, targets, comments, contain_routing, exclude_laguna):
+def __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets, comments, contain_routing, exclude_laguna):
   tcl = []
   tcl += comments
   tcl.append(f'\nstartgroup ')
@@ -43,8 +43,8 @@ def __generateConstraints(pblock_name, pblock_def, buffer_pblock, targets, comme
   tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -add {{ {pblock_def} }}')
 
   # subtract the buffer region to facilitate anchor placement
-  if buffer_pblock:
-    tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -remove {{ {buffer_pblock} }}')
+  if SLICE_buffer_pblock:
+    tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -remove {{ {SLICE_buffer_pblock} }}')
   
   tcl.append(f'  set_property CONTAIN_ROUTING {contain_routing} [get_pblocks {pblock_name}] ')
   tcl.append(f'  set_property EXCLUDE_PLACEMENT 1 [get_pblocks {pblock_name}] ')
@@ -64,8 +64,8 @@ def __generateConstraints(pblock_name, pblock_def, buffer_pblock, targets, comme
 
 def __getBufferRegionSize(hub, slot_name):
   # TODO
-  buffer_col_num = 4
-  buffer_row_num = 6
+  buffer_col_num = 3
+  buffer_row_num = 5
   return buffer_col_num, buffer_row_num
 
 def __constrainSlotBody(hub, slot_name, output_path = '.', step = 'ROUTE'):
@@ -82,12 +82,12 @@ def __constrainSlotBody(hub, slot_name, output_path = '.', step = 'ROUTE'):
     buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
 
     # including vertical & horizontal buffer region, also leave a column of SLICE adjacent to lagunas empty
-    buffer_pblock = DeviceManager.DeviceU250.getSLICEVacentRegion(buffer_col_num, buffer_row_num)
+    SLICE_buffer_pblock = DeviceManager.DeviceU250.getSLICEVacentRegion(buffer_col_num, buffer_row_num)
 
   elif step == 'ROUTE':
-    buffer_pblock = ''
+    SLICE_buffer_pblock = ''
 
-  return __generateConstraints(pblock_name, pblock_def, buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
+  return __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
 
 def __constrainSlotWires(hub, slot_name, output_path = '.'):
   assert re.search(r'CR_X\d+Y\d+_To_CR_X\d+Y\d+', slot_name), f'unexpected format of the slot name {slot_name}'
@@ -128,8 +128,8 @@ def __constraintBoundary(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y):
   pblock_name = pblock_def.replace(':', '_To_')
   targets = [f'{wire[-1]}.*' for wire in pblock_wires]
   comments = [f'\n# {dir} ']
-  buffer_pblock = ''
-  return __generateConstraints(pblock_name, pblock_def, buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
+  SLICE_buffer_pblock = ''
+  return __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
 
 def createPBlockScript(hub, slot_name, output_path='.'):
   """
