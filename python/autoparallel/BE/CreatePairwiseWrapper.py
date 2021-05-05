@@ -188,22 +188,21 @@ def createVivadoScriptForSlotPair(
     script.append(f'delete_pblock [get_pblock *]')
 
   # constrain the pipeline registers. get the pblocks based on slot names
-  script.append(f'create_pblock wrapper')
-  script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks wrapper]')
+  script.append(f'create_pblock buffer_for_anchors')
+  script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks buffer_for_anchors]')
 
   # corner case: there may be no anchors between two slots
-  script.append( 'catch {add_cells_to_pblock [get_pblocks wrapper] [get_cells -regexp {.*q0_reg.*} ] }')
+  script.append( 'catch {add_cells_to_pblock [get_pblocks buffer_for_anchors] [get_cells -regexp {.*q0_reg.*} ] }')
   
   assert len(dcp_name2path) == 2
   names = list(dcp_name2path.keys())
   col_width, row_width = __getBufferRegionSize(None, None) # TODO: should automatically choose a suitable buffer region size
-  pblock = DeviceManager.DeviceU250.getBufferRegionBetweenSlotPair(names[0], names[1], col_width, row_width)
-  all_lagunas = DeviceManager.DeviceU250.getAllLagunaRange()
+  buffer_between_two_slots = DeviceManager.DeviceU250.getBufferRegionBetweenSlotPair(names[0], names[1], col_width, row_width)
 
   # note that we need to include lagunas into the pblocks
   # otherwise the placer will deem no SLL could be used
   # since there are only 1 pipeline register, the registers will not be placed onto laguna sites (which require a pair)
-  script.append(f'resize_pblock [get_pblocks wrapper] -add {{{pblock} {all_lagunas}}}')
+  script.append(f'resize_pblock [get_pblocks buffer_for_anchors] -add {{{buffer_between_two_slots}}}')
   
   # place and anchors
   script.append(f'place_design -directive RuntimeOptimized')
