@@ -30,7 +30,7 @@ def parallelAnchorPlacement(
     
     # generate wrapper rtl
     wrapper_path = f'{dir}/{wrapper_name}.v'
-    pair_wrapper = CreateWrapperForSlotPair(hub, pair[0], pair[1], 1, dir, wrapper_name, in_slot_pipeline_style)
+    CreateWrapperForSlotPair(hub, pair[0], pair[1], 1, dir, wrapper_name, in_slot_pipeline_style)
 
     # generate clock constraint
     createClockXDC(wrapper_name, dir)
@@ -38,11 +38,15 @@ def parallelAnchorPlacement(
 
     # generate vivado script. Used post-placement DCP to place anchors
     dcp_path = lambda name : f'{parallel_run_dir}/{name}/{name}_placed_free_run/{name}_ctrl_placed_free_run.dcp'
+    dcp_flag = lambda name : f'{parallel_run_dir}/{name}/{name}_placed_free_run/{name}.placement.done.flag'
     dcp_name2path = {name : dcp_path(name) for name in pair}
+    all_dcp_flags = [dcp_flag(name) for name in pair]
     createVivadoScriptForSlotPair(hub, wrapper_name, wrapper_path, dcp_name2path, clock_xdc_path, dir)
 
     # add to task queue
-    parallel_task.append(f'cd {dir} && VIV_VER=2020.1 vivado -mode batch -source place.tcl')
+    guard = 'until ' + ' & '.join(f'[ -f {dcp_flag} ]' for dcp_flag in all_dcp_flags) + '; do sleep 10; done'
+    command = 'VIV_VER=2020.1 vivado -mode batch -source place.tcl'
+    parallel_task.append(f'{guard} && cd {dir} && {command}')
 
   # create GNU parallel script
   open(f'{stitch_dir}/run_parallel.txt', 'w').write('\n'.join(parallel_task))
@@ -53,7 +57,6 @@ def parallelSlotRun(hub, parallel_run_dir):
   """
   fpga_part_name = hub['FPGA_PART_NAME']
   orig_rtl_path = hub['ORIG_RTL_PATH']
-  FloorplanVertex = hub['FloorplanVertex']
 
   assert os.path.isdir(orig_rtl_path)
   
@@ -76,7 +79,6 @@ def parallelSlotRun(hub, parallel_run_dir):
     createClockXDC(slot_name, output_path=dir)
 
     # create Vivado script for each slot
-    anchored_wrapper_path = f'{dir}/{slot_name}_anchored.v'
     createVivadoRunScript(fpga_part_name, 
                           orig_rtl_path, 
                           slot_name,
@@ -87,9 +89,6 @@ def parallelSlotRun(hub, parallel_run_dir):
     io_list = hub['SlotIO'][slot_name]
     anchor_list = [ io[:-1] + [f'{io[-1]}_anchor'] for io in io_list]
     createAnchorPlacementExtractScript(slot_name, anchor_list, dir)
-
-    # TODO: monitor when the placement of the free run is finished
-    # createAnchorPlacementScript(hub, slot_name, backend_run_dir)
 
   createGNUParallelScript(hub, parallel_run_dir)
 
