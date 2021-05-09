@@ -213,3 +213,35 @@ def createVivadoScriptForSlotPair(
   script.append(f'write_checkpoint {wrapper_name}_placed.dcp')
 
   open(f'{output_dir}/place.tcl', 'w').write('\n'.join(script))
+
+def setMaxDelayFromLut():
+  return '''
+set placeholder_luts [get_cells -hierarchical -filter { PRIMITIVE_TYPE == CLB.LUT.LUT1 && NAME =~  "*_lut*" } ]
+foreach lut $placeholder_luts {
+  
+  puts "--- processing ${lut} --- "
+
+  set all_nets_of_lut [get_nets -segments -of_objects [get_cells ${lut} ]]
+
+  set anchor_pin [get_pins -of_objects ${all_nets_of_lut}  -filter { PARENT_CELL =~  "*_q0_reg*" } ]
+
+  # the placeholder LUT may be of paths in different directions.
+  if { ${anchor_pin} != "" } {
+    puts $anchor_pin
+
+    set lut_pin [ get_pins  -filter { PARENT_CELL =~  "*_lut*" } -of_objects [ get_nets -of_objects [get_pins ${anchor_pin}] -segments ] ]
+
+    puts $lut_pin
+
+    set dir [get_property DIRECTION [get_pins ${lut_pin} ] ]
+
+    if { ${dir} == "OUT" } {
+      puts "constrain path from LUT to anchor FDRE"
+      set_max_delay 1.25 -datapath_only -from ${lut_pin} -to ${anchor_pin}
+    } else {
+      puts "constrain path from anchor FDRE to LUT"
+      set_max_delay 1.25 -datapath_only -from ${anchor_pin} -to ${lut_pin}
+    }
+  }
+}  
+  '''
