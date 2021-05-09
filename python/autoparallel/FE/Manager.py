@@ -47,15 +47,15 @@ class Manager:
     grouping_constraints = top_rtl_parser.getStrictGroupingConstraints()
 
     # extract patterns to facilitate floorplanning
-    pattern_insts = getPatternBasedGrouping(graph, self.peregrine_home)
+    # pattern_insts = getPatternBasedGrouping(graph, self.peregrine_home)
+    pattern_insts = []
     floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager, 
                                       grouping_hints=pattern_insts, 
                                       grouping_constraints=grouping_constraints)
 
     # grid routing of edges 
-    pipeline_style = 'DOUBLE_REG'
-    logging.info(f'Pipeline style is: {pipeline_style}')
-    global_router = GlobalRouting(floorplan, top_rtl_parser, slot_manager, pipeline_style)
+    logging.info(f'Pipeline style is: {self.pipeline_style}')
+    global_router = GlobalRouting(floorplan, top_rtl_parser, slot_manager, self.pipeline_style)
 
     # latency balancing
     rebalance = LatencyBalancing(graph, floorplan, global_router)
@@ -65,7 +65,7 @@ class Manager:
     compute_wrapper_creater.getSlotWrapperForAll(dir='wrapper_rtl')
 
     logging.info(f'Creating routing inclusive wrappers...')
-    routing_wrapper_creater = CreateRoutingSlotWrapper(compute_wrapper_creater, floorplan, global_router, top_rtl_parser, pipeline_style)
+    routing_wrapper_creater = CreateRoutingSlotWrapper(compute_wrapper_creater, floorplan, global_router, top_rtl_parser, self.pipeline_style)
     routing_wrapper_creater.createRoutingInclusiveWrapperForAll(dir='wrapper_rtl')
 
     logging.info(f'Creating ctrl inclusive wrappers...')
@@ -100,6 +100,9 @@ class Manager:
     self.top_rtl_name = self.config["TopName"]
     self.hls_prj_path = os.path.abspath(self.config["HLSProjectPath"])
     self.hls_solution_name = self.config["HLSSolutionName"]
+
+    self.pipeline_style = self.config['PipelineStyle']
+
     if "LoggingLevel" in self.config:
       self.logging_level = self.config["LoggingLevel"]
     else:
