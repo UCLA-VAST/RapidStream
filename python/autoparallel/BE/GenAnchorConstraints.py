@@ -141,7 +141,6 @@ def createPBlockScript(hub, slot_name, output_path='.'):
   As a result, in the anchored-run, we first place the shared anchors, then set a coarse-grained constraint on the remaining anchors
   Now that we switch to routing-inclusive wrappers, all anchors will be shared with neighbors.
   Thus in a anchored run we only need to constrain the slot body itself. The anchor registesr will be directly placed at specific location.
-  FIXME: it is possible that anchors have conflict placement because the pblocks have overlaps. Though it is tentative whether we need anchored-run at all.
   """
   common = ['delete_pblock [get_pblocks *]'] # in case duplicated definition
 
@@ -154,19 +153,7 @@ def createPBlockScript(hub, slot_name, output_path='.'):
     fp1.write('\n'.join(
       common + constraint_body_place + constrain_slot_free_run))
     fp1.close()
-  with open(f'{output_path}/{slot_name}_floorplan_placement_anchored_run.tcl', 'w') as fp2:
-    fp2.write('\n'.join(
-      common + constraint_body_place))
-    fp2.close()
   with open(f'{output_path}/{slot_name}_floorplan_routing_free_run.tcl', 'w') as fp3:
     fp3.write('\n'.join(
       common + constraint_body_route + constrain_slot_free_run))
     fp3.close()
-  with open(f'{output_path}/{slot_name}_floorplan_routing_anchored_run.tcl', 'w') as fp4:
-    fp4.write('\n'.join(
-      common + constraint_body_route))
-    fp4.close()
-
-if __name__ == '__main__':
-  hub = json.loads(open('BE_pass1_anchored.json', 'r').read())
-  createPBlockScript(hub, 'CR_X0Y4_To_CR_X3Y7')
