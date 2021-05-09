@@ -35,11 +35,11 @@ def getSlotPlacementOptScript(hub, slot_name, local_anchor_placement, dcp_path):
 
   # allow modification
   # should unlock before modifying the pblocks, otherwise vivado may crash
-  script.append(f'lock_design -unlock -level logical') # seems that "-level placement" will trigger vivado bug
+  script.append(f'lock_design -unlock -level placement') # seems that "-level placement" will trigger vivado bug
 
   # remove the pblocks for anchors
   # because some anchors will be placed inside the main pblock. Avoid potential conflict
-  script.append(f'delete_pblocks [get_pblocks -filter {{ NAME !~ "*{slot_name}*"}} ]')
+  # script.append(f'delete_pblocks [get_pblocks -filter {{ NAME !~ "*{slot_name}*"}} ]')
   script.append(f'set_property EXCLUDE_PLACEMENT 0 [get_pblocks {slot_name} ]')
 
   script.append(f'unplace_cell [get_cells -regexp .*_q0_reg.*]')
@@ -48,10 +48,38 @@ def getSlotPlacementOptScript(hub, slot_name, local_anchor_placement, dcp_path):
   for FDRE, loc in local_anchor_placement.items():
     script.append(f'place_cell {FDRE} {loc}')
 
+  # get rid of the place holder LUTs
+  if hub['InSlotPipelineStyle'] == 'LUT':
+    script += removeLUTPlaceholders()
+
   # optimize the slot based on the given anchor placement
   # do placement only so that we could track the change from the log
-  script.append(f'phys_opt_design -placement_opt -verbose')
-  script.append(f'write_checkpoint post_placed_opt.dcp')
+  script.append(f'phys_opt_design -verbose')
+  script.append(f'write_checkpoint -force {slot_name}_post_placed_opt.dcp')
+
+  # routing. Need to relax the pblocks to facilitate the routing near the boundary
+  script.append(f'delete_pblock [get_pblocks *]')
+  script.append(f'create_pblock {slot_name}')
+
+  pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
+  script.append(f'resize_pblock [get_pblocks {slot_name}] -add {pblock_def}')
+  
+  script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
+  script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_U0]')
+
+  script.append(f'route_design')
+  script.append(f'phys_opt_design')
+
+  script.append(f'write_checkpoint -force {slot_name}_final.dcp')
+
+  return script
+
+def removeLUTPlaceholders():
+  script = []
+  script.append('set all_placeholder_luts [get_cells -hierarchical -filter { PRIMITIVE_TYPE == CLB.LUT.LUT1 && NAME =~  "*_lut*" } ]')
+  script.append('foreach lut ${all_placeholder_luts} {set_property DONT_TOUCH 0 $lut}')
+  script.append('foreach n [ get_nets -of_objects ${all_placeholder_luts} ] {set_property DONT_TOUCH 0 $n}')
+  script.append('opt_design')
 
   return script
 
