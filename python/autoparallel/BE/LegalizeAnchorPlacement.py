@@ -1,6 +1,7 @@
 import logging
 import json
 import glob
+import sys
 from autoparallel.BE.CreatePairwiseWrapper import getTopIOAndInnerConnectionOfPair, getConnection
 
 def getAnchorSourceNameFromFDRE(FDRE_name):
@@ -101,6 +102,9 @@ def createAnchorAdjustmentScript(
 
 def getAllAnchorRegToLoc(stitch_run_dir):
   json_list = glob.glob(f'{stitch_run_dir}/*/*.json')
+
+  assert len(json_list) == len(glob.glob(f'{stitch_run_dir}/CR*')), f'some directory does not contain placement json file!'
+  
   reg2loc_list = [json.loads(open(f, 'r').read()) for f in json_list]
   all_anchor_reg2loc = {}
   for reg2loc in reg2loc_list:
@@ -140,8 +144,10 @@ def collisionDetection(stitch_run_dir):
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
-  hub_path = '/home/einsx7/auto-parallel/src/e2e_test/cnn_13x16_LUT_style/front_end_result.json'
-  base_dir = '/expr/cnn_13x16_test_non_distribute_placement'
+  assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
+  hub_path = sys.argv[1]
+  base_dir = sys.argv[2]
+
   stitch_run_dir = base_dir + '/parallel_stitch'
   all_placed_anchor_reg2loc, all_idle_anchor_reg2loc = collisionDetection(stitch_run_dir)
   
@@ -179,3 +185,5 @@ if __name__ == '__main__':
 
   if len(all_idle_anchor_reg2loc) == 0: 
     open(f'{stitch_run_dir}/finalized_anchor_placement.json', 'w').write(json.dumps(all_placed_anchor_reg2loc, indent=2))
+  else:
+    open(f'{stitch_run_dir}/partial_anchor_placement.json', 'w').write(json.dumps(all_placed_anchor_reg2loc, indent=2))

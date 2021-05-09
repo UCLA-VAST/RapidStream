@@ -1,5 +1,7 @@
 import logging
 import json
+import sys
+import os
 from autoparallel.BE.CreateAnchorWrapper import getAnchoredIOAndWiredIO, getStrictAnchoredIO
 from autoparallel.BE.LegalizeAnchorPlacement import getAnchorSourceNameFromFDRE
 
@@ -56,15 +58,21 @@ def getSlotPlacementOptScript(hub, slot_name, local_anchor_placement, dcp_path):
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
-  hub_path = '/home/einsx7/auto-parallel/src/e2e_test/cnn_13x16_LUT_style/front_end_result.json'
-  base_dir = '/expr/cnn_13x16_test_non_distribute_placement'
+  assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
+  hub_path = sys.argv[1]
+  base_dir = sys.argv[2]
+  
   final_stitch_run_dir = base_dir + '/parallel_stitch'
   parallel_run_dir = base_dir + '/parallel_run'
   final_anchor_placement_path = f'{final_stitch_run_dir}/finalized_anchor_placement.json'
   anchor_placement = json.loads(open(final_anchor_placement_path, 'r').read())
-
   hub = json.loads(open(hub_path, 'r').read())
   in_slot_pipeline_style = hub['InSlotPipelineStyle']
+
+  opt_dir = base_dir + '/opt_iter1'
+  os.mkdir(opt_dir)
+  for slot_name in hub['SlotIO'].keys():
+    os.mkdir(f'{opt_dir}/{slot_name}')
 
   parallel_tasks = []
   for slot_name in hub['SlotIO'].keys():
@@ -75,9 +83,8 @@ if __name__ == '__main__':
     slot_anchor_placement = getSlotAnchorPlacement(hub, slot_name, anchor_placement, in_slot_pipeline_style)
     opt_script = getSlotPlacementOptScript(hub, slot_name, slot_anchor_placement, dcp_path)
     
-    opt_script_path = f'{slot_dir}/{slot_name}_placed_free_run/placement_opt.tcl'
-    open(opt_script_path, 'w').write('\n'.join(opt_script))
+    open(f'{opt_dir}/{slot_name}/{slot_name}_placement_opt.tcl', 'w').write('\n'.join(opt_script))
 
-    parallel_tasks.append(f'cd {slot_dir}/{slot_name}_placed_free_run/ && VIV_VER=2020.1 vivado -mode batch -source placement_opt.tcl')
+    parallel_tasks.append(f'cd {opt_dir}/{slot_name} && VIV_VER=2020.1 vivado -mode batch -source {slot_name}_placement_opt.tcl')
   
-  open(f'{parallel_run_dir}/parallel_opt_placement.txt', 'w').write('\n'.join(parallel_tasks))
+  open(f'{opt_dir}/parallel-opt-placement.txt', 'w').write('\n'.join(parallel_tasks))
