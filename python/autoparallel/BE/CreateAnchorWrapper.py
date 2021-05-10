@@ -61,6 +61,14 @@ def createAnchorWrapper(hub, slot_name, output_path='.'):
     wrapper.append('    ' + ' '.join(io) + ',')
   wrapper.append('    ' + ' '.join(io_list[-1]) + ');')
 
+  # TEST: replace the top port of ap_clk
+  wrapper = [line.replace('ap_clk', 'ap_clk_port') for line in wrapper]
+  wrapper.append(f'wire ap_clk; ')
+  wrapper.append(f'(* DONT_TOUCH = "yes", LOC = "BUFGCE_X0Y194" *) BUFGCE test_bufg ( ')
+  wrapper.append(f'  .I(ap_clk_port), ')
+  wrapper.append(f'  .CE(1\'b1),')
+  wrapper.append(f'  .O(ap_clk) );')
+
   # anchor registers
   for io in non_top_io_list:
     wrapper.append('  ' + '(* dont_touch = "yes" *) reg ' + ' '.join(io[1:]) + '_q0' + ';')
