@@ -2,6 +2,7 @@ import logging
 import json
 import sys
 import math
+import re
 
 def getPlacementScript(
     fpga_part_name, 
@@ -60,6 +61,9 @@ def getPlacementScript(
 
   script.append(f'exec touch {output_path}/{slot_name}_placed_free_run/{slot_name}.placement.done.flag') # signal that the DCP generation is finished
 
+  # get sample registers for global clock routing
+  script += extractSampleCellForGlobalClockRouting(slot_name)
+
   return script
 
 def getRoutingScript(
@@ -106,6 +110,35 @@ def getRouteFromDCPScript(
   script.append(f'open_checkpoint {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp')
 
   script += getRoutingScript(fpga_part_name, orig_rtl_path, slot_name, output_path, placement_strategy)
+
+  return script
+
+def extractSampleCellForGlobalClockRouting(slot_name):
+  """ 
+  extract the location some FDREs from each clock region 
+  then collect all samples to route a skeleton clock network
+  """
+  script = []
+
+  script.append(f'set fileId [open {slot_name}_sample_reg_placement.json "w"]')
+  script.append('puts $fileId "{"')
+
+  dl_x, dl_y, ur_x, ur_y = map(int, re.findall(r'[XY](\d+)', slot_name))
+  for x in range(dl_x, ur_x+1):
+    for y in range(dl_y, ur_y+1):
+      cr_idx = f'X{x}Y{y}'
+
+      script.append(f'set all_reg_cells [get_cells -of_objects [get_clock_regions {cr_idx}] -filter {{PRIMITIVE_TYPE == REGISTER.SDR.FDRE}}]')
+      script.append(f'if {{ $all_reg_cells != "" }} {{ ') # in case a clock region is empty
+      script.append(f'  set sample [lindex $all_reg_cells 1] ')
+      script.append(f'  set loc [get_property LOC [get_cells $sample ] ]')
+      script.append(f'  set type_and_bel [get_property BEL [get_cells $sample ] ]')
+      script.append(f'  set bel [lindex [split ${{type_and_bel}} "."] 1]')
+      script.append(r'  puts $fileId [format "  \"%s\" : \"%s/%s\"," $sample $loc $bel ] }')
+
+  script[-1] = script[-1].replace(',', '')
+  script.append('puts $fileId "}"')
+  script.append(f'close $fileId')
 
   return script
 
