@@ -76,7 +76,7 @@ def parallelSlotRun(hub, parallel_run_dir):
     # create pblock constraints for each anchored wrapper
     createPBlockScript(hub, slot_name, output_path=dir)
 
-    createClockXDC(slot_name, output_path=dir)
+    createClockFromBUFGXDC(slot_name, output_path=dir)
 
     # create Vivado script for each slot
     createVivadoRunScript(fpga_part_name, 
