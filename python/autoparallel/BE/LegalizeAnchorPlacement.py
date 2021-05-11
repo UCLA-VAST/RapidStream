@@ -141,6 +141,18 @@ def collisionDetection(stitch_run_dir):
 
   return all_placed_anchor_reg2loc, all_idle_anchor_reg2loc
 
+def getAnchorPlacementScript(all_placed_anchor_reg2loc):
+  # note that we must specify all placement in one place_cell command
+  # if we run "place_cell" for each cell it will be extremely slow
+  script = []
+
+  script.append('place_cell { \\')
+  for reg, loc in all_placed_anchor_reg2loc.items():
+    script.append(f'  {reg} {loc} \\')
+  script.append('}')
+
+  return script
+
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
@@ -185,5 +197,8 @@ if __name__ == '__main__':
 
   if len(all_idle_anchor_reg2loc) == 0: 
     open(f'{stitch_run_dir}/finalized_anchor_placement.json', 'w').write(json.dumps(all_placed_anchor_reg2loc, indent=2))
+
+    place_interconnect_script = getAnchorPlacementScript(all_idle_anchor_reg2loc)
+    open(f'{stitch_run_dir}/place_interconnect.tcl', 'w').write('\n'.join(place_interconnect_script) )
   else:
     open(f'{stitch_run_dir}/partial_anchor_placement.json', 'w').write(json.dumps(all_placed_anchor_reg2loc, indent=2))
