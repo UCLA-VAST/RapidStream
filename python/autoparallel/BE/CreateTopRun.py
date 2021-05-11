@@ -3,10 +3,14 @@ import json
 import sys
 import re
 import os
+from autoparallel.BE.CreateVivadoRun import createClockXDC
 
-def createTopRunScript(hub, rtl_path, xdc_path, parallel_run_dir, target):
+def createTopRunScript(hub, rtl_path, xdc_path, final_slot_run_dir, interconnect_placement_path):
   """
-  target => placed or routed
+  Synthesize the top with each slot wrapper marked as blackboxes
+  Read in the post-routing slot wrappers
+  Read in the placement of the interconnect
+  Do the final routing
   """
   script = []
 
@@ -14,7 +18,7 @@ def createTopRunScript(hub, rtl_path, xdc_path, parallel_run_dir, target):
   assert device == 'xcu250-figd2104-2L-e', 'currently only U250 is supported'
 
   # create project
-  script.append(f'create_project stitch_{target} ./stitch_{target} -part {device}')    
+  script.append(f'create_project stitch ./stitch -part {device}')    
 
   if device == 'xcu250-figd2104-2L-e':
     board_id = 'xilinx.com:au250:part0:1.3'
@@ -37,126 +41,84 @@ def createTopRunScript(hub, rtl_path, xdc_path, parallel_run_dir, target):
   script.append('launch_runs synth_1 -jobs 56')
   script.append('wait_on_run synth_1')
 
-  # guard - wait for all black box DCPs to be available
-  compute_slots = hub["ComputeSlots"]
-  dcp_num = len(compute_slots)
-  script.append( 'while 1 {')
-  script.append(f'  if ![catch {{ glob {parallel_run_dir}/*/*compute*/*{target}*.done.flag }}] {{') # if file exists
-  script.append(f'    set status [llength [glob {parallel_run_dir}/*/*compute*/*{target}*.done.flag ] ]') # count available dcp
-  script.append(f'    puts "DCP status: ${{status}} / {dcp_num}"')
-  script.append(f'    if {{$status == {dcp_num}}} {{break}}')
-  script.append(f'  }}')
-  script.append(f'  puts "Waiting for DCPs..."')
-  script.append(f'  exec sleep 30')
-  script.append( '}  ')
-
-  # add checkpoints of compute slots for each slot
-  for slot_name in compute_slots:
-    cell_name = f'{slot_name}_routing_U0/{slot_name}_U0'
-    dcp_name = f'{slot_name}_{target}_free_run_compute'
-    dcp_dir = f'{parallel_run_dir}/{slot_name}/{dcp_name}'
-    script.append(f'read_checkpoint -cell {cell_name} {dcp_dir}/{dcp_name}.dcp')
+  # add checkpoints of each slot
+  slot_names = hub["SlotIO"].keys()
+  for slot_name in slot_names:
+    script.append(f'read_checkpoint -cell {slot_name}_ctrl_U0 {final_slot_run_dir}/{slot_name}/{slot_name}_ctrl_final.dcp')
 
   # open the synthesized top along with the dcps
   script.append('update_compile_order -fileset sources_1')
   script.append('open_run synth_1 -name synth_1')
 
-  if target == 'placed':
-    # restore pblocks
-    script.append(f'delete_pblocks *')
-    routing_slots = hub["PureRoutingSlots"]
-    for slot_name in compute_slots + routing_slots:
-      script.append(f'create_pblock {slot_name}')
-      vivado_clock_region = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
-      script.append(f'resize_pblock {slot_name} -add {vivado_clock_region}')
-      script.append(f'add_cells_to_pblock {slot_name} [get_cells {slot_name}_routing_U0 ]')
-    
-    # prepare for interconnect placement extraction
-    script.append('set target_cells [get_cells -hierarchical -regexp -filter { STATUS != "FIXED" && PRIMITIVE_TYPE !~ OTHERS.others.* } ]')
-    script.append('place_design -directive RuntimeOptimized')
-    script.append('phys_opt_design')
-    
-    # extract placement
-    script.append(r'''
-      set fileId [open interconnect_placement.tcl "w"]
-      puts $fileId "place_cell { \\"
-      foreach c $target_cells {
-        set loc [get_property LOC [get_cells $c] ]
-        set bel [lindex [split [get_property BEL [get_cells $c]] "."] 1]
-        puts $fileId [format "   %s %s/%s \\" $c $loc $bel]
-      }
-      puts $fileId "}"
-      close $fileId
-    ''')
-    script.append('exec touch interconnect_placement.done.flag')
+  # apply the placement of interconnct logic
+  script.append(f'source {interconnect_placement_path}')
 
-  elif target == 'routed':
-    # wait for interconnect placement to finish
-    script.append( 'while 1 {')
-    script.append(f'  if ![catch {{ glob interconnect_placement.done.flag }}] {{') # if file exists
-    script.append(f'    break')
-    script.append(f'  }}')
-    script.append(f'  puts "Waiting for interconnect placement..."')
-    script.append(f'  exec sleep 15')
-    script.append( '}  ')
+  # the interconnect placement may cause confliction with existing routing
+  script.append(f'lock_design -unlock -level placement')
 
-    # apply the placement of interconnct logic
-    script.append(f'source interconnect_placement.tcl')
+  script.append(f'delete_pblocks *')
+  script.append(f'route_design')
+  script.append(f'phys_opt_design')
 
-    # the interconnect placement may cause confliction with existing routing
-    script.append(f'lock_design -unlock -level placement')
-
-    script.append(f'delete_pblocks *')
-    script.append(f'route_design')
-    script.append(f'phys_opt_design')
-
-  script.append(f'write_checkpoint {target}.dcp')
+  script.append(f'write_checkpoint stitch.dcp')
 
   return script
 
-def setupTopRunRTL(hub, top_run_dir):
-  rtl_dir = f'{top_run_dir}/rtl'
+def setupTopRunRTL(hub, stitch_dir):
+  """
+  mark each slot wrapper instances as blackbox
+  create an empty shell for each wrapper
+  """
+
+  rtl_dir = f'{stitch_dir}/rtl'
   os.mkdir(rtl_dir)
 
   # the new top RTL
-  new_top_rtl = hub["NewTopRTL"]
+  top_rtl_from_fe = hub["NewTopRTL"]
+
+  # set up black box
+  new_top_rtl = top_rtl_from_fe.replace('(* keep_hierarchy = "yes" *)', '(* black_box *)')
   top_rtl_path = f'{rtl_dir}/final_top.v'
   open(top_rtl_path, 'w').write(new_top_rtl)
 
-  # each routing slot
+  # get a shell for each ctrl wrapper
   wrapper_name2rtl = hub["SlotWrapperRTL"]
-  for name, rtl_list in wrapper_name2rtl.items():
-    # mark each inner compute slot as blackbox
-    rtl_list_copy = rtl_list[:]
-    for i in range(len(rtl_list_copy)):
-      if 'dont_touch' in rtl_list_copy[i] and f' {name} ' in rtl_list_copy[i] and f'{name}_U0' in rtl_list_copy[i]:
-        rtl_list_copy[i] = re.sub(r'\(.*\)', '(* black_box *)', rtl_list_copy[i])
-        break
-    
+  for name, rtl_list in wrapper_name2rtl.items():    
     # replace the actual inner compute slot as a empty shell
     state = 0
-    for i in range(len(rtl_list_copy)):
+    beg = -1
+    for i in range(len(rtl_list)):
       if state == 0: # the start of inner module header
-        if re.search(f'module[ ]+{name}[ ]*\(', rtl_list_copy[i]):
+        if 'module' in rtl_list[i]:
           state = 1
+          beg = i
       elif state == 1: # the end of the inner module header
-        if ');' in rtl_list_copy[i]:
+        if ');' in rtl_list[i]:
+          io = rtl_list[beg:i+1]
           state = 2
-      elif state == 2: 
-        # find the remaining delcaration of input/output
-        io = []
-        for j in range(i, len(rtl_list_copy)):
-          if 'endmodule' in rtl_list_copy[j]:
-            break
+      elif state == 2:
+        if 'endmodule' in rtl_list[i]:
+          io.append('endmodule')
+          break
+        if re.search('^[ ]*input|^[ ]*output', rtl_list[i]):
+          io.append(rtl_list[i])
 
-          # corner case: io name may contain "input"
-          if re.search('^[ ]*input|^[ ]*output',rtl_list_copy[j]):
-            io.append(rtl_list_copy[j])
+    wrapper_path = f'{rtl_dir}/{name}_ctrl.v'
+    open(wrapper_path, 'w').write('\n'.join(io))
 
-        # remove the contents of the inner module
-        rtl_list_copy[i:] = io
-        rtl_list_copy.append('endmodule')
-        break
+def createTopRun(hub, base_dir, final_slot_run_dir, interconnect_placement_path):
+  """
+  Assemble the post-place DCPs and post-route DCPs
+  """
 
-    wrapper_path = f'{rtl_dir}/{name}_routing.v'
-    open(wrapper_path, 'w').write('\n'.join(rtl_list_copy))
+  stitch_dir = f'{base_dir}/global_stitch'
+  os.mkdir(stitch_dir)
+
+  # prepare the modified top RTL
+  setupTopRunRTL(hub, stitch_dir)
+
+  # prepare the clock xdc
+  createClockXDC('final_top', stitch_dir)
+
+  stitch_script = createTopRunScript(hub, f'{stitch_dir}/rtl', f'{stitch_dir}/final_top_clk.xdc', final_slot_run_dir, interconnect_placement_path)
+  open(f'{stitch_dir}/final_stitch.tcl', 'w').write('\n'.join(stitch_script))
