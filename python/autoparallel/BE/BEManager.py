@@ -9,12 +9,12 @@ from autoparallel.BE.CreateVivadoRun import *
 from autoparallel.BE.AnchorPlacement import *
 from autoparallel.BE.DuplicateRTL import *
 from autoparallel.BE.CreatePairwiseWrapper import *
-from autoparallel.BE.CreateTopRun import createTopRunScript, setupTopRunRTL
+from autoparallel.BE.CreateTopRun import createTopRun
 
 def parallelAnchorPlacement(
     hub, 
     parallel_run_dir,
-    stitch_dir):
+    pairwise_placement_dir):
   """
   for each pair of neighbor slots, group them and place & router the anchors in between
   """
@@ -25,7 +25,7 @@ def parallelAnchorPlacement(
   pair_list = hub["AllSlotPairs"]
   for pair in pair_list:
     wrapper_name = '_AND_'.join(pair)
-    dir = f'{stitch_dir}/' + wrapper_name
+    dir = f'{pairwise_placement_dir}/' + wrapper_name
     os.mkdir(dir)
     
     # generate wrapper rtl
@@ -49,7 +49,7 @@ def parallelAnchorPlacement(
     parallel_task.append(f'{guard} && cd {dir} && {command}')
 
   # create GNU parallel script
-  open(f'{stitch_dir}/run_parallel.txt', 'w').write('\n'.join(parallel_task))
+  open(f'{pairwise_placement_dir}/run_parallel.txt', 'w').write('\n'.join(parallel_task))
 
 def parallelSlotRun(hub, parallel_run_dir):
   """
@@ -92,39 +92,29 @@ def parallelSlotRun(hub, parallel_run_dir):
 
   createGNUParallelScript(hub, parallel_run_dir)
 
-def topRun(hub, top_run_dir, parallel_run_dir):
-  """
-  Assemble the post-place DCPs and post-route DCPs
-  """
-  setupTopRunRTL(hub, top_run_dir)
-
-  # clock xdc
-  createClockXDC('final_top', top_run_dir)
-
-  # two set of top run
-  # overlap the placement of interconnects with the routing of compute slots
-  for target in ['placed', 'routed']:
-    top_run_script = createTopRunScript(hub, f'{top_run_dir}/rtl', f'{top_run_dir}/final_top_clk.xdc', parallel_run_dir, target)
-    open(f'{top_run_dir}/final_top_{target}.tcl', 'w').write('\n'.join(top_run_script))
-
 if __name__ == '__main__':
   assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
   backend_run_dir = sys.argv[2]
   fe_result_path = sys.argv[1]
 
+  hub = json.loads(open(fe_result_path, 'r').read())
+
+  # the back end directory
   if os.path.isdir(backend_run_dir):
     raise f'target directory already exists: {backend_run_dir}'
   os.mkdir(backend_run_dir)
 
+  # p&r each slot
   parallel_run_dir = f'{backend_run_dir}/parallel_run'
-  stitch_dir = f'{backend_run_dir}/parallel_stitch'
-  top_run_dir = f'{backend_run_dir}/top_run'
   os.mkdir(parallel_run_dir)
-  os.mkdir(stitch_dir)
-  os.mkdir(top_run_dir)
-
-  hub = json.loads(open(fe_result_path, 'r').read())
-
   parallelSlotRun(hub, parallel_run_dir)
-  parallelAnchorPlacement(hub, parallel_run_dir, stitch_dir)
-  topRun(hub, top_run_dir, parallel_run_dir)
+
+  # pairwise anchor placement
+  pairwise_placement_dir = f'{backend_run_dir}/parallel_stitch'
+  os.mkdir(pairwise_placement_dir)
+  parallelAnchorPlacement(hub, parallel_run_dir, pairwise_placement_dir)
+
+  # final stitch
+  final_slot_run_dir = f'{backend_run_dir}/opt_iter1_ctrl_only'
+  interconnect_placement_path = f'{pairwise_placement_dir}/place_interconnect.tcl'
+  createTopRun(hub, backend_run_dir, final_slot_run_dir, interconnect_placement_path)
