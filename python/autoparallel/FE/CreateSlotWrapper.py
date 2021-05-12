@@ -378,6 +378,13 @@ class CreateSlotWrapper:
       wrapper = self.createSlotWrapper(s)
       self.slot2wrapper[s] = wrapper
 
+  def __setKeepHier(self, insts):
+    """
+    Prevent unexpected behaviour from the synthesizer
+    Also we need more control of the connection in the BE
+    """
+    return ['(* keep_hierarchy = "yes" *)' + inst for inst in insts]
+
   def createSlotWrapper(self, slot):
     header = self.__getHeader(slot)
     decl = self.__getWireDeclCopy(slot)
@@ -403,6 +410,9 @@ class CreateSlotWrapper:
     self.__setApRst(decl, v_insts, e_insts, stmt)
 
     self.__addIndent(decl, io_decl, v_insts, e_insts, stmt)
+
+    v_insts = self.__setKeepHier(v_insts)
+    e_insts = self.__setKeepHier(e_insts)
 
     wrapper = header + decl + io_decl + v_insts + e_insts + stmt + ending
     if self.target == 'hw':
