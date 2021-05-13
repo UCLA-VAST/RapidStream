@@ -174,7 +174,6 @@ def createClockFromBUFGXDC(
     bufg='BUFGCE_X0Y194'):
   xdc = []
   xdc.append(f'create_clock -name ap_clk -period {target_period} [get_pins test_bufg/O]')
-  xdc.append(f'set_property HD.CLK_SRC {bufg} [get_ports ap_clk]')
   open(f'{output_path}/{slot_name}_clk.xdc', 'w').write('\n'.join(xdc))
 
 def createGNUParallelScript(hub, target_dir):
