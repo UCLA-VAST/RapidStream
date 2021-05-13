@@ -3,7 +3,7 @@ import json
 import sys
 import re
 import os
-from autoparallel.BE.CreateVivadoRun import createClockXDC
+from autoparallel.BE.CreateVivadoRun import createClockFromBUFGXDC
 
 def createTopRunScript(hub, rtl_path, xdc_path, final_slot_run_dir, interconnect_placement_path):
   """
@@ -64,23 +64,34 @@ def createTopRunScript(hub, rtl_path, xdc_path, final_slot_run_dir, interconnect
 
   return script
 
-def setupTopRunRTL(hub, stitch_dir):
-  """
-  mark each slot wrapper instances as blackbox
-  create an empty shell for each wrapper
-  """
-
-  rtl_dir = f'{stitch_dir}/rtl'
-  os.mkdir(rtl_dir)
-
+def addBUFGToTopRTL(hub, rtl_dir):
   # the new top RTL
   top_rtl_from_fe = hub["NewTopRTL"]
 
   # set up black box
-  new_top_rtl = top_rtl_from_fe.replace('(* keep_hierarchy = "yes" *)', '(* black_box *)')
-  top_rtl_path = f'{rtl_dir}/final_top.v'
-  open(top_rtl_path, 'w').write(new_top_rtl)
+  orig_top_rtl = top_rtl_from_fe.replace('(* keep_hierarchy = "yes" *)', '(* black_box *)')
 
+  # add explicit BUFGCE
+  top_rtl_list = orig_top_rtl.split('\n')
+  for i in range(len(top_rtl_list)):
+    if re.search(r'input[ ]+ap_clk', top_rtl_list[i]):
+      top_rtl_list[i] = re.sub(r'input[ ]+ap_clk', 'input ap_clk_port', top_rtl_list[i])
+    elif ');' in top_rtl_list[i]:
+      plugin = []
+      plugin.append(f'wire ap_clk; ')
+      plugin.append(f'(* DONT_TOUCH = "yes", LOC = "BUFGCE_X0Y194" *) BUFGCE test_bufg ( ')
+      plugin.append(f'  .I(ap_clk_port), ')
+      plugin.append(f'  .CE(1\'b1),')
+      plugin.append(f'  .O(ap_clk) );')
+      top_rtl_list[i+1:i+1] = plugin
+      break
+
+  final_top = '\n'.join(top_rtl_list)
+
+  top_rtl_path = f'{rtl_dir}/final_top.v'
+  open(top_rtl_path, 'w').write(final_top)
+
+def getSlotWrapperShell(hub, rtl_dir):
   # get a shell for each ctrl wrapper
   wrapper_name2rtl = hub["SlotWrapperRTL"]
   for name, rtl_list in wrapper_name2rtl.items():    
@@ -106,6 +117,18 @@ def setupTopRunRTL(hub, stitch_dir):
     wrapper_path = f'{rtl_dir}/{name}_ctrl.v'
     open(wrapper_path, 'w').write('\n'.join(io))
 
+def setupTopRunRTL(hub, stitch_dir):
+  """
+  mark each slot wrapper instances as blackbox
+  create an empty shell for each wrapper
+  add explicit BUFG to the top RTL
+  """
+  rtl_dir = f'{stitch_dir}/rtl'
+  os.mkdir(rtl_dir)
+
+  addBUFGToTopRTL(hub, rtl_dir)
+  getSlotWrapperShell(hub, rtl_dir)
+
 def createTopRun(hub, base_dir, final_slot_run_dir, interconnect_placement_path):
   """
   Assemble the post-place DCPs and post-route DCPs
@@ -118,7 +141,7 @@ def createTopRun(hub, base_dir, final_slot_run_dir, interconnect_placement_path)
   setupTopRunRTL(hub, stitch_dir)
 
   # prepare the clock xdc
-  createClockXDC('final_top', stitch_dir)
+  createClockFromBUFGXDC('final_top', stitch_dir)
 
   stitch_script = createTopRunScript(hub, f'{stitch_dir}/rtl', f'{stitch_dir}/final_top_clk.xdc', final_slot_run_dir, interconnect_placement_path)
   open(f'{stitch_dir}/final_stitch.tcl', 'w').write('\n'.join(stitch_script))
