@@ -198,7 +198,7 @@ if __name__ == '__main__':
   if len(all_idle_anchor_reg2loc) == 0: 
     open(f'{stitch_run_dir}/finalized_anchor_placement.json', 'w').write(json.dumps(all_placed_anchor_reg2loc, indent=2))
 
-    place_interconnect_script = getAnchorPlacementScript(all_idle_anchor_reg2loc)
+    place_interconnect_script = getAnchorPlacementScript(all_placed_anchor_reg2loc)
     open(f'{stitch_run_dir}/place_interconnect.tcl', 'w').write('\n'.join(place_interconnect_script) )
   else:
     open(f'{stitch_run_dir}/partial_anchor_placement.json', 'w').write(json.dumps(all_placed_anchor_reg2loc, indent=2))
