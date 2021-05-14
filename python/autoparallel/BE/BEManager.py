@@ -71,7 +71,6 @@ def parallelSlotRun(hub, parallel_run_dir):
     target_rtl_path = f'{dir}/rtl'
     os.mkdir(target_rtl_path)
     createAnchorWrapper(hub, slot_name, output_path=target_rtl_path)  
-    # duplicateSourceRTL(orig_rtl_path, target_rtl_path, slot_name, FloorplanVertex)
 
     # create pblock constraints for each anchored wrapper
     createPBlockScript(hub, slot_name, output_path=dir)
