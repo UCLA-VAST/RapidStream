@@ -2,41 +2,6 @@ import json
 import sys
 import os
 
-def getClockRoutingScript(hub, base_dir):
-  parallel_run_dir = f'{base_dir}/parallel_run'
-
-
-  script = []
-
-  # use a pre-generated empty checkpoint
-  script.append('open_checkpoint /home/einsx7/auto-parallel/src/clock/test_clock.dcp')
-  
-  script.append('create_cell -reference BUFGCE bufg')
-  script.append('place_cell bufg BUFGCE_X0Y194')
-
-  pins = []
-  for slot_name in hub['SlotIO'].keys():
-    slot_dir = f'{parallel_run_dir}/{slot_name}'
-    sample_placement_file = f'{slot_dir}/{slot_name}_sample_reg_placement.json'
-    sample_placement = json.loads(open(sample_placement_file, 'r').read())
-
-    for reg, loc in sample_placement.items():
-      reg = reg.replace('/', '__') # non-hierachical cell should not contain '/' in name
-
-      script.append(f'create_cell -reference FDRE {reg}')
-      script.append(f'place_cell {reg} {loc}')
-      pins.append(f'{reg}/C')
-
-  script.append('create_net ap_clk')
-  script.append('connect_net -net ap_clk -objects {\n  bufg/O\n  ' + '\n  '.join(pins) + '\n}' )
-  script.append('create_clock -name ap_clk -period 2.50 [get_pins bufg/O]' )
-  script.append('route_design' )
-  script.append(f'set fileId [open {base_dir}/clock_routing/clock_route.txt "w" ]' )
-  script.append('puts $fileId [get_property ROUTE [get_nets ap_clk]]' )
-  script.append('close $fileId' )
-
-  open(f'{base_dir}/clock_routing/get_clock_network.tcl', 'w').write('\n'.join(script))
-
 def testIndividualClockRouting(hub, base_dir, anchor_net_extractions_script):
   """
   For test purpose. 
