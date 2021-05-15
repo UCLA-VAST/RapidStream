@@ -205,7 +205,8 @@ if __name__ == '__main__':
   hub = json.loads(open(hub_path, 'r').read())
 
   anchor_net_extractions_script = '/home/einsx7/auto-parallel/src/tcl/extractBoundaryNets.tcl'
-  empty_ref_checkpoint = '/home/einsx7/auto-parallel/src/clock/test_clock.dcp'
+  current_path = os.path.dirname(os.path.realpath(__file__))
+  empty_ref_checkpoint = f'{current_path}/../../../checkpoint/empty_U250.dcp'
 
   if option == 'ExtractSample':
     extractSampleNetsFromSlots(hub, base_dir, anchor_net_extractions_script, empty_ref_checkpoint)
