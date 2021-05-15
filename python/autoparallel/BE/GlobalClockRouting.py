@@ -3,8 +3,67 @@ import sys
 import os
 from collections import OrderedDict
 
+def organizeHier(sample_route : str):
+  """
+  Helper function to print the clock route in more readable way
+  """
+  hier_route = ''
+  level = 1
+  pad = lambda level: level * "  "
+
+  for char in sample_route:
+    if char == '{':
+      level += 1
+      hier_route += f'\n{pad(level-1)}{{\n{pad(level)}'
+    elif char == '}':
+      hier_route += f'\n{pad(level-1)}}}\n{pad(level)}'
+      level -= 1
+    else:
+      hier_route += char
+  open('hier_sample_route.txt', 'w').write(hier_route)
+
+def pruneLeaf(clock_route_path):
+  """
+  prune away children nodes of leaf clock buffer nodes
+  """
+  sample_route = open(clock_route_path, 'r').read()
+  tokens = [token for token in sample_route.split(' ') if token]
+
+  pruned_route = []
+  seen_clock_leaf = False
+  stack = 0
+
+  for i, token in enumerate(tokens):
+    # now in mode to prune away children
+    if seen_clock_leaf:
+      if token == '}': 
+        if stack == 0: # if this } is for the clock leaf
+          seen_clock_leaf = False
+          pruned_route.append(token)
+          print(f'end CLK_LEAF at {i}, stack = {stack}')
+        else:
+          stack -= 1
+      elif token == '{':
+        stack += 1
+      else:
+        pass
+
+    else:
+      pruned_route.append(token)
+
+    # after we visit a CLK_LEAF, prune away the children of CLK_LEAF
+    if token.endswith('CLK_LEAF'):
+      assert not seen_clock_leaf
+      seen_clock_leaf = True
+
+  # To view the results: organizeHier('  '.join(pruned_route))
+  new_route = '  '.join(pruned_route)
+  open('apply_ooc_clock_route.tcl', "w").write(f'set_property ROUTE {new_route} [get_nets ap_clk]')
+  
 def getMainScriptOfGlobalClockRouting(empty_ref_checkpoint):
   main = []
+
+  clock_route_file = 'global_clock_route.txt'
 
   main.append(f"open_checkpoint {empty_ref_checkpoint}")
 
@@ -23,9 +82,9 @@ def getMainScriptOfGlobalClockRouting(empty_ref_checkpoint):
   main.append("write_checkpoint before_global_clock_routing.dcp")
   main.append("route_design")
 
-  main.append(f'set clock_route_file [open ooc_clock_route.tcl "w" ]')
+  main.append(f'set clock_route_file [open {clock_route_file} "w" ]')
   main.append(f'set clock_route [get_property ROUTE [get_nets ap_clk] ]')
-  main.append(f'puts $clock_route_file "set_property ROUTE $clock_route \[get_nets ap_clk\]"')
+  main.append(f'puts $clock_route_file $clock_route')
   main.append(f'close $clock_route_file')
 
   main.append("write_checkpoint after_global_clock_routing.dcp")
@@ -106,8 +165,10 @@ def extractSampleNetsFromSlots(hub, base_dir, anchor_net_extractions_script, emp
   """
   Extract the anchor nets of each slot and route the clock net
   """
-  clock_dir = f'{base_dir}/clock_routing'
   opt_dir = f'{base_dir}/opt_test'
+
+  clock_dir = f'{base_dir}/clock_routing'
+  os.mkdir(clock_dir)
 
   for slot_name in hub['SlotIO'].keys():
     os.mkdir(f'{clock_dir}/{slot_name}')
@@ -134,51 +195,6 @@ def extractSampleNetsFromSlots(hub, base_dir, anchor_net_extractions_script, emp
   all_tasks = [f'cd {clock_dir}/{slot_name} && {vivado} setup_ooc_clock_route.tcl' \
                 for slot_name in hub['SlotIO'].keys()]
   parallel_txt.write('\n'.join(all_tasks))
-
-def routeWithGivenClock(hub, base_dir):
-  """
-  Run the final routing of each slot with the given clock network
-  """
-  clock_dir = f'{base_dir}/clock_routing'
-  opt_dir = f'{base_dir}/opt_test'
-
-  for slot_name in hub['SlotIO'].keys():
-  # the final routing
-    script = []
-    script.append(f'open_checkpoint {opt_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp')
-    script.append(f'source -notrace {clock_dir}/global_clock_routing/ooc_clock_route.tcl')
-    script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
-
-    # relax placement pblocks
-    script.append(f'delete_pblock [get_pblocks *]')
-    script.append(f'create_pblock {slot_name}')
-    pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
-    script.append(f'resize_pblock [get_pblocks {slot_name}] -add {pblock_def}')
-    script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
-    script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_U0]')
-
-    script.append(f'route_design')
-    script.append(f'phys_opt_design')
-    script.append(f'write_checkpoint -force {clock_dir}/{slot_name}/routed_with_ooc_clock.dcp')
-
-    open(f'{clock_dir}/{slot_name}/route_with_ooc_clock.tcl', "w").write('\n'.join(script))
-
-  # generate the gnu parallel tasks
-  parallel_txt = open(f'{clock_dir}/parallel-route-with-ooc-clock.txt', "w")
-  vivado = 'VIV_VER=2020.1 vivado -mode batch -source'
-  all_tasks = [f'cd {clock_dir}/{slot_name} && {vivado} route_with_ooc_clock.tcl' \
-                for slot_name in hub['SlotIO'].keys()]
-  parallel_txt.write('\n'.join(all_tasks))
-
-def setGlobalClockRoute(clock_route_path):
-  script = []
-
-  script.append(f'set clock_route_file [open {clock_route_path} "r" ]')
-  script.append(f'set clock_route [read -nonewline $clock_route_file ]')
-  script.append(f'set_property ROUTE $clock_route [get_nets ap_clk]')
-  script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
-
-  return script
   
 if __name__ == '__main__':
   assert len(sys.argv) == 4, 'input (1) the path to the front end result file; (2) the target directory; (3) which action'
@@ -192,10 +208,10 @@ if __name__ == '__main__':
   empty_ref_checkpoint = '/home/einsx7/auto-parallel/src/clock/test_clock.dcp'
 
   if option == 'ExtractSample':
-    os.mkdir(f'{base_dir}/clock_routing')
     extractSampleNetsFromSlots(hub, base_dir, anchor_net_extractions_script, empty_ref_checkpoint)
-    routeWithGivenClock(hub, base_dir)
   elif option == 'GlobalClockRouting':
     globalClockRouting(hub, base_dir, empty_ref_checkpoint)
+  elif option == 'PruneClockLeaf':
+    pruneLeaf('global_clock_route.txt')
   else:
     assert False
