@@ -204,6 +204,10 @@ def createVivadoScriptForSlotPair(
   # since there are only 1 pipeline register, the registers will not be placed onto laguna sites (which require a pair)
   script.append(f'resize_pblock [get_pblocks buffer_for_anchors] -add {{{buffer_between_two_slots}}}')
   
+  # constrain the timing with placeholder LUTs
+  if hub['InSlotPipelineStyle'] == 'LUT':
+    script.append(setMaxDelayFromLut())
+    
   # place and anchors
   script.append(f'place_design -directive RuntimeOptimized')
 
