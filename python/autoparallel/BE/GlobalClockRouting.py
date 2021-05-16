@@ -22,12 +22,14 @@ def organizeHier(sample_route : str):
       hier_route += char
   open('hier_sample_route.txt', 'w').write(hier_route)
 
-def pruneLeaf(clock_route_path):
+def pruneLeaf(global_clock_routing_path):
   """
   prune away children nodes of leaf clock buffer nodes
   """
+
+  clock_route_path = f'{global_clock_routing_path}/global_clock_route.txt'
   sample_route = open(clock_route_path, 'r').read()
-  tokens = [token for token in sample_route.split(' ') if token]
+  tokens = [token for token in sample_route.split(' ') if token and token != '\n']
 
   pruned_route = []
   seen_clock_leaf = False
@@ -58,7 +60,7 @@ def pruneLeaf(clock_route_path):
 
   # To view the results: organizeHier('  '.join(pruned_route))
   new_route = '  '.join(pruned_route)
-  open('apply_ooc_clock_route.tcl', "w").write(f'set_property ROUTE {new_route} [get_nets ap_clk]')
+  open(f'{global_clock_routing_path}/apply_ooc_clock_route.tcl', "w").write(f'set_property ROUTE {new_route} [get_nets ap_clk]')
   
 def getMainScriptOfGlobalClockRouting(empty_ref_checkpoint):
   main = []
@@ -117,6 +119,8 @@ def globalClockRouting(hub, base_dir, empty_ref_checkpoint):
     # distinguish nets and disable printing. FIXME
     slot_create_all_nets = loads_tcl('create_all_nets.tcl')
     slot_connect_all_nets = loads_tcl('connect_all_nets.tcl')  
+    assert 'VCC' not in slot_connect_all_nets # check that no nets connect to VCC or GND
+    assert 'GND' not in slot_connect_all_nets # check that no nets connect to VCC or GND
     connect_all_nets += [net.replace('connect_net -net ', f'connect_net -net {slot_name}_') for net in slot_connect_all_nets]
     create_all_nets += [net.replace('create_net ', f'create_net {slot_name}_') for net in slot_create_all_nets]
 
@@ -124,6 +128,7 @@ def globalClockRouting(hub, base_dir, empty_ref_checkpoint):
     slot_place_all_cells = loads_tcl('place_all_cells.tcl')
     assert slot_place_all_cells[0] == 'place_cell { \\', slot_place_all_cells[0]
     assert slot_place_all_cells[-1] == '}', slot_place_all_cells[-1]
+    assert ' / ' not in slot_place_all_cells # check that no empty cells are sampled
     place_all_cells += slot_place_all_cells[1:-1] 
 
     # the first line is "connect_net -net ap_clk -objects { \"; the last line is "}"
@@ -181,10 +186,6 @@ def extractSampleNetsFromSlots(hub, base_dir, anchor_net_extractions_script, emp
     # extract anchor nets & connections. Will result in a tcl file "sample_connection.tcl"
     script.append(f'source {anchor_net_extractions_script}')
     
-    # open an empty checkpoint to route the clock based on the sample
-    # extract the route of the clock
-    script.append(f'open_checkpoint {empty_ref_checkpoint}')
-    script.append(f'source {clock_dir}/{slot_name}/sample_connection.tcl')
     script.append(f'exit')
 
     open(f'{clock_dir}/{slot_name}/setup_ooc_clock_route.tcl', "w").write('\n'.join(script))
@@ -213,6 +214,7 @@ if __name__ == '__main__':
   elif option == 'GlobalClockRouting':
     globalClockRouting(hub, base_dir, empty_ref_checkpoint)
   elif option == 'PruneClockLeaf':
-    pruneLeaf('global_clock_route.txt')
+    global_clock_routing_path = f'{base_dir}/clock_routing/global_clock_routing/'
+    pruneLeaf(global_clock_routing_path)
   else:
     assert False
