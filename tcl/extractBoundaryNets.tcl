@@ -41,6 +41,27 @@ foreach anchor $anchor_cells {
 
   # for each pin connected to the anchor reg
   set all_pins_of_nets [get_pins -of_objects $all_nets_of_anchor ]
+
+  # ---- if the cell connects to VCC, filter it out -----
+  set vcc 0
+  foreach pin_full_name $all_pins_of_nets {
+    set parent_cell_of_pin [get_cells [get_property PARENT_CELL $pin_full_name] ]
+    set parent_cell_type [get_property REF_NAME [get_cells $parent_cell_of_pin]]
+    if { [regexp {.*VCC.*} $parent_cell_type]} {
+      set vcc 1
+      break
+    }
+    if { [regexp {.*GND.*} $parent_cell_type]} {
+      set vcc 1
+      break
+    }
+  }
+  if {$vcc == 1} {
+    puts $log "* VCC * filter anchor $anchor as it connects to VCC"
+    continue
+  }
+  #-------------------------------------------------------
+
   foreach pin_full_name $all_pins_of_nets {
     # avoid duplication because of directly connected passing pipelines
     if { $pin_full_name in $visited_pins } {
