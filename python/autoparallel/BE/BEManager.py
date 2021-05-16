@@ -7,7 +7,6 @@ from autoparallel.BE.CreateAnchorWrapper import *
 from autoparallel.BE.GenAnchorConstraints import *
 from autoparallel.BE.CreateVivadoRun import *
 from autoparallel.BE.AnchorPlacement import *
-from autoparallel.BE.DuplicateRTL import *
 from autoparallel.BE.CreatePairwiseWrapper import *
 from autoparallel.BE.CreateTopRun import createTopRun
 
