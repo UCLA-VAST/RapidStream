@@ -51,16 +51,14 @@ def createTopRunScript(hub, rtl_path, xdc_path, final_slot_run_dir, interconnect
   script.append('open_run synth_1 -name synth_1')
 
   # apply the placement of interconnct logic
-  script.append(f'source {interconnect_placement_path}')
+  script.append(f'source -notrace {interconnect_placement_path}')
 
-  # the interconnect placement may cause confliction with existing routing
-  script.append(f'lock_design -unlock -level placement')
+  script.append(f'write_checkpoint before_global_stitch.dcp')
 
-  script.append(f'delete_pblocks *')
   script.append(f'route_design')
   script.append(f'phys_opt_design')
 
-  script.append(f'write_checkpoint stitch.dcp')
+  script.append(f'write_checkpoint after_global_stitch.dcp')
 
   return script
 
