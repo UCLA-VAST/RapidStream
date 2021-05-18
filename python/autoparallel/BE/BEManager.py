@@ -43,7 +43,7 @@ def parallelAnchorPlacement(
     createVivadoScriptForSlotPair(hub, wrapper_name, wrapper_path, dcp_name2path, clock_xdc_path, dir)
 
     # add to task queue
-    guard = 'until ' + ' & '.join(f'[ -f {dcp_flag} ]' for dcp_flag in all_dcp_flags) + '; do sleep 10; done'
+    guard = 'until [[ ' + ' && '.join(f' -f {dcp_flag} ' for dcp_flag in all_dcp_flags) + ' ]] ; do sleep 10; done'
     command = 'VIV_VER=2020.1 vivado -mode batch -source place.tcl'
     parallel_task.append(f'{guard} && cd {dir} && {command}')
 
