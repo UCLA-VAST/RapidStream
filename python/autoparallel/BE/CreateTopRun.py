@@ -44,7 +44,7 @@ def createTopRunScript(hub, rtl_path, xdc_path, final_slot_run_dir, interconnect
   # add checkpoints of each slot
   slot_names = hub["SlotIO"].keys()
   for slot_name in slot_names:
-    script.append(f'read_checkpoint -cell {slot_name}_ctrl_U0 {final_slot_run_dir}/{slot_name}/{slot_name}_ctrl_final.dcp')
+    script.append(f'read_checkpoint -cell {slot_name}_ctrl_U0 {final_slot_run_dir}/{slot_name}/{slot_name}_after_pruning_anchors.dcp')
 
   # open the synthesized top along with the dcps
   script.append('update_compile_order -fileset sources_1')
@@ -61,6 +61,17 @@ def createTopRunScript(hub, rtl_path, xdc_path, final_slot_run_dir, interconnect
   script.append(f'write_checkpoint after_global_stitch.dcp')
 
   return script
+
+def updateSlotType(orig_rtl):
+  """
+  The routing happens in the anchored wrapper. 
+  After routing we prune away the anchors, so the checkpoints are logically the same as the ctrl wrappers
+  However, the type of the checkpoints are still anchored wrappers
+  Thus in the top file we change the type of each black box to be anchored wrappers
+  """
+  
+  # note the space after the _ctrl
+  return re.sub(r'(CR_X[\d]+Y[\d]+_To_CR_X[\d]+Y[\d]+)_ctrl ', r'\1_anchored ', orig_rtl)
 
 def addBUFGToTopRTL(hub, rtl_dir):
   # the new top RTL
@@ -84,10 +95,12 @@ def addBUFGToTopRTL(hub, rtl_dir):
       top_rtl_list[i+1:i+1] = plugin
       break
 
-  final_top = '\n'.join(top_rtl_list)
+  top_with_bufg = '\n'.join(top_rtl_list)
+
+  top_updated_type = updateSlotType(top_with_bufg)
 
   top_rtl_path = f'{rtl_dir}/final_top.v'
-  open(top_rtl_path, 'w').write(final_top)
+  open(top_rtl_path, 'w').write(top_updated_type)
 
 def getSlotWrapperShell(hub, rtl_dir):
   # get a shell for each ctrl wrapper
@@ -112,14 +125,19 @@ def getSlotWrapperShell(hub, rtl_dir):
         if re.search('^[ ]*input|^[ ]*output', rtl_list[i]):
           io.append(rtl_list[i])
 
+    wrapper_rtl = '\n'.join(io)
+    wrapper_rtl_updated_type = updateSlotType(wrapper_rtl)
+
     wrapper_path = f'{rtl_dir}/{name}_ctrl.v'
-    open(wrapper_path, 'w').write('\n'.join(io))
+    open(wrapper_path, 'w').write(wrapper_rtl_updated_type)
 
 def setupTopRunRTL(hub, stitch_dir):
   """
   mark each slot wrapper instances as blackbox
   create an empty shell for each wrapper
   add explicit BUFG to the top RTL
+  *** update the type of the blackbox to be XXX_anchored
+  to match the type of the slots after we remove the anchor registers
   """
   rtl_dir = f'{stitch_dir}/rtl'
   os.mkdir(rtl_dir)
