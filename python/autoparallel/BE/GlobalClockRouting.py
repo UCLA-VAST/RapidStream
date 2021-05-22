@@ -93,6 +93,43 @@ def getMainScriptOfGlobalClockRouting(empty_ref_checkpoint):
 
   return main
 
+def optConnectNets(connect_all_nets):
+  """
+  replace individual connect_net command by one command using -net_object_list
+  """
+
+  # previous format is:
+  # connect_net -net XXX -objects {YYY}
+  # target format is :
+  # connect_net -net_object_list { \
+  #   net1 {pin1} \
+  #   net2 {pin2} \
+  # }
+  opt_commands = [command.replace('connect_net -net', ' ') for command in connect_all_nets]
+  opt_commands = [command.replace('-objects', '') for command in opt_commands]
+  opt_commands = [command + ' \\' for command in opt_commands]
+  opt_commands.insert(0, 'connect_net -net_object_list { \\')
+  opt_commands.append('}')
+
+  return opt_commands
+
+def optCreateNets(create_all_nets):
+  """
+  replace individual create_net command by one command
+  """
+  # previous format is:
+  # create -net XXX 
+  # create -net YYY   
+  # target format is :
+  # connect_net \
+  #   XXX \
+  #   YYY \
+  opt_commands = [command.replace('create_net', '  ') for command in create_all_nets]
+  opt_commands = [command + ' \\' for command in opt_commands]
+  opt_commands.insert(0, 'create_net { \\')
+  opt_commands.append('}')
+  return opt_commands
+
 def globalClockRouting(hub, base_dir, empty_ref_checkpoint):
   """
   Collect the sample nets from each slot, generate a skeleton design
@@ -153,6 +190,10 @@ def globalClockRouting(hub, base_dir, empty_ref_checkpoint):
 
   connect_clocks.insert(0, 'connect_net -net ap_clk -objects { \\')
   connect_clocks.append('}')
+
+  # runtime optimization
+  connect_all_nets = optConnectNets(connect_all_nets)
+  create_all_nets = optCreateNets(create_all_nets)
 
   # run
   global_clock_route_dir = f'{clock_dir}/global_clock_routing'
