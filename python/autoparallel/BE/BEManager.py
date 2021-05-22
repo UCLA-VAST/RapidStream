@@ -3,6 +3,7 @@ import logging
 import json
 import os
 import sys
+import math
 from autoparallel.BE.CreateAnchorWrapper import *
 from autoparallel.BE.GenAnchorConstraints import *
 from autoparallel.BE.CreateVivadoRun import *
@@ -13,7 +14,9 @@ from autoparallel.BE.CreateTopRun import createTopRun
 def parallelAnchorPlacement(
     hub, 
     parallel_run_dir,
-    pairwise_placement_dir):
+    pairwise_placement_dir,
+    user_name,
+    server_list):
   """
   for each pair of neighbor slots, group them and place & router the anchors in between
   """
@@ -45,12 +48,19 @@ def parallelAnchorPlacement(
     # add to task queue
     guard = 'until [[ ' + ' && '.join(f' -f {dcp_flag} ' for dcp_flag in all_dcp_flags) + ' ]] ; do sleep 10; done'
     command = 'VIV_VER=2020.1 vivado -mode batch -source place.tcl'
+    # broadcast the results
+    for server in server_list:
+      command += f' && rsync -azh --delete -r {dir}/ {user_name}@{server}:{dir}'
+
     parallel_task.append(f'{guard} && cd {dir} && {command}')
 
   # create GNU parallel script
-  open(f'{pairwise_placement_dir}/run_parallel.txt', 'w').write('\n'.join(parallel_task))
+  num_job_server = math.ceil(len(parallel_task) / len(server_list) ) 
+  for i, server in enumerate(server_list):
+    local_tasks = parallel_task[i * num_job_server: (i+1) * num_job_server]
+    open(f'{pairwise_placement_dir}/parallel-anchor-placement-{server}.txt', 'w').write('\n'.join(local_tasks))
 
-def parallelSlotRun(hub, parallel_run_dir):
+def parallelSlotRun(hub, parallel_run_dir, user_name, server_list):
   """
   generate scripts to place & route each slot independently
   """
@@ -88,7 +98,7 @@ def parallelSlotRun(hub, parallel_run_dir):
     anchor_list = [ io[:-1] + [f'{io[-1]}_anchor'] for io in io_list]
     createAnchorPlacementExtractScript(slot_name, anchor_list, dir)
 
-  createGNUParallelScript(hub, parallel_run_dir)
+  createMultiServerExecution(hub, parallel_run_dir, user_name=user_name, server_list=server_list)
 
 if __name__ == '__main__':
   assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
@@ -96,6 +106,9 @@ if __name__ == '__main__':
   fe_result_path = sys.argv[1]
 
   hub = json.loads(open(fe_result_path, 'r').read())
+
+  user_name = 'einsx7'
+  server_list=['u5','u17','u18','u15']
 
   # the back end directory
   if os.path.isdir(backend_run_dir):
@@ -105,12 +118,13 @@ if __name__ == '__main__':
   # p&r each slot
   parallel_run_dir = f'{backend_run_dir}/parallel_run'
   os.mkdir(parallel_run_dir)
-  parallelSlotRun(hub, parallel_run_dir)
+  parallelSlotRun(hub, parallel_run_dir, user_name=user_name, server_list=server_list)
 
   # pairwise anchor placement
   pairwise_placement_dir = f'{backend_run_dir}/parallel_stitch'
   os.mkdir(pairwise_placement_dir)
-  parallelAnchorPlacement(hub, parallel_run_dir, pairwise_placement_dir)
+  parallelAnchorPlacement(hub, parallel_run_dir, pairwise_placement_dir,
+                          user_name=user_name,server_list=server_list)
 
   # final stitch
   final_slot_run_dir = f'{backend_run_dir}/pruning_anchors'
