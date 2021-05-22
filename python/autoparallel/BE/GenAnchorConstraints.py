@@ -33,6 +33,11 @@ def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
   tcl.append('puts $fileId "}"')
   tcl.append(f'close $fileId')
 
+  # create a done flag
+  tcl.append(f'set fileId [open {slot_name}_anchor_placement.json.done.flag "w"]')
+  tcl.append('puts $fileId "done"')
+  tcl.append(f'close $fileId')
+
   open(f'{output_dir}/{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
 
 def __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets, comments, contain_routing, exclude_laguna):
