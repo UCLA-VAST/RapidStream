@@ -2,34 +2,9 @@ import logging
 import json
 import sys
 import os
-from autoparallel.BE.CreateAnchorWrapper import getAnchoredIOAndWiredIO, getStrictAnchoredIO
-from autoparallel.BE.LegalizeAnchorPlacement import getAnchorSourceNameFromFDRE
+import math
 
-def getSlotAnchorPlacement(hub, slot_name, anchor_placement):
-  """ get the locations of anchors of the current slot """
-
-  in_slot_pipeline_style = hub['InSlotPipelineStyle']
-
-  if  in_slot_pipeline_style == 'LUT' or \
-      in_slot_pipeline_style == 'WIRE' or \
-      in_slot_pipeline_style == 'DOUBLE_REG':
-    anchored_io = getAnchoredIOAndWiredIO(hub, slot_name) # note that passing wires are also anchored
-  elif in_slot_pipeline_style == 'REG':
-    anchored_io = getStrictAnchoredIO(hub, slot_name)
-  else:
-    assert False
-
-  anchor_names = set(io[-1]+'_q0' for io in anchored_io)
-
-  local_anchor_placement = {}
-  for FDRE, loc in anchor_placement.items():
-    anchor_source_name = getAnchorSourceNameFromFDRE(FDRE)
-    if anchor_source_name in anchor_names:
-      local_anchor_placement[FDRE] = loc
-
-  return local_anchor_placement
-  
-def getSlotPlacementOptScript(hub, slot_name, local_anchor_placement, dcp_path):
+def getSlotPlacementOptScript(hub, slot_name, dcp_path):
   """ phys_opt_design the slot based on the dictated anchor locations """
   script = []
 
@@ -47,10 +22,7 @@ def getSlotPlacementOptScript(hub, slot_name, local_anchor_placement, dcp_path):
   script.append(f'unplace_cell [get_cells -regexp .*_q0_reg.*]')
 
   # apply the placement of anchor registers
-  script.append('place_cell { \\')
-  for FDRE, loc in local_anchor_placement.items():
-    script.append(f'  {FDRE} {loc} \\')
-  script.append('}')
+  script.append(f'source place_anchors_of_slot.tcl')
 
   # get rid of the place holder LUTs
   if hub['InSlotPipelineStyle'] == 'LUT':
@@ -76,16 +48,32 @@ def removeLUTPlaceholders():
 
   return script
 
-def generateParallelScript(hub, opt_dir):
+def generateParallelScript(hub, opt_dir, user_name, server_list):
   """
   summarize all tasks for gnu parallel
+  fire as soon as the neighbor anchors are ready
   """
-  command = lambda opt_dir, slot_name : f'cd {opt_dir}/{slot_name} && VIV_VER=2020.1 vivado -mode batch -source {slot_name}_phys_opt_placement.tcl'
-  
+  all_tasks = []
   slot_names = hub['SlotIO'].keys()
-  open(f'{opt_dir}/parallel-opt-placement.txt', 'w').write('\n'.join([command(opt_dir, n) for n in slot_names]))
+  for slot_name in slot_names:
+    # wait until local anchors are ready
+    # check flags to prevent race conditions
+    guard = f'until [[ -f {opt_dir}/{slot_name}/place_anchors_of_slot.done.flag ]] ; do sleep 10; done'
+    vivado = f'VIV_VER=2020.1 vivado -mode batch -source {slot_name}_phys_opt_placement.tcl'
+    
+    # broadcast the results
+    for server in server_list:
+      vivado += f' && rsync -azh --delete -r {opt_dir}/{slot_name}/ {user_name}@{server}:{opt_dir}/{slot_name}/'
 
-def generateOptScript(hub, parallel_run_dir, anchor_placement):
+    command = f' {guard} && cd {opt_dir}/{slot_name} && {vivado}'
+    all_tasks.append(command)
+
+  num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
+  for i, server in enumerate(server_list):
+    local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
+    open(f'{opt_dir}/parallel-opt-placement-{server}.txt', 'w').write('\n'.join(local_tasks))
+
+def generateOptScript(hub, parallel_run_dir):
   """
   setup the opt script for each slot
   """
@@ -94,11 +82,7 @@ def generateOptScript(hub, parallel_run_dir, anchor_placement):
     slot_placement_dir = f'{slot_dir}/{slot_name}_placed_free_run'
     dcp_path = f'{slot_placement_dir}/{slot_name}_placed_free_run.dcp'
 
-    slot_anchor_placement = getSlotAnchorPlacement(hub, slot_name, anchor_placement)
-
-    # phys_opt_design the slot
-    opt_script = getSlotPlacementOptScript(hub, slot_name, slot_anchor_placement, dcp_path)
-
+    opt_script = getSlotPlacementOptScript(hub, slot_name, dcp_path)
     open(f'{opt_dir}/{slot_name}/{slot_name}_phys_opt_placement.tcl', 'w').write('\n'.join(opt_script))
   
 if __name__ == '__main__':
@@ -108,6 +92,10 @@ if __name__ == '__main__':
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   
+  user_name = 'einsx7'
+  server_list=['u5','u17','u18','u15']
+  print(f'WARNING: the server list is: {server_list}' )
+
   parallel_run_dir = base_dir + '/parallel_run'
 
   final_stitch_run_dir = base_dir + '/parallel_stitch'
@@ -121,5 +109,5 @@ if __name__ == '__main__':
   for slot_name in hub['SlotIO'].keys():
     os.mkdir(f'{opt_dir}/{slot_name}')
 
-  generateOptScript(hub, parallel_run_dir, anchor_placement)
-  generateParallelScript(hub, opt_dir)
+  generateOptScript(hub, parallel_run_dir)
+  generateParallelScript(hub, opt_dir, user_name, server_list)
