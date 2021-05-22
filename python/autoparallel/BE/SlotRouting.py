@@ -1,6 +1,7 @@
 import sys
 import json
 import os
+import math
 
 def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
   """
@@ -32,12 +33,19 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
 
     open(f'{routing_dir}/{slot_name}/route_with_ooc_clock.tcl', "w").write('\n'.join(script))
 
+def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name):
   # generate the gnu parallel tasks
-  parallel_txt = open(f'{routing_dir}/parallel-route-with-ooc-clock.txt', "w")
-  vivado = 'VIV_VER=2020.1 vivado -mode batch -source'
-  all_tasks = [f'cd {routing_dir}/{slot_name} && {vivado} route_with_ooc_clock.tcl' \
-                for slot_name in hub['SlotIO'].keys()]
-  parallel_txt.write('\n'.join(all_tasks))
+  all_tasks = []
+  for slot_name in hub['SlotIO'].keys():
+    vivado = 'VIV_VER=2020.1 vivado -mode batch -source route_with_ooc_clock.tcl'
+    dir = f'{routing_dir}/{slot_name}/'
+    transfer = f'rsync -azh --delete -r {dir} {user_name}@{main_server_name}:{dir}'
+    all_tasks.append(f'cd {dir} && {vivado} && {transfer}')
+    
+  num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
+  for i, server in enumerate(server_list):
+    local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
+    open(f'{routing_dir}/parallel-route-with-ooc-clock-{server}.txt', 'w').write('\n'.join(local_tasks))
 
 if __name__ == '__main__':
   assert len(sys.argv) == 3, 'input (1) the path to the front end result file; (2) the target directory; (3) which action'
@@ -47,5 +55,11 @@ if __name__ == '__main__':
   opt_dir = f'{base_dir}/opt_test'
   routing_dir = f'{base_dir}/slot_routing'
 
+  user_name = 'einsx7'
+  server_list=['u5','u17','u18','u15']
+  main_server_name = 'u5'
+  print(f'WARNING: the server list is: {server_list}' )
+
   hub = json.loads(open(hub_path, 'r').read())
   routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir)
+  getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
