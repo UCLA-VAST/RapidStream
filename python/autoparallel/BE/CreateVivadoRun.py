@@ -37,7 +37,7 @@ def getPlacementScript(
   script.append(f'exec mkdir {output_path}/{slot_name}_synth')
   script.append(f'synth_design -top "{slot_name}_anchored" -part {fpga_part_name} -mode out_of_context')
   script.append(f'write_checkpoint {output_path}/{slot_name}_synth/{slot_name}_synth.dcp')
-  script.append(f'write_edif {output_path}/{slot_name}_synth/{slot_name}_synth.edf')
+  # script.append(f'write_edif {output_path}/{slot_name}_synth/{slot_name}_synth.edf')
   
   # add floorplanning constraints
   script.append(f'source "{output_path}/{slot_name}_floorplan_placement_free_run.tcl"')
@@ -50,14 +50,14 @@ def getPlacementScript(
   # lock design
   script.append(f'lock_design -level placement')
 
-  # write out the ctrl wrapper only
+  # write out the ctrl wrapper only for anchor placement
   script.append(f'exec mkdir {output_path}/{slot_name}_placed_free_run')
   script.append(f'write_checkpoint -cell {slot_name}_U0 {output_path}/{slot_name}_placed_free_run/{slot_name}_ctrl_placed_free_run.dcp')
-  script.append(f'write_edif -cell {slot_name}_U0 {output_path}/{slot_name}_placed_free_run/{slot_name}_ctrl_placed_free_run.edf')
+  # script.append(f'write_edif -cell {slot_name}_U0 {output_path}/{slot_name}_placed_free_run/{slot_name}_ctrl_placed_free_run.edf')
   
   # write out the whole anchored slot
   script.append(f'write_checkpoint {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp')
-  script.append(f'write_edif {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.edf')
+  # script.append(f'write_edif {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.edf')
 
   script.append(f'exec touch {output_path}/{slot_name}_placed_free_run/{slot_name}.placement.done.flag') # signal that the DCP generation is finished
 
@@ -159,4 +159,23 @@ def createGNUParallelScript(hub, target_dir):
   open(f'{target_dir}/parallel-place-and-route-all.txt', 'w').write('\n'.join(place_and_route))
   open(f'{target_dir}/parallel-route-from-dcp-all.txt', 'w').write('\n'.join(route_from_dcp))
 
-  
+def createMultiServerExecution(hub, target_dir, user_name, server_list):
+  """
+  spread the tasks to multiple servers
+  broadcast the results to all servers
+  """
+  place = []
+  vivado_command = 'VIV_VER=2020.1 vivado -mode batch -source'
+  for slot_name in hub['SlotIO'].keys():
+    command = f'cd {target_dir}/{slot_name}/ && {vivado_command} {slot_name}_place.tcl'
+
+    # broadcast the results to all servers
+    for server in server_list:
+      command += f' && rsync -azh --delete -r {target_dir}/{slot_name}/ {user_name}@{server}:{target_dir}/{slot_name}/'
+
+    place.append(command)
+
+  num_job_server = math.ceil(len(place) / len(server_list) ) 
+  for i, server in enumerate(server_list):
+    local_tasks = place[i * num_job_server: (i+1) * num_job_server]
+    open(f'{target_dir}/parallel-place-all-{server}.txt', 'w').write('\n'.join(local_tasks))

@@ -209,12 +209,13 @@ def createVivadoScriptForSlotPair(
     script.append(setMaxDelayFromLut())
     
   # place and anchors
+  # Using Quick will result in bad results...
   script.append(f'place_design -directive RuntimeOptimized')
 
   # extract anchor placement
   script.append(f'source {wrapper_name}_print_anchor_placement.tcl')
 
-  script.append(f'write_checkpoint {wrapper_name}_placed.dcp')
+  # script.append(f'write_checkpoint {wrapper_name}_placed.dcp')
 
   open(f'{output_dir}/place.tcl', 'w').write('\n'.join(script))
 
@@ -241,10 +242,10 @@ foreach lut $placeholder_luts {
 
     if { ${dir} == "OUT" } {
       puts "constrain path from LUT to anchor FDRE"
-      set_max_delay 1.25 -datapath_only -from ${lut_pin} -to ${anchor_pin}
+      set_max_delay 1 -datapath_only -from ${lut_pin} -to ${anchor_pin}
     } else {
       puts "constrain path from anchor FDRE to LUT"
-      set_max_delay 1.25 -datapath_only -from ${anchor_pin} -to ${lut_pin}
+      set_max_delay 1 -datapath_only -from ${anchor_pin} -to ${lut_pin}
     }
   }
 }  
