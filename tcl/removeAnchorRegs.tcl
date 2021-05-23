@@ -19,20 +19,17 @@ foreach anchor $anchors {
 
 }
 
-for {set i 0} {$i < $num} {incr i} {
-  set anchor [lindex $anchors $i]
-  set dead_net [lindex $all_dead_nets $i]
-  set chosen_net [lindex $all_chosen_nets $i]
-  set target_port [lindex $all_target_ports $i]
+set target_objects []
 
-  disconnect_net -net $dead_net -objects [get_ports $target_port]
+# disconnect the port
+for {set i 0} {$i < $num} {incr i} {
+  set target_port [lindex $all_target_ports $i]
+  lappend target_objects $target_port
 }
-
+# disconnect the inner net
 for {set i 0} {$i < $num} {incr i} {
   set anchor [lindex $anchors $i]
-  set dead_net [lindex $all_dead_nets $i]
   set chosen_net [lindex $all_chosen_nets $i]
-  set target_port [lindex $all_target_ports $i]
 
   # disconnect_net -quiet -net $chosen_net -objects [get_pins -of_objects [get_cells $anchor]]
   foreach pin [get_pins -of_objects $chosen_net] {
@@ -41,15 +38,19 @@ for {set i 0} {$i < $num} {incr i} {
       break
     }
   }
-  disconnect_net -net $chosen_net -objects [get_pins $dead_pin]
+  lappend target_objects $dead_pin
 }
+disconnect_net -objects $target_objects
 
+# need to merge all operations into the same command
+set mydict []
 for {set i 0} {$i < $num} {incr i} {
   set chosen_net [lindex $all_chosen_nets $i]
   set target_port [lindex $all_target_ports $i]
-
-  connect_net -net $chosen_net -objects [get_ports $target_port]
+  lappend mydict [get_nets $chosen_net]
+  lappend mydict [get_ports  $target_port]
 }
+connect_net -dict $mydict
 
 # remove the anchors
 set_property DONT_TOUCH 0 [get_nets ap_clk]
