@@ -98,10 +98,6 @@ if __name__ == '__main__':
 
   parallel_run_dir = base_dir + '/parallel_run'
 
-  final_stitch_run_dir = base_dir + '/parallel_stitch'
-  final_anchor_placement_path = f'{final_stitch_run_dir}/finalized_anchor_placement.json'
-  anchor_placement = json.loads(open(final_anchor_placement_path, 'r').read())
-
   hub = json.loads(open(hub_path, 'r').read())
 
   opt_dir = base_dir + '/opt_test'
