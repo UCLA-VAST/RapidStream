@@ -64,6 +64,7 @@ set_property DONT_TOUCH 0 [get_nets ap_clk_port]
 set_property DONT_TOUCH 0 [get_cells test_bufg]
 disconnect_net -net ap_clk_port -objects [get_ports ap_clk_port]
 remove_port ap_clk_port
+remove_net ap_clk_port
 disconnect_net -net ap_clk -objects [get_pins test_bufg/O]
 remove_cell test_bufg
 create_port -direction IN ap_clk
@@ -74,4 +75,10 @@ set_property IS_ROUTE_FIXED 0 [get_nets ap_clk]
 route_design -unroute -nets [get_nets ap_clk]
 
 # remove dead nets
-opt_design
+set all_dead_bus []
+foreach net_name $all_dead_nets {
+  set bus_name [lindex [split $net_name "\["] 0]
+  lappend all_dead_bus $bus_name
+}
+set unique_dead_bus [lsort -unique $all_dead_bus]
+remove_net $unique_dead_bus
