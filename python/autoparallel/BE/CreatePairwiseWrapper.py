@@ -208,6 +208,9 @@ def createVivadoScriptForSlotPair(
   if hub['InSlotPipelineStyle'] == 'LUT':
     script.append(setMaxDelayFromLut())
     
+  # report the anchor usage of the buffer region
+  script.append(f'report_utilization -pblocks [get_pblocks buffer_for_anchors]')
+
   # place and anchors
   # Using Quick will result in bad results...
   script.append(f'place_design -directive RuntimeOptimized')
