@@ -100,7 +100,7 @@ def __writePlacementResults(anchor2bin2var):
   f.close()
 
 
-def runILPWeightMatchingPlacement(pair_name, anchor_connection_json_path):
+def runILPWeightMatchingPlacement(pair_name, anchor_connections):
   """
   formulate the anchor placement algo as a weight matching problem.
   Quantize the buffer region into separate bins and assign a cost for each bin
@@ -108,7 +108,6 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connection_json_path):
   Note that we could use CONTINOUS ILP variables in this special case
   """
   slot1_name, slot2_name = pair_name.split('_AND_')
-  anchor_connections = json.loads(open(anchor_connection_json_path, 'r').read())
 
   # so far we assume the connected cells are all SLICE. not sure other types are possible
   assert all(loc.startswith('SLICE_') for locs in anchor_connections.values() for loc in locs)
@@ -138,81 +137,73 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connection_json_path):
   __ILPSolving(anchor_connections, bins, allowed_usage_per_bin)
 
 
-def setupPairwiseILPAnchorPlacement(hub):
+def collectAllConnectionsOfTargetAnchors(pair_name):
   """
-  run an ILP for each pair of slots
+  for a pair of anchors, collect all connections of the anchors in between the two slots
   """
-  pair_list = hub["AllSlotPairs"]
-  for pair in pair_list:
-    wrapper_name = '_AND_'.join(pair)
-    pair_dir = f'{ilp_dir}/' + wrapper_name
-    os.mkdir(pair_dir)
-    
-    connection1 = json.loads(open(f'{extraction_dir}/{pair[0]}/anchor_connection.json', 'r').read())
-    connection2 = json.loads(open(f'{extraction_dir}/{pair[1]}/anchor_connection.json', 'r').read())
+  pair_dir = f'{anchor_placement_dir}/' + pair_name
+  os.mkdir(pair_dir)
+  
+  slot1_name, slot2_name = pair_name.split('_AND_')
+  connection1 = json.loads(open(get_anchor_connection_path(slot1_name), 'r').read())
+  connection2 = json.loads(open(get_anchor_connection_path(slot2_name), 'r').read())
 
-    # get the common anchors
-    common_anchor_connections = {}
-    for anchor, locs_part1 in connection1.items():
-      if anchor in connection2:
-        locs_part2 = connection2[anchor]
-        common_anchor_connections[anchor] = locs_part1 + locs_part2
+  # get the common anchors
+  common_anchor_connections = {}
+  for anchor, locs_part1 in connection1.items():
+    if anchor in connection2:
+      locs_part2 = connection2[anchor]
+      common_anchor_connections[anchor] = locs_part1 + locs_part2
 
-    open(f'{pair_dir}/common_anchor_connections.json', 'w').write(json.dumps(common_anchor_connections, indent=2))
+  open(f'{pair_dir}/common_anchor_connections.json', 'w').write(json.dumps(common_anchor_connections, indent=2))
+  return common_anchor_connections
 
-
-def setupAnchorConnectionExtraction(hub, get_slot_dcp_path, anchor_connection_extraction_script_path):
+def setupAnchorPlacement(hub):
   """
-  open each placed slot, extract which cells connect to the anchors
+  poll on if the initial placement of each slot has finished
+  If two slots of a pair are both ready, start the ILP anchor placement
   """
   tasks = []
-  for slot_name in hub['SlotIO'].keys():
-    result_dir = f'{extraction_dir}/{slot_name}'
-    src_dcp_path = get_slot_dcp_path(slot_name)
+  for slot1_name, slot2_name in hub["AllSlotPairs"]:
+    pair_name = f'{slot1_name}_AND_{slot2_name}'
+    os.mkdir(f'{anchor_placement_dir}/{pair_name}')
+    
+    guard1 = f'until [ -f {get_anchor_connection_path(slot1_name)}.done.flag ]; do sleep 10; done'
+    guard2 = f'until [ -f {get_anchor_connection_path(slot2_name)}.done.flag ]; do sleep 10; done'
 
-    os.mkdir(result_dir)
+    ilp_placement = f'python3.6 -m autoparallel.BE.PairwiseAnchorPlacement {hub_path} {base_dir} RUN {iter} {pair_name}'
 
-    script = []
-    script.append(f'open_checkpoint {src_dcp_path}')
-    script.append(f'source {anchor_connection_extraction_script_path}')
+    touch_flag = f'touch {anchor_placement_dir}/{pair_name}/done.flag'
 
-    open(f'{result_dir}/extract_anchor_connection.tcl', 'w').write('\n'.join(script))
+    tasks.append(f'cd {anchor_placement_dir}/{pair_name} && {guard1} && {guard2} && {ilp_placement} && {touch_flag}')
 
-    tasks.append(f'cd {result_dir} && VIV_VER=2020.1 vivado -mode batch -source extract_anchor_connection.tcl')
-
-  open(f'{extraction_dir}/parallel-extraction.txt', 'w').write('\n'.join(tasks))
-
+  open(f'{anchor_placement_dir}/parallel-ilp-placement-iter{iter}.txt', 'w').write('\n'.join(tasks))
 
 if __name__ == '__main__':
-  assert len(sys.argv) >= 4, 'input (1) the path to the front end result file; (2) the target directory; (3) which action'
+  assert len(sys.argv) >= 5, 'input (1) the path to the front end result file; (2) the target directory; (3) which action; (4) which iteration'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   option = sys.argv[3]
+  iter = int(sys.argv[4])
   hub = json.loads(open(hub_path, 'r').read())
 
-  anchor_placement_dir = f'{base_dir}/parallel_ILP_anchor_placement'
-  ilp_dir = f'{anchor_placement_dir}/ilp_placement'
-  extraction_dir = f'{anchor_placement_dir}/connection_extraction'
+  if iter == 0:
+    get_anchor_connection_path = lambda slot_name : f'{base_dir}/parallel_run/{slot_name}/{slot_name}_placed_free_run/anchor_connections.json'
+  else:
+    get_anchor_connection_path = lambda slot_name : f'{base_dir}/placement_opt_iter{iter}/{slot_name}/anchor_connections.json'
 
-  if option == 'SetupAnchorConnectionExtraction':
-    os.mkdir(anchor_placement_dir)
-    os.mkdir(extraction_dir)
-    os.mkdir(ilp_dir)
+  anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter{iter}'
 
-    current_path = os.path.dirname(os.path.realpath(__file__))
-    extraction_script_path = f'{current_path}/../../../tcl/extractSrcAndDstOfAnchors.tcl'
+  # run this before the ILP anchor placement, setup for the later steps
+  if option == 'SETUP':
+    os.mkdir(anchor_placement_dir)    
+    setupAnchorPlacement(hub)
 
-    slot_placement_dir = f'{base_dir}/parallel_run'
-    get_slot_dcp_path = lambda slot_name : f'{slot_placement_dir}/{slot_name}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp'
-    setupAnchorConnectionExtraction(hub, anchor_placement_dir, get_slot_dcp_path, extraction_script_path)
-
-  elif option == 'MergeAnchorConnectionForSlotPairs':
-    setupPairwiseILPAnchorPlacement(hub)
-
-  elif option == 'WeightMatchPlacement':
-    pair_name = sys.argv[4]
-    anchor_connection_json = f'{ilp_dir}/{pair_name}/common_anchor_connections.json'
-    runILPWeightMatchingPlacement(pair_name, anchor_connection_json)
-
+  # run the ILP placement for the given slot pairs
+  elif option == 'RUN':
+    pair_name = sys.argv[5]
+    common_anchor_connections = collectAllConnectionsOfTargetAnchors(pair_name) 
+    runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
+    
   else:
     assert False, f'unrecognized option {option}'
