@@ -15,7 +15,9 @@ def getAnchorConnectionExtractionScript():
   """
   current_path = os.path.dirname(os.path.realpath(__file__))
   extraction_script_path = f'{current_path}/../../../tcl/extractSrcAndDstOfAnchors.tcl'
-  return [f'source {extraction_script_path}']
+  return [
+    f'source {extraction_script_path}',
+    f'exec touch anchor_connections.json.done.flag']
 
 def getPlacementScript(
     fpga_part_name, 
