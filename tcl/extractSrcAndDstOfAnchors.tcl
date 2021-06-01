@@ -47,7 +47,7 @@ foreach anchor $anchor_cells {
 
 }
 
-set file [open "anchor_connection.json" "w"]
+set file [open "anchor_connections.json" "w"]
 puts $file " { "
 puts $file [join $lines ",\n"]
 puts $file " } "
