@@ -3,6 +3,19 @@ import json
 import sys
 import math
 import re
+import os
+
+# For historical reasons this file is called CreateVivadoRun
+# What it actually does is setting up the synthesis and initial placement of each slot
+
+def getAnchorConnectionExtractionScript():
+  """
+  print out the locations of the cells that the anchors connect to
+  For use in the customized ILP placement
+  """
+  current_path = os.path.dirname(os.path.realpath(__file__))
+  extraction_script_path = f'{current_path}/../../../tcl/extractSrcAndDstOfAnchors.tcl'
+  return [f'source {extraction_script_path}']
 
 def getPlacementScript(
     fpga_part_name, 
@@ -58,6 +71,9 @@ def getPlacementScript(
   # write out the whole anchored slot
   script.append(f'write_checkpoint {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp')
   # script.append(f'write_edif {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.edf')
+
+  # print out anchor connections for customized ILP anchor placement
+  script += getAnchorConnectionExtractionScript()
 
   script.append(f'exec touch {output_path}/{slot_name}_placed_free_run/{slot_name}.placement.done.flag') # signal that the DCP generation is finished
 
