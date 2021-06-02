@@ -2,9 +2,12 @@ import json
 import re
 import sys
 import os
+import logging
+import time
 from collections import defaultdict, OrderedDict
 from mip import Model, minimize, CONTINUOUS, xsum
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
+from autoparallel.BE.BEManager import loggingSetup
 from autobridge.Device.DeviceManager import DeviceU250
 from autobridge.Device.ResourceMapU250 import ResourceMapU250
 
@@ -47,8 +50,12 @@ def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
   """
   set up and solve the weight matching ILP
   """
+  start_time = time.perf_counter()
+  get_time_stamp = lambda : time.perf_counter() - start_time
+
   m = Model()
 
+  logging.info(f'calculate bin cost... {get_time_stamp()}')
   anchor2bin2cost = {} # for each anchor, the cost of each bin
 
   for anchor in anchor_connections.keys():
@@ -57,6 +64,7 @@ def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
 
   # create ILP variables.
   # Note that we use the CONTINOUS type due to this special case
+  logging.info(f'create ILP variables... {get_time_stamp()}')
   anchor2bin2var = {}
   for anchor in anchor_connections.keys():
     bin2var = {bin : m.add_var(var_type=CONTINUOUS, lb=0, ub=1) for bin in bins}
@@ -68,6 +76,7 @@ def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
       bin2anchor2var[bin][anchor] = var
 
   # each anchor is placed once
+  logging.info(f'adding constraints... {get_time_stamp()}')
   for anchor in anchor_connections.keys():
     bin2var = anchor2bin2var[anchor]
     m += xsum(var for var in bin2var.values()) == 1
@@ -84,7 +93,9 @@ def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
       var_and_cost.append((bin2var[bin], bin2cost[bin]))
   m.objective = minimize(xsum(var * cost for var, cost in var_and_cost))
 
+  logging.info(f'start the solving process... {get_time_stamp()}')
   m.optimize()
+  logging.info(f'finish the solving process... {get_time_stamp()}')
 
   __writePlacementResults(anchor2bin2var)
 
@@ -135,6 +146,11 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connections):
 
   # seems that this num must be integer, otherwise we cannot treat each ILP var as CONTINOUS
   allowed_usage_per_bin = round(bin_size * max_usage_ratio_per_bin) 
+
+  logging.info(f'num_FDRE: {num_FDRE}')
+  logging.info(f'num_anchor: {num_anchor}')
+  logging.info(f'total_usage_percent: {total_usage_percent}')
+  logging.info(f'allowed_usage_per_bin: {allowed_usage_per_bin}')
 
   # run the ILP model and write out the results
   __ILPSolving(anchor_connections, bins, allowed_usage_per_bin)
@@ -225,6 +241,8 @@ if __name__ == '__main__':
   option = sys.argv[3]
   iter = int(sys.argv[4])
   hub = json.loads(open(hub_path, 'r').read())
+
+  loggingSetup()
 
   if iter == 0:
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/parallel_run/{slot_name}/anchor_connections.json'
