@@ -4,7 +4,7 @@ import sys
 import os
 import math
 
-def getSlotPlacementOptScript(hub, slot_name, dcp_path):
+def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts):
   """ phys_opt_design the slot based on the dictated anchor locations """
   script = []
 
@@ -22,7 +22,9 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path):
   script.append(f'unplace_cell [get_cells -regexp .*_q0_reg.*]')
 
   # apply the placement of anchor registers
-  script.append(f'source place_anchors_of_slot.tcl')
+  # script.append(f'source place_anchors_of_slot.tcl')
+  for anchor_placement in anchor_placement_scripts:
+    script.append(f'source {anchor_placement}')
 
   # get rid of the place holder LUTs
   if hub['InSlotPipelineStyle'] == 'LUT':
@@ -48,7 +50,7 @@ def removeLUTPlaceholders():
 
   return script
 
-def generateParallelScript(hub, opt_dir, user_name, server_list):
+def generateParallelScript(hub, user_name, server_list):
   """
   summarize all tasks for gnu parallel
   fire as soon as the neighbor anchors are ready
@@ -58,14 +60,17 @@ def generateParallelScript(hub, opt_dir, user_name, server_list):
   for slot_name in slot_names:
     # wait until local anchors are ready
     # check flags to prevent race conditions
-    guard = f'until [[ -f {opt_dir}/{slot_name}/place_anchors_of_slot.done.flag ]] ; do sleep 10; done'
+    flags = get_all_anchor_placement_flags(slot_name)
+    get_guard = lambda flag : f'until [[ -f {flag} ]] ; do sleep 5; done'
+    guards =  ' && '.join([get_guard(flag) for flag in flags])
+
     vivado = f'VIV_VER=2020.1 vivado -mode batch -source {slot_name}_phys_opt_placement.tcl'
     
     # broadcast the results
     for server in server_list:
       vivado += f' && rsync -azh --delete -r {opt_dir}/{slot_name}/ {user_name}@{server}:{opt_dir}/{slot_name}/'
 
-    command = f' {guard} && cd {opt_dir}/{slot_name} && {vivado}'
+    command = f' {guards} && cd {opt_dir}/{slot_name} && {vivado}'
     all_tasks.append(command)
 
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
@@ -73,16 +78,18 @@ def generateParallelScript(hub, opt_dir, user_name, server_list):
     local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
     open(f'{opt_dir}/parallel-opt-placement-{server}.txt', 'w').write('\n'.join(local_tasks))
 
-def generateOptScript(hub, parallel_run_dir):
+def generateOptScript(hub):
   """
   setup the opt script for each slot
   """
   for slot_name in hub['SlotIO'].keys():
-    slot_dir = f'{parallel_run_dir}/{slot_name}'
-    slot_placement_dir = f'{slot_dir}/{slot_name}_placed_free_run'
-    dcp_path = f'{slot_placement_dir}/{slot_name}_placed_free_run.dcp'
+    os.mkdir(f'{opt_dir}/{slot_name}')
+    dcp_path = get_dcp_path(slot_name)
 
-    opt_script = getSlotPlacementOptScript(hub, slot_name, dcp_path)
+    # get the placement of the anchors
+    anchor_placement_scripts = get_all_anchor_placement_scripts(slot_name)
+
+    opt_script = getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts)
     open(f'{opt_dir}/{slot_name}/{slot_name}_phys_opt_placement.tcl', 'w').write('\n'.join(opt_script))
   
 if __name__ == '__main__':
@@ -91,19 +98,27 @@ if __name__ == '__main__':
   assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
-  
+  hub = json.loads(open(hub_path, 'r').read())
+  pair_list = hub["AllSlotPairs"]
+  pair_name_list = ['_AND_'.join(pair) for pair in pair_list]
+
+  opt_dir = base_dir + '/opt_placement_iter0'
+  os.mkdir(opt_dir)  
+
   user_name = 'einsx7'
-  server_list=['u5','u17','u18','u15']
+  # server_list=['u5','u17','u18','u15']
+  server_list=['u5']
   print(f'WARNING: the server list is: {server_list}' )
 
-  parallel_run_dir = base_dir + '/parallel_run'
+  # path of the checkpoint in the last iteration
+  get_dcp_path = lambda slot_name: f'{base_dir}/parallel_run/{slot_name}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp'
+  get_anchor_placement_script = lambda pair_name : f'{base_dir}/ILP_anchor_placement_iter0/{pair_name}/place_anchors.tcl'
+  get_anchor_placement_flag = lambda pair_name : get_anchor_placement_script(pair_name) + '.done.flag'
 
-  hub = json.loads(open(hub_path, 'r').read())
+  # path of the anchor placement in the current iteration
+  get_related_pairs = lambda slot_name : [pair_name for pair_name in pair_name_list if slot_name in pair_name]
+  get_all_anchor_placement_scripts = lambda slot_name : [get_anchor_placement_script(pair_name) for pair_name in get_related_pairs(slot_name)]
+  get_all_anchor_placement_flags = lambda slot_name : [script + '.done.flag' for script in get_all_anchor_placement_scripts(slot_name)]
 
-  opt_dir = base_dir + '/opt_test'
-  os.mkdir(opt_dir)
-  for slot_name in hub['SlotIO'].keys():
-    os.mkdir(f'{opt_dir}/{slot_name}')
-
-  generateOptScript(hub, parallel_run_dir)
-  generateParallelScript(hub, opt_dir, user_name, server_list)
+  generateOptScript(hub)
+  generateParallelScript(hub, user_name, server_list)
