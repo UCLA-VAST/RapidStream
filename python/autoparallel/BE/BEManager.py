@@ -100,6 +100,22 @@ def parallelSlotRun(hub, parallel_run_dir, user_name, server_list):
 
   createMultiServerExecution(hub, parallel_run_dir, user_name=user_name, server_list=server_list)
 
+def loggingSetup():
+  root = logging.getLogger()
+  root.setLevel(logging.DEBUG)
+  formatter = logging.Formatter("[%(levelname)s: %(funcName)25s() ] %(message)s")
+  
+  info_file_handler = logging.FileHandler(filename='ILP-placement.log', mode='w')
+  info_file_handler.setLevel(logging.INFO)
+  stdout_handler = logging.StreamHandler(sys.stdout)
+  stdout_handler.setLevel(logging.INFO)
+
+  handlers = [info_file_handler, stdout_handler]
+  for handler in handlers:
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
+
+    
 if __name__ == '__main__':
   assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
   backend_run_dir = sys.argv[2]
