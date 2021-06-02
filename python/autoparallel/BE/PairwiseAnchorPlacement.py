@@ -30,7 +30,6 @@ def __getWeightMatchingBins(slot1_name, slot2_name, bin_size_x, bin_size_y):
                     for y in range(left_down_y, up_right_y + 1, bin_size_y) ]
 
   # calibrate the positions
-  resource_map_u250 = ResourceMapU250()
   bins_calibrated = [resource_map_u250.getCalibratedCoordinates('SLICE', orig_x, orig_y) \
             for orig_x, orig_y in bins]
 
@@ -104,8 +103,8 @@ def __writePlacementResults(anchor2bin2var):
   """
   write out the results as a tcl file to place the anchors into the calculated positions
   """
-  f = open('result.tcl', 'w')
-  f.write('place_cell { \\ \n')
+  f = open('place_anchors.tcl', 'w')
+  f.write('place_cell { \\\n')
   for anchor, bin2var in anchor2bin2var.items():
     for bin, var in bin2var.items():
       var_value = round(var.x)
@@ -114,7 +113,11 @@ def __writePlacementResults(anchor2bin2var):
       assert abs(var.x - var_value) < 0.000001, var.x
 
       if var_value == 1:
-        f.write(f'  {anchor} SLICE_X{bin[0]}Y{bin[1]} \\\n') # note that spaces are not allowed after \
+
+        # get the original coordinates
+        orig_x = resource_map_u250.getSliceOrigXCoordinates(bin[0])
+        orig_y = bin[1]
+        f.write(f'  {anchor} SLICE_X{orig_x}Y{orig_y} \\\n') # note that spaces are not allowed after \
   f.write('}\n')
   f.close()
 
@@ -135,6 +138,9 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connections):
   bin_size_y = 1
   num_FDRE_per_SLICE = 16
   bin_size = bin_size_x * bin_size_y * num_FDRE_per_SLICE
+
+  # note that the coordinates of the bins are calibrated
+  # need to convert back to the original coordinates at the end
   bins = __getWeightMatchingBins(slot1_name, slot2_name, bin_size_x, bin_size_y)
 
   # set up allowd
@@ -205,7 +211,6 @@ def collectAllConnectionsOfTargetAnchors(pair_name):
   open(f'{pair_dir}/common_anchor_connections_adjusted.json', 'w').write(json.dumps(anchor_connection_adjusted, indent=2))
 
   # convert the site name to coordinates
-  resource_map_u250 = ResourceMapU250()
   anchor_connection_calibrated = {
     anchor : \
       [resource_map_u250.getCalibratedCoordinatesFromSiteName(site_name) for site_name in site_names] \
@@ -228,7 +233,7 @@ def setupAnchorPlacement(hub):
 
     ilp_placement = f'python3.6 -m autoparallel.BE.PairwiseAnchorPlacement {hub_path} {base_dir} RUN {iter} {pair_name}'
 
-    touch_flag = f'touch {anchor_placement_dir}/{pair_name}/done.flag'
+    touch_flag = f'touch {anchor_placement_dir}/{pair_name}/place_anchors.tcl.done.flag'
 
     tasks.append(f'cd {anchor_placement_dir}/{pair_name} && {guard1} && {guard2} && {ilp_placement} && {touch_flag}')
 
@@ -250,6 +255,8 @@ if __name__ == '__main__':
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/placement_opt_iter{iter}/{slot_name}/anchor_connections.json'
 
   anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter{iter}'
+
+  resource_map_u250 = ResourceMapU250()
 
   # run this before the ILP anchor placement, setup for the later steps
   if option == 'SETUP':
