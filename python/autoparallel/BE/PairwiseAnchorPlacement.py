@@ -2,10 +2,11 @@ import json
 import re
 import sys
 import os
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from mip import Model, minimize, CONTINUOUS, xsum
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autobridge.Device.DeviceManager import DeviceU250
+from autobridge.Device.ResourceMapU250 import ResourceMapU250
 
 def __getWeightMatchingBins(slot1_name, slot2_name, bin_size_x, bin_size_y):
   """
@@ -20,10 +21,17 @@ def __getWeightMatchingBins(slot1_name, slot2_name, bin_size_x, bin_size_y):
   for slice_region in slice_regions:
     match_res = re.findall(r'SLICE_X(\d+)Y(\d+)[ ]*:[ ]*SLICE_X(\d+)Y(\d+)', slice_region) # output format is [(val1, val2, val3, val4)]
     left_down_x, left_down_y, up_right_x, up_right_y = map(int, match_res[0])
-    bins += [(x, y) for x in range(left_down_x, up_right_x, bin_size_x) \
-                    for y in range(left_down_y, up_right_y, bin_size_y) ]
 
-  return bins
+    # note that the boundaries in pblocks are inclusive
+    bins += [(x, y) for x in range(left_down_x, up_right_x + 1, bin_size_x) \
+                    for y in range(left_down_y, up_right_y + 1, bin_size_y) ]
+
+  # calibrate the positions
+  resource_map_u250 = ResourceMapU250()
+  bins_calibrated = [resource_map_u250.getCalibratedCoordinates('SLICE', orig_x, orig_y) \
+            for orig_x, orig_y in bins]
+
+  return bins_calibrated
 
 
 def __getEdgeCost(neighbor_cell_locs, FDRE_loc):
@@ -106,14 +114,9 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connections):
   Quantize the buffer region into separate bins and assign a cost for each bin
   minimize the total cost.
   Note that we could use CONTINOUS ILP variables in this special case
+  anchor_connections: anchor_name -> list of coordinates
   """
   slot1_name, slot2_name = pair_name.split('_AND_')
-
-  # so far we assume the connected cells are all SLICE. not sure other types are possible
-  assert all(loc.startswith('SLICE_') for locs in anchor_connections.values() for loc in locs)
-
-  get_coord = lambda locs : [tuple(map(int, re.findall(r'[XY](\d+)', loc))) for loc in locs]
-  anchor_connections = {anchor : get_coord(locs) for anchor, locs in anchor_connections.items()}
 
   # set up the bins
   # bin_size_x = 1 && bin_size_y = 1 means that we treat each SLICE as a bin
@@ -128,7 +131,7 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connections):
   num_FDRE = len(bins) * bin_size
   total_usage_percent = num_anchor / num_FDRE
   max_usage_ratio_per_bin = 0.5 if total_usage_percent < 0.4 else total_usage_percent + 0.1
-  assert total_usage_percent < 0.6, 'buffer region too crowded!'
+  assert total_usage_percent < 0.7, f'{pair_name}: buffer region too crowded! {num_anchor} / {num_FDRE} = {num_anchor/num_FDRE}'
 
   # seems that this num must be integer, otherwise we cannot treat each ILP var as CONTINOUS
   allowed_usage_per_bin = round(bin_size * max_usage_ratio_per_bin) 
@@ -137,26 +140,62 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connections):
   __ILPSolving(anchor_connections, bins, allowed_usage_per_bin)
 
 
+def __adjustConnectionFormat(common_anchor_connections):
+  """
+  The outputs of the connection extraction tcl may have some flaws.
+  e.g. two site names in one entry: "SLICE_X139Y112 SLICE_X139Y112"
+  Processing those flaws is easier in python.
+  We remove duplicated site names and process the case where multiple site names are merged together
+  In some corner cases, anchor may have empty connections
+  """
+  def adjust_format(anchor, connections):
+    connections_splited = [site_name for site_names in connections for site_name in site_names.split(' ')]
+    connections_deduplicated = list(set(connections_splited))
+    
+    # corner case: if the source of the ap_done anchor reg is a 1'b1, there may be no connections to the slot
+    if any(site_name == "" for site_name in connections_deduplicated):
+      assert 'ap_done_Boundary' in anchor
+    
+    connections_non_zero = [site_name for site_name in connections_deduplicated if site_name]
+
+    return connections_non_zero
+
+
+  return {anchor : adjust_format(anchor, connections) \
+      for anchor, connections in common_anchor_connections.items()}
+
 def collectAllConnectionsOfTargetAnchors(pair_name):
   """
   for a pair of anchors, collect all connections of the anchors in between the two slots
   """
   pair_dir = f'{anchor_placement_dir}/' + pair_name
-  os.mkdir(pair_dir)
   
   slot1_name, slot2_name = pair_name.split('_AND_')
   connection1 = json.loads(open(get_anchor_connection_path(slot1_name), 'r').read())
   connection2 = json.loads(open(get_anchor_connection_path(slot2_name), 'r').read())
 
   # get the common anchors
-  common_anchor_connections = {}
+  common_anchor_connections = {} # anchor_reg_name -> list of site names
   for anchor, locs_part1 in connection1.items():
     if anchor in connection2:
       locs_part2 = connection2[anchor]
-      common_anchor_connections[anchor] = locs_part1 + locs_part2
 
+      # remove repetitives. Multiple destinations may be in the same site
+      common_anchor_connections[anchor] = list(OrderedDict.fromkeys(locs_part1 + locs_part2))
   open(f'{pair_dir}/common_anchor_connections.json', 'w').write(json.dumps(common_anchor_connections, indent=2))
-  return common_anchor_connections
+  
+  # post processing corner cases not easily handled in tcl
+  anchor_connection_adjusted = __adjustConnectionFormat(common_anchor_connections)
+  open(f'{pair_dir}/common_anchor_connections_adjusted.json', 'w').write(json.dumps(anchor_connection_adjusted, indent=2))
+
+  # convert the site name to coordinates
+  resource_map_u250 = ResourceMapU250()
+  anchor_connection_calibrated = {
+    anchor : \
+      [resource_map_u250.getCalibratedCoordinatesFromSiteName(site_name) for site_name in site_names] \
+        for anchor, site_names in anchor_connection_adjusted.items()}
+  
+  return anchor_connection_calibrated
 
 def setupAnchorPlacement(hub):
   """
@@ -188,7 +227,7 @@ if __name__ == '__main__':
   hub = json.loads(open(hub_path, 'r').read())
 
   if iter == 0:
-    get_anchor_connection_path = lambda slot_name : f'{base_dir}/parallel_run/{slot_name}/{slot_name}_placed_free_run/anchor_connections.json'
+    get_anchor_connection_path = lambda slot_name : f'{base_dir}/parallel_run/{slot_name}/anchor_connections.json'
   else:
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/placement_opt_iter{iter}/{slot_name}/anchor_connections.json'
 
