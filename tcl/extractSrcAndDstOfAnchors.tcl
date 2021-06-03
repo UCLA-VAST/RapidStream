@@ -22,7 +22,9 @@ foreach anchor $anchor_cells {
     set parent_cell [get_cells -of_object $all_pins -filter {IS_PRIMITIVE == 1}]
 
     if {$parent_cell != ""} {
-      lappend dst_cells $parent_cell
+      foreach target $parent_cell {
+        lappend dst_cells $target
+      }
     }
   }
 
