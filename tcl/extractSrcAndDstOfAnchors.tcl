@@ -33,13 +33,19 @@ foreach anchor $anchor_cells {
 
   if {$src_cell != ""} {
     set src_cell_loc [get_property LOC [get_cells $src_cell]]
-    lappend locations " \"${src_cell_loc}\""
+    set src_cell_type [get_property PRIMITIVE_TYPE [get_cells $src_cell] ]
+    
+    # the source cell may be VCC or GND
+    if {$src_cell_loc != ""} { 
+      lappend locations " { \"${src_cell_loc}\" : \"${src_cell_type}\" } "
+    }
   }
 
   if {$dst_cells != []} {
     foreach dst_cell $dst_cells {
       set dst_cell_loc [get_property LOC [get_cells $dst_cell]]
-      lappend locations "\"${dst_cell_loc}\""
+      set dst_cell_type [get_property PRIMITIVE_TYPE  [get_cells $dst_cell] ]
+      lappend locations " { \"${dst_cell_loc}\" : \"${dst_cell_type}\" }"
     }
   }
 
