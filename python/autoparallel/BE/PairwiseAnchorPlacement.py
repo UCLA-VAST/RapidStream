@@ -36,13 +36,28 @@ def __getWeightMatchingBins(slot1_name, slot2_name, bin_size_x, bin_size_y):
   return bins_calibrated
 
 
-def __getEdgeCost(neighbor_cell_locs, FDRE_loc):
+def __getEdgeCost(neighbor_cell_loc2types, FDRE_loc):
   """
   use the distance as the cost function
-  TODO: penalize long wires and congestion 
+  If the target is a LUT, we add a penalty to the distance
   """
   dist = lambda loc1, loc2 : abs(loc1[0] -loc2[0]) + abs(loc1[1] - loc2[1])
-  return sum(dist(cell_loc, FDRE_loc) for cell_loc in neighbor_cell_locs) / len(neighbor_cell_locs)
+  lut_penalty = lambda types : 3 if any('LUT' in type for type in types) else 1
+
+  dists = [dist(cell_loc, FDRE_loc) * lut_penalty(types) for cell_loc, types in neighbor_cell_loc2types.items()]
+
+  # the total wire length
+  dist_score = sum(dists) / len(neighbor_cell_loc2types)
+
+  # want the anchor to be near the mid point
+  unbalance_penalty = max(dists) - min(dists)
+  weight = 1
+
+  # TODO: maybe penalize extreme long wires
+
+  final_score = dist_score + weight * unbalance_penalty
+
+  return final_score
 
 
 def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
@@ -128,7 +143,7 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connections):
   Quantize the buffer region into separate bins and assign a cost for each bin
   minimize the total cost.
   Note that we could use CONTINOUS ILP variables in this special case
-  anchor_connections: anchor_name -> list of coordinates
+  anchor_connections: anchor_name -> coordinates -> type(s)
   """
   slot1_name, slot2_name = pair_name.split('_AND_')
 
@@ -162,61 +177,32 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connections):
   __ILPSolving(anchor_connections, bins, allowed_usage_per_bin)
 
 
-def __adjustConnectionFormat(common_anchor_connections):
-  """
-  The outputs of the connection extraction tcl may have some flaws.
-  e.g. two site names in one entry: "SLICE_X139Y112 SLICE_X139Y112"
-  Processing those flaws is easier in python.
-  We remove duplicated site names and process the case where multiple site names are merged together
-  In some corner cases, anchor may have empty connections
-  """
-  def adjust_format(anchor, connections):
-    connections_splited = [site_name for site_names in connections for site_name in site_names.split(' ')]
-    connections_deduplicated = list(set(connections_splited))
-    
-    # corner case: if the source of the ap_done anchor reg is a 1'b1, there may be no connections to the slot
-    if any(site_name == "" for site_name in connections_deduplicated):
-      assert 'ap_done_Boundary' in anchor
-    
-    connections_non_zero = [site_name for site_name in connections_deduplicated if site_name]
-
-    return connections_non_zero
-
-
-  return {anchor : adjust_format(anchor, connections) \
-      for anchor, connections in common_anchor_connections.items()}
-
 def collectAllConnectionsOfTargetAnchors(pair_name):
   """
   for a pair of anchors, collect all connections of the anchors in between the two slots
-  """
-  pair_dir = f'{anchor_placement_dir}/' + pair_name
-  
+  """  
   slot1_name, slot2_name = pair_name.split('_AND_')
   connection1 = json.loads(open(get_anchor_connection_path(slot1_name), 'r').read())
   connection2 = json.loads(open(get_anchor_connection_path(slot2_name), 'r').read())
 
   # get the common anchors
-  common_anchor_connections = {} # anchor_reg_name -> list of site names
+  common_anchor_connections = {} # anchor_reg_name -> site_coordinates -> all types of the cells in this site
   for anchor, locs_part1 in connection1.items():
     if anchor in connection2:
       locs_part2 = connection2[anchor]
+      site_name2types = defaultdict(list)
 
-      # remove repetitives. Multiple destinations may be in the same site
-      common_anchor_connections[anchor] = list(OrderedDict.fromkeys(locs_part1 + locs_part2))
-  open(f'{pair_dir}/common_anchor_connections.json', 'w').write(json.dumps(common_anchor_connections, indent=2))
-  
-  # post processing corner cases not easily handled in tcl
-  anchor_connection_adjusted = __adjustConnectionFormat(common_anchor_connections)
-  open(f'{pair_dir}/common_anchor_connections_adjusted.json', 'w').write(json.dumps(anchor_connection_adjusted, indent=2))
+      for site_name_and_type in locs_part1 + locs_part2:
+        [(site_name, type)] = site_name_and_type.items()
 
-  # convert the site name to coordinates
-  anchor_connection_calibrated = {
-    anchor : \
-      [resource_map_u250.getCalibratedCoordinatesFromSiteName(site_name) for site_name in site_names] \
-        for anchor, site_names in anchor_connection_adjusted.items()}
-  
-  return anchor_connection_calibrated
+        # convert the site name to coordinates
+        site_coordinate = resource_map_u250.getCalibratedCoordinatesFromSiteName(site_name)
+        site_name2types[site_coordinate].append(type)
+
+      assert(site_name2types)
+      common_anchor_connections[anchor] = dict(site_name2types)
+
+  return common_anchor_connections
 
 def setupAnchorPlacement(hub):
   """
