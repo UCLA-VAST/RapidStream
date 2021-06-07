@@ -16,8 +16,6 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
 
     script = []
     script.append(f'open_checkpoint {opt_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp')
-    script.append(f'source -notrace {clock_dir}/global_clock_routing/apply_ooc_clock_route.tcl')
-    script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
     # relax placement pblocks
     # do this before updating the clock to prevent vivado crash
@@ -40,6 +38,11 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
 
     script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
     script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_U0]')
+    
+    # *** prevent gap in clock routing
+    script.append(f'set_property ROUTE "" [get_nets ap_clk]')
+    script.append(f'source /home/einsx7/auto-parallel/src/clock/only_hdistr.tcl')
+    script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
     script.append(f'route_design')
     # sometimes phys_opt_design make things worse, probably because of the fixed clock
@@ -68,11 +71,12 @@ if __name__ == '__main__':
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   clock_dir = f'{base_dir}/clock_routing'
-  opt_dir = f'{base_dir}/opt_test'
+  opt_dir = f'{base_dir}/opt_placement_iter0'
   routing_dir = f'{base_dir}/slot_routing'
 
   user_name = 'einsx7'
-  server_list=['u5','u17','u18','u15']
+  # server_list=['u5','u17','u18','u15']
+  server_list=['u5']
   main_server_name = 'u5'
   print(f'WARNING: the server list is: {server_list}' )
 
