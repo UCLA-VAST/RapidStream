@@ -2,6 +2,8 @@ import sys
 import json
 import os
 import math
+from autobridge.Device.DeviceManager import DeviceU250
+from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 
 def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
   """
@@ -18,10 +20,24 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
     script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
     # relax placement pblocks
+    # do this before updating the clock to prevent vivado crash
     script.append(f'delete_pblock [get_pblocks *]')
     script.append(f'create_pblock {slot_name}')
     pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
     script.append(f'resize_pblock [get_pblocks {slot_name}] -add {pblock_def}')
+
+    # previously we set the pblock as the entire clock regions. 
+    # However, the intra-slot nets may use the anchor regions. 
+    # This will interfere with the RW router, which preserves all intra-slot nets.
+    # To get a clean anchor region, we set the routing pblock to strictly disjoint from the anchor regions
+    # The prerequisite is that the placement pblock is even smaller than the routing pblock.
+    # we need at least 1 row/col of empty space at the boundary to make the boundary nets routable.
+    buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
+    slice_buffer_at_boundary = DeviceU250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+    slice_buffer_besides_laguna = DeviceU250.getAllLagunaBufferRegions(add_empty_space=False)
+    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_at_boundary} }}')
+    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_besides_laguna} }}')
+
     script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
     script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_U0]')
 
