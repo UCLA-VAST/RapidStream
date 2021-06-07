@@ -218,7 +218,7 @@ def createVivadoScriptForSlotPair(
   # extract anchor placement
   script.append(f'source {wrapper_name}_print_anchor_placement.tcl')
 
-  # script.append(f'write_checkpoint {wrapper_name}_placed.dcp')
+  script.append(f'write_checkpoint {wrapper_name}_placed.dcp')
 
   open(f'{output_dir}/place.tcl', 'w').write('\n'.join(script))
 
