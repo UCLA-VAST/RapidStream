@@ -87,8 +87,9 @@ def __constrainSlotBody(hub, slot_name, output_path = '.', step = 'ROUTE'):
     buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
 
     # including vertical & horizontal buffer region, also leave a column of SLICE adjacent to lagunas empty
-    slice_buffer_at_boundary = DeviceManager.DeviceU250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num)
-    slice_buffer_besides_laguna = DeviceManager.DeviceU250.getAllLagunaBufferRegions()
+    # UPDATE: need additional empty space to facilitate routing. Thus we have the +1 adjustment
+    slice_buffer_at_boundary = DeviceManager.DeviceU250.getAllBoundaryBufferRegions(buffer_col_num+1, buffer_row_num+1)
+    slice_buffer_besides_laguna = DeviceManager.DeviceU250.getAllLagunaBufferRegions(add_empty_space=True)
     SLICE_buffer_pblock = slice_buffer_at_boundary + '\n' + slice_buffer_besides_laguna
 
   elif step == 'ROUTE':
