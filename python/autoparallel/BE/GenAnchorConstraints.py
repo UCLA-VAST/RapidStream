@@ -68,9 +68,18 @@ def __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets,
   return tcl
 
 def __getBufferRegionSize(hub, slot_name):
-  # TODO
-  buffer_col_num = 3
+  # the slices are organized as
+  # [ SLICE site ]--[switchbox]--[ SLICE site ]
+  # thus we want the buffer region to have complete pairs.
+  # in most cases 4 will work. However, there are situations like 
+  # [ SLICE site ]--[switchbox]--[ DSP/BRAM site ]
+  # for U250 with 2x2 slots, 4 will work for the 1st and 2nd vertical slot boundary
+  # for the 3rd boundary, we rely on the DeviceManger to reduce the num to 3 in getBufferRegionBetweenSlotPair()
+  buffer_col_num = 4
+  
+  # Each RAMB36 is 5-SLICE in height
   buffer_row_num = 5
+  
   return buffer_col_num, buffer_row_num
 
 def __constrainSlotBody(hub, slot_name, output_path = '.', step = 'ROUTE'):
