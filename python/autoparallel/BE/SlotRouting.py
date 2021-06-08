@@ -22,6 +22,7 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
     script.append(f'delete_pblock [get_pblocks *]')
     script.append(f'create_pblock {slot_name}')
     pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
+    script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_U0]')
     script.append(f'resize_pblock [get_pblocks {slot_name}] -add {pblock_def}')
 
     # previously we set the pblock as the entire clock regions. 
@@ -36,8 +37,20 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
     script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_at_boundary} }}')
     script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_besides_laguna} }}')
 
+    # remove from the routing pblock the dsp and bram that fall into the anchor region
+    # otherwise those cells may suffer from contained routing
+    list_of_anchor_region_dsp_and_bram = DeviceU250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+    str_range = '\n'.join(list_of_anchor_region_dsp_and_bram)
+    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {str_range} }}')
+
+    # remove those DSP/cells from the pblock
+    regexp_of_anchor_region_dsp_and_bram = DeviceU250.getRegexpOfAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+    for regexp in regexp_of_anchor_region_dsp_and_bram:
+      type = regexp.split('_')[0]
+      script.append(f'set target_cells [get_cells -quiet -regexp -filter {{ REF_NAME =~ ".*{type}.*" && LOC =~ ".*{regexp}.*"}} ]')
+      script.append(f'if {{$target_cells != "" }} {{ remove_cells_from_pblock [get_pblocks {slot_name}] $target_cells; puts $target_cells }}')
+
     script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
-    script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_U0]')
     
     # *** prevent gap in clock routing
     script.append(f'set_property ROUTE "" [get_nets ap_clk]')
