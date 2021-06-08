@@ -14,10 +14,12 @@ def pruneAnchors(hub, pruning_dir, routing_dir, pruning_script_path):
 
     script = []
     script.append(f'open_checkpoint {routing_dir}/{slot_name}/routed_with_ooc_clock.dcp')
-    script.append(f'source {pruning_script_path}')
 
-    # unroute the routes to the previous anchors
-    script.append(f'route_design -unroute -nets [get_nets -of_objects [get_ports -regexp .*]]')
+    # unroute the routes in anchor regions
+    script.append(f'set anchor_region_cells [get_cells -hierarchical -regexp -filter {{ PBLOCK !~ "{slot_name}" && PRIMITIVE_TYPE !~ OTHERS.*.* }} ]')
+    script.append(f'route_design -unroute -nets [get_nets -of_objects $anchor_region_cells]')
+
+    script.append(f'source {pruning_script_path}')
 
     script.append(f'write_checkpoint {pruning_dir}/{slot_name}/{slot_name}_after_pruning_anchors.dcp')
 
