@@ -120,7 +120,7 @@ def getTopIOAndInnerConnectionOfPair(hub, slot1_name, slot2_name) -> Tuple[Set, 
 
   return wrapper_io, inner_connection
 
-def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level, output_dir, wrapper_name, in_slot_pipeline_style):
+def getPairWrapper(hub, slot1_name, slot2_name, pipeline_level, in_slot_pipeline_style):
   """ 
   group together two neighbor slots 
   Wires of passing edges should not be pipelined
@@ -151,6 +151,11 @@ def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level, output
 
   pair_wrapper = header + io_decl + connection + slot1_inst + slot2_inst + ending + slot1_def + slot2_def
 
+  return pair_wrapper, pipeline_regs
+
+def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level, output_dir, wrapper_name, in_slot_pipeline_style):
+  pair_wrapper, pipeline_regs = getPairWrapper(hub, slot1_name, slot2_name, pipeline_level, in_slot_pipeline_style)
+  
   open(f'{output_dir}/{wrapper_name}.v', 'w').write('\n'.join(pair_wrapper))
 
   # in the meantime create the placement extraction script
