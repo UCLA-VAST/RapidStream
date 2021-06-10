@@ -181,6 +181,10 @@ def createVivadoScriptForSlotPair(
   script.append(f'synth_design -top "{wrapper_name}" -part {fpga_part_name} -mode out_of_context')
   script.append(f'write_checkpoint synth.dcp')
 
+  # make Vivado place the anchors on lagunas
+  # will be automatically invalidated for non-SLR-crossing pairs
+  script.append(f'set_property USER_SLL_REG 1 [get_cells -regexp {{ .*q0_reg.* }} ]')
+
   # read in the dcp of slots
   for name, path in dcp_name2path.items():
     script.append(f'read_checkpoint -cell {name}_U0 {path}')
