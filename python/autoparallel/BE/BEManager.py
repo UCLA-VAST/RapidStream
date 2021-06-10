@@ -92,11 +92,6 @@ def parallelSlotRun(hub, parallel_run_dir, user_name, server_list):
                           slot_name,
                           output_path=dir, 
                           placement_strategy='Default')
-    
-    # extract anchor placement. Note that anchor registers are appended the suffix "_anchor"
-    io_list = hub['SlotIO'][slot_name]
-    anchor_list = [ io[:-1] + [f'{io[-1]}_anchor'] for io in io_list]
-    createAnchorPlacementExtractScript(slot_name, anchor_list, dir)
 
   createMultiServerExecution(hub, parallel_run_dir, user_name=user_name, server_list=server_list)
 
