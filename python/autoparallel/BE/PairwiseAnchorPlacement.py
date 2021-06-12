@@ -4,6 +4,7 @@ import sys
 import os
 import logging
 import time
+import itertools
 from collections import defaultdict, OrderedDict
 from mip import Model, minimize, CONTINUOUS, xsum
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
@@ -221,14 +222,21 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
     slot2 = Slot(DeviceU250, slot2_name)
     up_slot = slot1 if slot1.down_left_y > slot2.down_left_y else slot2
 
-    up_slot_io = hub['SlotIO'][up_slot.getRTLModuleName()]
+    # get the downward IO of the upper slot
+    up_slot_io = hub['PathPlanningWire'][up_slot.getRTLModuleName()]['DOWN']
+    # double check that the information in the hub is consistent
+    all_io = hub['SlotIO'][up_slot.getRTLModuleName()]
+    io_from_all_directions = list(itertools.chain.from_iterable(hub['PathPlanningWire'][up_slot.getRTLModuleName()].values()))
+    assert len(all_io) == len(io_from_all_directions) + 1 # +1 because of ap_clk
 
     # the output wire of the upper slot will travel DOWN the sll
     get_sll_dir = lambda in_or_out : 'DOWN' if in_or_out == 'output' else 'UP'
+    slot_io_2_sll_dir = {io[-1] : get_sll_dir(io[0]) for io in up_slot_io}
 
-    get_anchor_name = lambda io_name : f'{io_name}_q0'
-    anchor_2_sll_dir = {get_anchor_name(io[-1]) : get_sll_dir(io[0]) for io in up_slot_io if get_anchor_name(io[-1]) in anchor_2_slice_xy}
-    assert len(anchor_2_sll_dir) == len(anchor_2_slice_xy)
+    anchor_2_sll_dir = {}
+    for anchor in anchor_2_slice_xy.keys():
+      hls_var_name = anchor.split('_q0_reg')[0]
+      anchor_2_sll_dir[anchor] = slot_io_2_sll_dir[hls_var_name]
 
     return anchor_2_sll_dir
 
@@ -248,13 +256,13 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
     """
     anchor_2_tx_or_rx = {}
     for anchor in anchor_2_slice_xy.keys():
-      if anchor_2_sll_dir[anchor] == 'UP' and anchor_2_top_or_bottom == 'BOTTOM':
+      if anchor_2_sll_dir[anchor] == 'UP' and anchor_2_top_or_bottom[anchor] == 'BOTTOM':
         choice = 'TX'
-      elif  anchor_2_sll_dir[anchor] == 'UP' and anchor_2_top_or_bottom == 'TOP':
+      elif  anchor_2_sll_dir[anchor] == 'UP' and anchor_2_top_or_bottom[anchor] == 'TOP':
         choice = 'RX'
-      elif  anchor_2_sll_dir[anchor] == 'DOWN' and anchor_2_top_or_bottom == 'BOTTOM':
+      elif  anchor_2_sll_dir[anchor] == 'DOWN' and anchor_2_top_or_bottom[anchor] == 'BOTTOM':
         choice = 'RX'
-      elif  anchor_2_sll_dir[anchor] == 'DOWN' and anchor_2_top_or_bottom == 'TOP':
+      elif  anchor_2_sll_dir[anchor] == 'DOWN' and anchor_2_top_or_bottom[anchor] == 'TOP':
         choice = 'TX'
       else:
         assert False
@@ -269,7 +277,8 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
     get the mapping from each laguna block to all anchors to be placed on this block
     """
     idx_of_right_side_slice_of_laguna_column = [x + 2 for x in DeviceU250.idx_of_left_side_slice_of_laguna_column]
-    right_slice_x_2_laguna_x = {idx : i for i, idx in enumerate(idx_of_right_side_slice_of_laguna_column)}
+    # note that each laguna column has 2 units in Y dimension
+    right_slice_x_2_laguna_x = {idx : i * 2 for i, idx in enumerate(idx_of_right_side_slice_of_laguna_column)}
 
     def __get_nearest_laguna_y(slice_y):
       if 180 <= slice_y <= 299:
@@ -282,15 +291,21 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
         assert False
       return laguna_y
 
-    slice_xy_2_anchor_list = defaultdict(dict)
+    slice_xy_2_anchor_list = defaultdict(list)
     for anchor, slice_xy in anchor_2_slice_xy.items():
       slice_xy_2_anchor_list[slice_xy].append(anchor)
 
     laguna_block_2_anchor_list = {}
+    slice_xy_2_laguna_block = {}
     for slice_xy, anchor_list in slice_xy_2_anchor_list.items():
       first_laguna_x = right_slice_x_2_laguna_x[slice_xy[0]]
       first_laguna_y = __get_nearest_laguna_y(slice_xy[1])
       laguna_block_2_anchor_list[(first_laguna_x, first_laguna_y)] = anchor_list
+      slice_xy_2_laguna_block[f'SLICE_X{slice_xy[0]}Y{slice_xy[1]}'] = f'LAGUNA_X{first_laguna_x}Y{first_laguna_y}'
+
+    laguna_block_str_2_anchor_list = {f'LAGUNA_X{xy[0]}Y{xy[1]}' : anchor_list for xy, anchor_list in laguna_block_2_anchor_list.items()}
+    open('laguna_block_2_anchor_list.json', 'w').write(json.dumps(laguna_block_str_2_anchor_list, indent=2))
+    open('slice_xy_2_laguna_block.json', 'w').write(json.dumps(slice_xy_2_laguna_block, indent=2))
 
     return laguna_block_2_anchor_list
 
@@ -325,6 +340,23 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
 
     return anchor_2_laguna
 
+  def  __laguna_rule_check():
+    """
+    check that each SLL is only used by one anchor register
+    """
+    laguna_2_anchor = {laguna : anchor for anchor, laguna in anchor_2_laguna.items()}
+    for laguna in laguna_2_anchor.keys():
+      match = re.search(r'LAGUNA_X(\d+)Y(\d+)/.X_REG(\d)', laguna)
+      x = int(match.group(1))
+      y = int(match.group(2))
+      reg = int(match.group(3))
+
+      if f'LAGUNA_X{x}Y{y+120}/TX_REG{reg}'  in laguna_2_anchor or \
+         f'LAGUNA_X{x}Y{y+120}/RX_REG{reg}'  in laguna_2_anchor or \
+         f'LAGUNA_X{x}Y{y-120}/TX_REG{reg}'  in laguna_2_anchor or \
+         f'LAGUNA_X{x}Y{y-120}/RX_REG{reg}'  in laguna_2_anchor:
+        assert False
+
   # ---------- main ----------#
 
   if not __is_slr_crossing_pair():
@@ -335,6 +367,8 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
   anchor_2_tx_or_rx =  __get_anchor_2_tx_or_rx()
   laguna_block_2_anchor_list = __get_laguna_block_2_anchor_list()
   anchor_2_laguna = __get_anchor_to_laguna()
+
+  __laguna_rule_check()
 
   return anchor_2_laguna
 
