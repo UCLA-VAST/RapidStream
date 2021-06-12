@@ -77,19 +77,11 @@ def getVivadoScriptForSlotPair(
   script.append(f'source /home/einsx7/auto-parallel/src/clock/only_hdistr.tcl')
   script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
+  # the final stitching in preserve mode is not constrained by the pblock
+  script.append(f'delete_pblocks *')
+
   script.append(f'write_checkpoint -force {wrapper_name}_before_routed.dcp')
 
-  # Using Quick will result in bad results...
-  script.append(f'route_design -preserve -directive Quick')
-
-  # unroute
-  script.append(f'set conflict_nets [get_nets -hierarchical -regexp -top_net_of_hierarchical_group -filter {{ ROUTE_STATUS == "CONFLICTS" }} ]')
-  script.append(f'route_design -unroute -nets $conflict_nets')
-
-  script.append(f'set anchor_region_cells [get_cells -hierarchical -regexp -filter {{ PBLOCK == "" && PRIMITIVE_TYPE !~ OTHERS.*.* }} ]')
-  script.append(f'route_design -unroute -nets [get_nets -of_objects $anchor_region_cells]')
-  
-  # Re-route
   script.append(f'route_design -preserve')
 
   script.append(f'write_checkpoint -force {wrapper_name}_routed.dcp')
