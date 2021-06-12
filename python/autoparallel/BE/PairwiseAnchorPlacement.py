@@ -10,6 +10,9 @@ from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autoparallel.BE.BEManager import loggingSetup
 from autobridge.Device.DeviceManager import DeviceU250
 from autobridge.Device.ResourceMapU250 import ResourceMapU250
+from autobridge.Opt.Slot import Slot
+
+######################### ILP placement ############################################
 
 def __getWeightMatchingBins(slot1_name, slot2_name, bin_size_x, bin_size_y):
   """
@@ -59,6 +62,24 @@ def __getEdgeCost(neighbor_cell_loc2types, FDRE_loc):
 
   return final_score
 
+def __getILPResults(anchor2bin2var):
+  """
+  interpret the ILP solving results. Map anchor to locations
+  """
+  anchor_2_slice_xy = {}
+  for anchor, bin2var in anchor2bin2var.items():
+    for bin, var in bin2var.items():
+      var_value = round(var.x)
+      assert abs(var.x - var_value) < 0.000001, var.x # check that we are correctly treating each ILP var as CONTINOUS
+
+      if var_value == 1:
+        # get the original coordinates
+        orig_x = resource_map_u250.getSliceOrigXCoordinates(bin[0])
+        orig_y = bin[1]
+
+        anchor_2_slice_xy[anchor] = (orig_x, orig_y)
+
+  return anchor_2_slice_xy
 
 def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
   """
@@ -111,30 +132,7 @@ def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
   m.optimize()
   logging.info(f'finish the solving process... {get_time_stamp()}')
 
-  __writePlacementResults(anchor2bin2var)
-
-
-def __writePlacementResults(anchor2bin2var):
-  """
-  write out the results as a tcl file to place the anchors into the calculated positions
-  """
-  f = open('place_anchors.tcl', 'w')
-  f.write('place_cell { \\\n')
-  for anchor, bin2var in anchor2bin2var.items():
-    for bin, var in bin2var.items():
-      var_value = round(var.x)
-
-      # check that we are correctly treating each ILP var as CONTINOUS
-      assert abs(var.x - var_value) < 0.000001, var.x
-
-      if var_value == 1:
-
-        # get the original coordinates
-        orig_x = resource_map_u250.getSliceOrigXCoordinates(bin[0])
-        orig_y = bin[1]
-        f.write(f'  {anchor} SLICE_X{orig_x}Y{orig_y} \\\n') # note that spaces are not allowed after \
-  f.write('}\n')
-  f.close()
+  return __getILPResults(anchor2bin2var)
 
 
 def runILPWeightMatchingPlacement(pair_name, anchor_connections):
@@ -174,7 +172,187 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connections):
   logging.info(f'allowed_usage_per_bin: {allowed_usage_per_bin}')
 
   # run the ILP model and write out the results
-  __ILPSolving(anchor_connections, bins, allowed_usage_per_bin)
+  anchor_2_slice_xy = __ILPSolving(anchor_connections, bins, allowed_usage_per_bin)
+  return anchor_2_slice_xy
+
+  
+
+######################### update placement results ############################################
+
+def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
+  """
+  for an SLR-crossing pair, move the anchor registers to the nearby laguna sites
+  (1) determine the direction of each anchor: anchor_2_sll_dir
+  get the io_name2dir dict for each slot
+  for the slot on the top, an output anchor is a downward anchor and an input anchor is an upward anchor
+
+  (2) determine if an anchor should go to TX or RX: anchor2TXorRX
+  if a downward anchor is at the up side, assign to TX
+  if a downward anchor is at the down side, assign to RX
+  if a upward anchor is at the up side, assign to RX
+  if a upward anchor is at the down side, assign to TX
+
+  (3) determine the specific laguna reg for each anchor: anchor2laguna
+  if an anchor is at the up side, use the SLL from large index to small index
+  if an anchor is at the down side, use the SLL from small index to large index
+  assert that at most 12 FDREs can be placed into the same SLICE site
+  """
+
+  def __is_slr_crossing_pair():
+    slot1 = Slot(DeviceU250, slot1_name)
+    slot2 = Slot(DeviceU250, slot2_name)
+
+    if slot1.down_left_x != slot2.down_left_x:
+      return False
+    else:
+      up_slot = slot1 if slot1.down_left_y > slot2.down_left_y else slot2
+      if not any(y == up_slot.down_left_y for y in [4, 8, 12]):
+        return False
+      else:
+        return True
+
+        
+  def __get_anchor_2_sll_dir():
+    """
+    each anchor will use one SLL connection.
+    get which direction will the SLL will be used, upward or downward
+    """
+    slot1 = Slot(DeviceU250, slot1_name)
+    slot2 = Slot(DeviceU250, slot2_name)
+    up_slot = slot1 if slot1.down_left_y > slot2.down_left_y else slot2
+
+    up_slot_io = hub['SlotIO'][up_slot.getRTLModuleName()]
+
+    # the output wire of the upper slot will travel DOWN the sll
+    get_sll_dir = lambda in_or_out : 'DOWN' if in_or_out == 'output' else 'UP'
+
+    get_anchor_name = lambda io_name : f'{io_name}_q0'
+    anchor_2_sll_dir = {get_anchor_name(io[-1]) : get_sll_dir(io[0]) for io in up_slot_io if get_anchor_name(io[-1]) in anchor_2_slice_xy}
+    assert len(anchor_2_sll_dir) == len(anchor_2_slice_xy)
+
+    return anchor_2_sll_dir
+
+
+  def __get_anchor_2_top_or_bottom():
+    """
+    whether an anchor is placed at the upper or the lower SLR
+    """
+    get_top_or_bottom = lambda slice_y : 'TOP' if any(bot <= slice_y <= bot + 59 for bot in [240, 480, 720]) else 'BOTTOM'
+    anchor_2_top_or_bottom = {anchor : get_top_or_bottom(slice_xy[1]) for anchor, slice_xy in anchor_2_slice_xy.items()}
+    return anchor_2_top_or_bottom
+
+
+  def __get_anchor_2_tx_or_rx():
+    """
+    whether an anchor will be place at the RX or TX laguna register
+    """
+    anchor_2_tx_or_rx = {}
+    for anchor in anchor_2_slice_xy.keys():
+      if anchor_2_sll_dir[anchor] == 'UP' and anchor_2_top_or_bottom == 'BOTTOM':
+        choice = 'TX'
+      elif  anchor_2_sll_dir[anchor] == 'UP' and anchor_2_top_or_bottom == 'TOP':
+        choice = 'RX'
+      elif  anchor_2_sll_dir[anchor] == 'DOWN' and anchor_2_top_or_bottom == 'BOTTOM':
+        choice = 'RX'
+      elif  anchor_2_sll_dir[anchor] == 'DOWN' and anchor_2_top_or_bottom == 'TOP':
+        choice = 'TX'
+      else:
+        assert False
+      anchor_2_tx_or_rx[anchor] = choice
+
+    return anchor_2_tx_or_rx
+
+
+  def __get_laguna_block_2_anchor_list():
+    """
+    each SLICE site corresponds to 4 laguna sites, and we call them a laguna block
+    get the mapping from each laguna block to all anchors to be placed on this block
+    """
+    idx_of_right_side_slice_of_laguna_column = [x + 2 for x in DeviceU250.idx_of_left_side_slice_of_laguna_column]
+    right_slice_x_2_laguna_x = {idx : i for i, idx in enumerate(idx_of_right_side_slice_of_laguna_column)}
+
+    def __get_nearest_laguna_y(slice_y):
+      if 180 <= slice_y <= 299:
+        laguna_y = (slice_y - 180) * 2 + 120
+      elif 420 <= slice_y <= 539:
+        laguna_y = (slice_y - 420) * 2 + 360
+      elif 660 <= slice_y <= 779:
+        laguna_y = (slice_y - 660) * 2 + 600
+      else:
+        assert False
+      return laguna_y
+
+    slice_xy_2_anchor_list = defaultdict(dict)
+    for anchor, slice_xy in anchor_2_slice_xy.items():
+      slice_xy_2_anchor_list[slice_xy].append(anchor)
+
+    laguna_block_2_anchor_list = {}
+    for slice_xy, anchor_list in slice_xy_2_anchor_list.items():
+      first_laguna_x = right_slice_x_2_laguna_x[slice_xy[0]]
+      first_laguna_y = __get_nearest_laguna_y(slice_xy[1])
+      laguna_block_2_anchor_list[(first_laguna_x, first_laguna_y)] = anchor_list
+
+    return laguna_block_2_anchor_list
+
+
+  def __get_anchor_to_laguna():
+    """
+    the general ILP placement map anchors to SLICE sites, but each SLICE corresponds to 4 laguna sites.
+    Need to map each anchor to a specific laguna.
+    Note that the laguna registers are paired up. 
+    The strategy is that for the upper SLR anchors, we choose the sites with X == 0 in the "laguna block"
+    Likewise we choose the lagunas with X == 1 in the laguna block for lower SLR anchors.
+    """
+    # there are 4 laguna sites for each slice site. Each site corresponds to 6 SLL wires. Each SLL wire connects two laguna sites. 
+    anchor_2_laguna = {}
+    num_sll_per_laguna = 6
+    for laguna_block_xy, anchor_list in laguna_block_2_anchor_list.items():
+      top_or_bottom = anchor_2_top_or_bottom[anchor_list[0]]
+      for i, anchor in enumerate(anchor_list):
+        if top_or_bottom == 'TOP': # avoid SLL conflict
+          X = laguna_block_xy[0] 
+          Y = laguna_block_xy[1] + int(i / num_sll_per_laguna)
+        elif top_or_bottom == 'BOTTOM':
+          X = laguna_block_xy[0] + 1
+          Y = laguna_block_xy[1] + int(i / num_sll_per_laguna)
+        else:
+          assert False
+
+        site_name = f'LAGUNA_X{X}Y{Y}'
+        tx_or_rx = anchor_2_tx_or_rx[anchor]
+        bel_name = f'{tx_or_rx}_REG{i % num_sll_per_laguna}'
+        anchor_2_laguna[anchor] = f'{site_name}/{bel_name}'
+
+    return anchor_2_laguna
+
+  # ---------- main ----------#
+
+  if not __is_slr_crossing_pair():
+    return anchor_2_slice_xy
+
+  anchor_2_sll_dir = __get_anchor_2_sll_dir()
+  anchor_2_top_or_bottom = __get_anchor_2_top_or_bottom()
+  anchor_2_tx_or_rx =  __get_anchor_2_tx_or_rx()
+  laguna_block_2_anchor_list = __get_laguna_block_2_anchor_list()
+  anchor_2_laguna = __get_anchor_to_laguna()
+
+  return anchor_2_laguna
+
+
+
+##################### helper #####################################
+
+
+def writePlacementResults(anchor_2_loc):
+  """
+  write out the results as a tcl file to place the anchors into the calculated positions
+  """
+  f = open('place_anchors.tcl', 'w')
+  f.write('place_cell { \\\n')
+  for anchor, loc in anchor_2_loc.items():
+    f.write(f'  {anchor} {loc} \\\n') # note that spaces are not allowed after \
+  f.write('}\n')
+  f.close()
 
 
 def collectAllConnectionsOfTargetAnchors(pair_name):
@@ -253,7 +431,11 @@ if __name__ == '__main__':
   elif option == 'RUN':
     pair_name = sys.argv[5]
     common_anchor_connections = collectAllConnectionsOfTargetAnchors(pair_name) 
-    runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
+    anchor_2_slice_xy = runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
+
+    slot1_name, slot2_name = pair_name.split('_AND_')
+    anchor_2_loc = moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name)
+    writePlacementResults(anchor_2_loc)
     
   else:
     assert False, f'unrecognized option {option}'
