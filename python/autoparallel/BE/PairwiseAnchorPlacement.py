@@ -227,7 +227,11 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
     # double check that the information in the hub is consistent
     all_io = hub['SlotIO'][up_slot.getRTLModuleName()]
     io_from_all_directions = list(itertools.chain.from_iterable(hub['PathPlanningWire'][up_slot.getRTLModuleName()].values()))
-    assert len(all_io) == len(io_from_all_directions) + 1 # +1 because of ap_clk
+    if not len(all_io) == len(io_from_all_directions) + 1: # +1 because of ap_clk
+      name_all_io = [io[-1] for io in all_io]
+      name_io_from_all_directions = [io[-1] for io in io_from_all_directions]
+      diff_list = set(name_all_io) - set(name_io_from_all_directions)
+      assert all('_axi_' in d or 'clk' in d for d in diff_list)
 
     # the output wire of the upper slot will travel DOWN the sll
     get_sll_dir = lambda in_or_out : 'DOWN' if in_or_out == 'output' else 'UP'
@@ -360,7 +364,7 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
   # ---------- main ----------#
 
   if not __is_slr_crossing_pair():
-    return anchor_2_slice_xy
+    return {anchor : f'SLICE_X{xy[0]}Y{xy[1]}' for anchor, xy in anchor_2_slice_xy.items() }
 
   anchor_2_sll_dir = __get_anchor_2_sll_dir()
   anchor_2_top_or_bottom = __get_anchor_2_top_or_bottom()
