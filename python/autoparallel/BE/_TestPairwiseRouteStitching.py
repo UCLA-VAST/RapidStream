@@ -70,7 +70,7 @@ def getVivadoScriptForSlotPair(
   script.append(f'read_checkpoint -cell {slot2_name}_U0 {prune_dir}/{slot2_name}/{slot2_name}_after_pruning_anchors.dcp')
 
   # place the anchors
-  script.append(f'source {base_dir}/ILP_anchor_placement_iter0/{wrapper_name}/place_anchors.tcl')
+  script.append(f'source -notrace {base_dir}/ILP_anchor_placement_iter0/{wrapper_name}/place_anchors.tcl')
 
   # add clock stem
   script.append(f'set_property ROUTE "" [get_nets ap_clk]')
@@ -79,6 +79,9 @@ def getVivadoScriptForSlotPair(
 
   # the final stitching in preserve mode is not constrained by the pblock
   script.append(f'delete_pblocks *')
+
+  # theoretically there should be non conflict nets. But we do see the GND net may cause conflicts
+  script.append(f'route_design -unroute -nets [get_nets -hierarchical -filter {{ ROUTE_STATUS == "CONFLICTS" }}]')
 
   script.append(f'write_checkpoint -force {wrapper_name}_before_routed.dcp')
 

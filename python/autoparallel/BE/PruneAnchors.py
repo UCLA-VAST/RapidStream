@@ -17,7 +17,7 @@ def pruneAnchors(hub, pruning_dir, routing_dir, pruning_script_path):
 
     # unroute the routes in anchor regions
     script.append(f'set anchor_region_cells [get_cells -hierarchical -regexp -filter {{ PBLOCK !~ "{slot_name}" && PRIMITIVE_TYPE !~ OTHERS.*.* }} ]')
-    script.append(f'route_design -unroute -nets [get_nets -of_objects $anchor_region_cells]')
+    script.append(f'route_design -unroute -nets [get_nets -of_objects $anchor_region_cells -filter {{ TYPE != "GROUND" && TYPE != "POWER"}}]')
 
     script.append(f'source {pruning_script_path}')
 
