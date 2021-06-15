@@ -1,6 +1,7 @@
 #! /usr/bin/python3.6
 import logging
 import json
+import re
 from collections import defaultdict
 
 class CreateResultJson:
@@ -87,6 +88,28 @@ class CreateResultJson:
       slot_to_rtl[slot.getRTLModuleName()] = self.wrapper_creater.getCtrlInclusiveWrapper(slot)
     return slot_to_rtl
 
+  def __getSlotToDirToWireNum(self, slot_to_dir_to_wires):
+    """
+    collect the total wire width at each boundary of slots
+    """
+    slot_to_dir_to_num = defaultdict(dict)
+    def __getWireWidth(wire):
+      if len(wire) == 2:
+        return 1
+      
+      assert len(wire) == 3
+      rtl_width = wire[1] # [X:0]
+      match = re.search(r'\[[ ]*(\d+)[ ]*:[ ]*(\d+)[ ]*\]', rtl_width)
+      int_width = int(match.group(1)) - int(match.group(2)) + 1
+      return int_width
+
+    for slot, dir_to_wires in slot_to_dir_to_wires.items():
+      for dir, wires in dir_to_wires.items():
+        all_wire_num = sum(__getWireWidth(wire) for wire in wires)
+        slot_to_dir_to_num[slot][dir] = all_wire_num
+
+    return slot_to_dir_to_num
+
   def createResultJson(self, file = 'front_end_result.json'):
     result = {}
     result['CR_NUM_Y'] = self.board.CR_NUM_VERTICAL
@@ -113,6 +136,8 @@ class CreateResultJson:
     result['AllSlotPairs'] = [[p[0].getRTLModuleName(), p[1].getRTLModuleName()] for p in self.slot_manager.getAllSlotPairs()]
 
     result['InSlotPipelineStyle'] = self.wrapper_creater.in_slot_pipeline_style
+
+    result['SlotToDirToWireNum'] = self.__getSlotToDirToWireNum(result['PathPlanningWire'])
 
     f = open(file, 'w')
     f.write(json.dumps(result, indent=2))
