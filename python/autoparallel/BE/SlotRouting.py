@@ -43,13 +43,6 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
     str_range = '\n'.join(list_of_anchor_region_dsp_and_bram)
     script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {str_range} }}')
 
-    # remove those DSP/cells from the pblock
-    regexp_of_anchor_region_dsp_and_bram = DeviceU250.getRegexpOfAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
-    for regexp in regexp_of_anchor_region_dsp_and_bram:
-      type = regexp.split('_')[0]
-      script.append(f'set target_cells [get_cells -hierarchical -regexp -filter {{ REF_NAME =~ ".*{type}.*" && LOC =~ ".*{regexp}.*"}} ]')
-      script.append(f'if {{$target_cells != "" }} {{ remove_cells_from_pblock [get_pblocks {slot_name}] $target_cells; puts $target_cells }}')
-
     # remove laguna columns
     laguna_ranges = DeviceU250.getAllLagunaRange()
     script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {laguna_ranges} }}')

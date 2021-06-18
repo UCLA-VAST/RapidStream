@@ -99,7 +99,8 @@ def __constrainSlotBody(hub, slot_name, output_path = '.', step = 'ROUTE'):
     # UPDATE: need additional empty space to facilitate routing. Thus we have the +1 adjustment
     slice_buffer_at_boundary = DeviceManager.DeviceU250.getAllBoundaryBufferRegions(buffer_col_num+1, buffer_row_num+1)
     slice_buffer_besides_laguna = DeviceManager.DeviceU250.getAllLagunaBufferRegions(add_empty_space=True)
-    SLICE_buffer_pblock = slice_buffer_at_boundary + '\n' + slice_buffer_besides_laguna
+    list_of_anchor_region_dsp_and_bram = DeviceManager.DeviceU250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+    SLICE_buffer_pblock = slice_buffer_at_boundary + '\n' + slice_buffer_besides_laguna + '\n' + '\n'.join(list_of_anchor_region_dsp_and_bram)
 
   elif step == 'ROUTE':
     SLICE_buffer_pblock = ''
