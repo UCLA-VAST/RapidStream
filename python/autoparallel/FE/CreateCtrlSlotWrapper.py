@@ -352,7 +352,10 @@ class CreateCtrlSlotWrapper:
         boundary_name = slot.getBoundarySegmentName(dir)
         for io in ctrl_io_list:
           if boundary_name in io[-1]:
-            dir_to_wires[dir].append(io)
+            if dir in dir_to_wires:
+              dir_to_wires[dir].append(io)
+            else:
+              dir_to_wires[dir] = [io]
 
     return ctrl_slot_to_dir_to_wires
 
