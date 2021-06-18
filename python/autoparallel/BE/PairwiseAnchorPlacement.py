@@ -162,7 +162,7 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connections):
   num_FDRE = len(bins) * bin_size
   total_usage_percent = num_anchor / num_FDRE
   max_usage_ratio_per_bin = 0.5 if total_usage_percent < 0.4 else total_usage_percent + 0.1
-  assert total_usage_percent < 0.7, f'{pair_name}: buffer region too crowded! {num_anchor} / {num_FDRE} = {num_anchor/num_FDRE}'
+  assert total_usage_percent < 0.9, f'{pair_name}: buffer region too crowded! {num_anchor} / {num_FDRE} = {num_anchor/num_FDRE}'
 
   # seems that this num must be integer, otherwise we cannot treat each ILP var as CONTINOUS
   allowed_usage_per_bin = round(bin_size * max_usage_ratio_per_bin) 
