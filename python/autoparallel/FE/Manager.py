@@ -141,6 +141,15 @@ class Manager:
         for v_name in v_name_group:
           user_constraint_s2v[slot].append(graph.getVertex(v_name))
 
+    if "ResultReuse" in self.config:
+      old_hub = json.loads(open(self.config["ResultReuse"], 'r').read())
+      s2v_type2v_name = old_hub["FloorplanVertex"]
+      s2v = {slot : list(v_type2v_name.values()) for slot, v_type2v_name in s2v_type2v_name.items()}
+      for region, v_name_group in s2v.items():
+        slot = slot_manager.createSlot(region)
+        for v_name in v_name_group:
+          user_constraint_s2v[slot].append(graph.getVertex(v_name))
+
     return user_constraint_s2v
 
   def runFloorplanning(self, graph, user_constraint_s2v, slot_manager, hls_prj_manager, grouping_hints, grouping_constraints):
@@ -166,6 +175,8 @@ class Manager:
         floorplan.eightWayPartition()
       elif choice == 'hetero4CRFloorplan':
         floorplan.hetero4CRFloorplan()
+      elif choice == 'floorplanVHHvh':
+        floorplan.floorplanVHHvh()
       else:
         assert False, f'unsupported floorplan method: {choice}'
     else:
