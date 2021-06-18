@@ -3,6 +3,8 @@ import logging
 import json
 import re
 from collections import defaultdict
+from autobridge.Opt.Slot import Slot
+from autobridge.Device.DeviceManager import DeviceU250
 
 class CreateResultJson:
   def __init__(
@@ -88,7 +90,7 @@ class CreateResultJson:
       slot_to_rtl[slot.getRTLModuleName()] = self.wrapper_creater.getCtrlInclusiveWrapper(slot)
     return slot_to_rtl
 
-  def __getSlotToDirToWireNum(self, slot_to_dir_to_wires):
+  def __getSlotToDirToWireNum(self, slot_to_dir_to_wires, all_slot_pairs):
     """
     collect the total wire width at each boundary of slots
     """
@@ -107,6 +109,28 @@ class CreateResultJson:
       for dir, wires in dir_to_wires.items():
         all_wire_num = sum(__getWireWidth(wire) for wire in wires)
         slot_to_dir_to_num[slot][dir] = all_wire_num
+
+    # double check the results are consistent
+    for pair in all_slot_pairs:
+      slot0_name = pair[0]
+      slot1_name = pair[1]
+      slot0 = Slot(DeviceU250, slot0_name)
+      slot1 = Slot(DeviceU250, slot1_name)
+
+      if slot0.isToTheLeftOf(slot1):
+        if 'RIGHT' in slot_to_dir_to_num[slot0_name]:
+          assert slot_to_dir_to_num[slot0_name]['RIGHT'] == slot_to_dir_to_num[slot1_name]['LEFT']
+      elif slot0.isToTheRightOf(slot1):
+        if 'LEFT' in slot_to_dir_to_num[slot0_name]:
+          assert slot_to_dir_to_num[slot0_name]['LEFT'] == slot_to_dir_to_num[slot1_name]['RIGHT']
+      elif slot0.isAbove(slot1):
+        if 'DOWN' in slot_to_dir_to_num[slot0_name]:
+          assert slot_to_dir_to_num[slot0_name]['DOWN'] == slot_to_dir_to_num[slot1_name]['UP']
+      elif slot0.isBelow(slot1):
+        if 'UP' in  slot_to_dir_to_num[slot0_name]:
+          assert slot_to_dir_to_num[slot0_name]['UP'] == slot_to_dir_to_num[slot1_name]['DOWN']
+      else:
+        assert False
 
     return slot_to_dir_to_num
 
@@ -137,7 +161,7 @@ class CreateResultJson:
 
     result['InSlotPipelineStyle'] = self.wrapper_creater.in_slot_pipeline_style
 
-    result['SlotToDirToWireNum'] = self.__getSlotToDirToWireNum(result['PathPlanningWire'])
+    result['SlotToDirToWireNum'] = self.__getSlotToDirToWireNum(result['PathPlanningWire'], result['AllSlotPairs'])
 
     f = open(file, 'w')
     f.write(json.dumps(result, indent=2))
