@@ -1,4 +1,8 @@
 from collections import Counter
+import sys
+import json
+import re
+import os
 
 """
 create a wrapper for the given sets of slots
@@ -12,26 +16,34 @@ def getHeader(wrapper_name):
 
 def getIODecl(external_io_name_2_dir_and_width):
   """
-  list_of_io_name_2_dir_width_pair: merge of all io information of all slots
-  some IOs of the slot will be internal to the wrapper, and others may be the IO of the wrapper
-  wrapper_io_names: list of IO names for the wrapper
+  the IO of the wrapper.
+  Special treatment for ap_clk. Add a BUFGCE.
   """
-  io_decl = [f'  {" ".join(dir_and_width)} {io_name},' \
-    for io_name, dir_and_width in external_io_name_2_dir_and_width.items()]
+  io_decl = []
+  for io_name, dir_and_width in external_io_name_2_dir_and_width.items():
+    if io_name != 'ap_clk':
+      io_decl.append(f'  {" ".join(dir_and_width)} {io_name},')
+    else:
+      io_decl.append(f'  {" ".join(dir_and_width)} ap_clk_port,')
+
   io_decl[-1] = io_decl[-1].replace(',', ');')
+
+  io_decl.append(f'  wire ap_clk; ')
+  io_decl.append(f'  (* DONT_TOUCH = "yes", LOC = "BUFGCE_X0Y194" *) BUFGCE test_bufg ( ')
+  io_decl.append(f'    .I(ap_clk_port), ')
+  io_decl.append(f'    .CE(1\'b1),')
+  io_decl.append(f'    .O(ap_clk));')
+  io_decl.append(f'  );')
+
   return io_decl
 
 
-def getStitchLogicBetweenSlots(inner_io_name_2_dir_and_width, pipeline_level, in_slot_pipeline_style):
+def getStitchLogicBetweenSlots(inner_io_name_2_dir_and_width, pipeline_level):
   """
   get the RTL to connect the slots
   data links will be pipelined in the specified pipeline_level
   @param stitch_rtl: the RTL section
   """
-  assert  in_slot_pipeline_style == 'LUT' or \
-          in_slot_pipeline_style == 'WIRE' or \
-          in_slot_pipeline_style == 'DOUBLE_REG'
-
   stitch_rtl = []
   for io, dir_and_width in inner_io_name_2_dir_and_width.items():
     width = dir_and_width[1] if len(dir_and_width) == 2 else ''
@@ -124,7 +136,7 @@ def getExternalAndInnerIOToDirAndWidth(slot_name_2_io_name_2_dir_and_width):
   return external_io_name_2_dir_and_width, inner_io_name_2_dir_and_width
 
 
-def getWrapperOfSlots(wrapper_name, slot_name_2_io_name_2_dir_and_width, pipeline_level, in_slot_pipeline_style):
+def getWrapperOfSlots(wrapper_name, slot_name_2_io_name_2_dir_and_width, pipeline_level):
   """ 
   group together two neighbor slots 
   Wires of passing edges should not be pipelined
@@ -138,7 +150,7 @@ def getWrapperOfSlots(wrapper_name, slot_name_2_io_name_2_dir_and_width, pipelin
   io_decl = getIODecl(external_io_name_2_dir_and_width)
 
   # pipelined connection between the two slots
-  stitch_rtl = getStitchLogicBetweenSlots(inner_io_name_2_dir_and_width, pipeline_level, in_slot_pipeline_style)
+  stitch_rtl = getStitchLogicBetweenSlots(inner_io_name_2_dir_and_width, pipeline_level)
 
   slot_instance_list = [ 
     getSlotInstance(slot_name, 
@@ -160,3 +172,102 @@ def getWrapperOfSlots(wrapper_name, slot_name_2_io_name_2_dir_and_width, pipelin
    pair_wrapper += slot_def
 
   return pair_wrapper, external_io_name_2_dir_and_width, inner_io_name_2_dir_and_width
+
+###################### Utilities ##########################
+
+def getSlotsInSLRIndex(hub, slr_index):
+  """
+  get all slots within a given SLR
+  """
+  all_slot_names = hub['SlotIO'].keys()
+  slots_in_slr = []
+  for name in all_slot_names:
+    match = re.search(r'CR_X(\d+)Y(\d+)_To_CR_X(\d+)Y(\d+)', name)
+    DL_y = int(match.group(2))
+    UR_y = int(match.group(4))
+
+    # assume that each SLR has 4 rows of clock regions
+    if slr_index * 4 <= DL_y <= slr_index * 4 + 3:
+      if slr_index * 4 <= UR_y <= slr_index * 4 + 3:
+        slots_in_slr.append(name)
+
+  return slots_in_slr
+
+def getSLRLevelWrappers(hub, slr_num):
+  """
+  get a wrapper for all slots within an SLR
+  """
+  get_io_name_2_dir_and_width = lambda slot_io_list : {io[-1] : io[0:-1] for io in slot_io_list}
+
+  for slr_index in range(slr_num):
+    os.mkdir(f'{slr_stitch_dir}/slr_{slr_index}')
+    slr_slots = getSlotsInSLRIndex(hub, slr_index)
+      
+    slr_slot_name_2_dir_and_width_and_io_name = {
+      name : get_io_name_2_dir_and_width(hub['SlotIO'][name]) for name in slr_slots}
+
+    slr_wrapper, _, __ = getWrapperOfSlots(f'slr_{slr_index}', slr_slot_name_2_dir_and_width_and_io_name, pipeline_level=1)
+
+    open(f'{slr_stitch_dir}/slr_{slr_index}/slr_{slr_index}_wrapper.v', 'w').write('\n'.join(slr_wrapper))
+
+def getSLRStitchScript(hub, slr_num):
+  """
+  get the vivado script to stitch all slots within an SLR
+  """
+  fpga_part_name = hub["FPGA_PART_NAME"]
+  pair_list = hub['AllSlotPairs']
+
+  for slr_index in range(slr_num):
+    script = []
+
+    script.append(f'set_part {fpga_part_name}')
+    script.append(f'read_verilog "{slr_stitch_dir}/slr_{slr_index}/slr_{slr_index}_wrapper.v"')  
+    script.append(f'read_xdc "{base_dir}/global_stitch/final_top_clk.xdc"')
+
+    # synth
+    script.append(f'synth_design -top "slr_{slr_index}" -part {fpga_part_name} -mode out_of_context')
+
+    # read in the dcp of slots
+    slot_names_in_slr = getSlotsInSLRIndex(hub, slr_index)
+    for name in slot_names_in_slr:
+      script.append(f'read_checkpoint -cell {name}_U0 {prune_dir}/{name}/{name}_after_pruning_anchors.dcp')
+
+    # place the anchors
+    for pair in pair_list:
+      if pair[0] in slot_names_in_slr and pair[1] in slot_names_in_slr:
+        script.append(f'source -notrace {anchor_placement_dir}/{"_AND_".join(pair)}/place_anchors.tcl')
+
+    # add clock stem
+    script.append(f'set_property ROUTE "" [get_nets ap_clk]')
+    script.append(f'source /home/einsx7/auto-parallel/src/clock/only_hdistr.tcl')
+    script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
+
+    # SLR boundary should serve as a natural boundary
+    script.append(f'delete_pblocks *')
+
+    # theoretically there should be non conflict nets. But we do see the GND net may cause conflicts
+    script.append(f'route_design -unroute -nets [get_nets -hierarchical -filter {{ ROUTE_STATUS == "CONFLICTS" }}]')
+    script.append(f'write_checkpoint -force slr_{slr_index}_before_routed.dcp')
+    script.append(f'route_design -preserve')
+    script.append(f'write_checkpoint -force slr_{slr_index}_routed.dcp')
+
+    open(f'{slr_stitch_dir}/slr_{slr_index}/stitch_slr_{slr_index}.tcl', 'w').write('\n'.join(script))
+
+  parallel = [f'cd {slr_stitch_dir}/slr_{slr_index}/ && VIV_VER=2020.1 vivado -mode batch -source stitch_slr_{slr_index}.tcl' \
+    for slr_index in range(slr_num)]
+  open(f'{slr_stitch_dir}/parallel_slr_stitch.txt', 'w').write('\n'.join(parallel))
+
+###################### TEST ##########################
+
+if __name__ == '__main__':
+  assert len(sys.argv) == 3, 'input (1) the path to the front end result file; (2) the target directory; (3) which action'
+  hub_path = sys.argv[1]
+  base_dir = sys.argv[2]
+  hub = json.loads(open(hub_path, 'r').read())
+  prune_dir = f'{base_dir}/pruning_anchors'
+  slr_stitch_dir = f'{base_dir}/SLR_level_stitch'
+  anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter0'
+  os.mkdir(slr_stitch_dir)
+
+  getSLRLevelWrappers(hub, slr_num=4)
+  getSLRStitchScript(hub, slr_num=4)
