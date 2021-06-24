@@ -125,8 +125,8 @@ def getVivadoScriptForSlotPair(
   script.append(f'synth_design -top "{wrapper_name}" -part {fpga_part_name} -mode out_of_context')
 
   # read in the dcp of slots
-  script.append(f'read_checkpoint -cell {slot1_name}_U0 {prune_dir}/{slot1_name}/{slot1_name}_after_pruning_anchors.dcp')
-  script.append(f'read_checkpoint -cell {slot2_name}_U0 {prune_dir}/{slot2_name}/{slot2_name}_after_pruning_anchors.dcp')
+  script.append(f'read_checkpoint -cell {slot1_name}_U0 {get_pruned_dcp_path(slot1_name)}')
+  script.append(f'read_checkpoint -cell {slot2_name}_U0 {get_pruned_dcp_path(slot1_name)}')
 
   # place the anchors
   for pair in pair_list:
@@ -158,7 +158,7 @@ if __name__ == '__main__':
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   test_dir = f'{base_dir}/test_pairwise_route_stitching'
-  prune_dir = f'{base_dir}/pruning_anchors'
+  get_pruned_dcp_path = lambda slot_name : f'{base_dir}/slot_routing/{slot_name}/unset_dcp_ooc/phys_opt_routed_with_ooc_clock.dcp'
   os.mkdir(test_dir)
 
   hub = json.loads(open(hub_path, 'r').read())

@@ -163,15 +163,16 @@ def getWrapperOfSlots(wrapper_name, slot_name_2_io_name_2_dir_and_width, pipelin
   slot_empty_def_list = [getEmptySlotDefinition(slot_name, io_name_2_dir_and_width) \
     for slot_name, io_name_2_dir_and_width in slot_name_2_io_name_2_dir_and_width.items()]
 
-  pair_wrapper = header + io_decl + stitch_rtl
+  wrapper = header + io_decl + stitch_rtl
   for slot_inst in slot_instance_list:
-    pair_wrapper += slot_inst
-  pair_wrapper += ending
+    wrapper += slot_inst
+  wrapper += ending
   
   for slot_def in slot_empty_def_list:
-   pair_wrapper += slot_def
+   wrapper += slot_def
 
-  return pair_wrapper, external_io_name_2_dir_and_width, inner_io_name_2_dir_and_width
+  return wrapper, external_io_name_2_dir_and_width, inner_io_name_2_dir_and_width
+
 
 ###################### Utilities ##########################
 
@@ -206,7 +207,8 @@ def getSLRLevelWrappers(hub, slr_num):
     slr_slot_name_2_dir_and_width_and_io_name = {
       name : get_io_name_2_dir_and_width(hub['SlotIO'][name]) for name in slr_slots}
 
-    slr_wrapper, _, __ = getWrapperOfSlots(f'slr_{slr_index}', slr_slot_name_2_dir_and_width_and_io_name, pipeline_level=1)
+    slr_wrapper, external_io_name_2_dir_and_width, _ = \
+      getWrapperOfSlots(f'slr_{slr_index}', slr_slot_name_2_dir_and_width_and_io_name, pipeline_level=1)
 
     open(f'{slr_stitch_dir}/slr_{slr_index}/slr_{slr_index}_wrapper.v', 'w').write('\n'.join(slr_wrapper))
 
@@ -230,12 +232,16 @@ def getSLRStitchScript(hub, slr_num):
     # read in the dcp of slots
     slot_names_in_slr = getSlotsInSLRIndex(hub, slr_index)
     for name in slot_names_in_slr:
-      script.append(f'read_checkpoint -cell {name}_U0 {prune_dir}/{name}/{name}_after_pruning_anchors.dcp')
+      script.append(f'read_checkpoint -cell {name}_U0 {get_pruned_dcp_path(name)}')
 
     # place the anchors
     for pair in pair_list:
       if pair[0] in slot_names_in_slr and pair[1] in slot_names_in_slr:
         script.append(f'source -notrace {anchor_placement_dir}/{"_AND_".join(pair)}/place_anchors.tcl')
+
+    # reuse the laguna anchor routes
+    for name in slot_names_in_slr:
+      script.append(f'source {base_dir}/slot_routing/{name}/add_{name}_laguna_route.tcl')
 
     # add clock stem
     script.append(f'set_property ROUTE "" [get_nets ap_clk]')
@@ -246,6 +252,8 @@ def getSLRStitchScript(hub, slr_num):
     script.append(f'delete_pblocks *')
 
     # theoretically there should be non conflict nets. But we do see the GND net may cause conflicts
+    script.append(f'report_route_status')
+    script.append(f'write_checkpoint -force slr_{slr_index}_before_unroute_conflict.dcp')
     script.append(f'route_design -unroute -nets [get_nets -hierarchical -filter {{ ROUTE_STATUS == "CONFLICTS" }}]')
     script.append(f'write_checkpoint -force slr_{slr_index}_before_routed.dcp')
     script.append(f'route_design -preserve')
@@ -264,7 +272,7 @@ if __name__ == '__main__':
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   hub = json.loads(open(hub_path, 'r').read())
-  prune_dir = f'{base_dir}/pruning_anchors'
+  get_pruned_dcp_path = lambda slot_name : f'{base_dir}/slot_routing/{slot_name}/unset_dcp_ooc/phys_opt_routed_with_ooc_clock.dcp'
   slr_stitch_dir = f'{base_dir}/SLR_level_stitch'
   anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter0'
   os.mkdir(slr_stitch_dir)
