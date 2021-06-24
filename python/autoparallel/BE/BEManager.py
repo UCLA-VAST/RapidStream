@@ -87,7 +87,7 @@ def parallelSlotRun(hub, parallel_run_dir, user_name, server_list):
     createClockFromBUFGXDC(slot_name, output_path=dir)
 
     # create Vivado script for each slot
-    createVivadoRunScript(fpga_part_name, 
+    getPlacementScript(fpga_part_name, 
                           orig_rtl_path, 
                           slot_name,
                           output_path=dir, 
