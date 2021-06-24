@@ -79,69 +79,8 @@ def getPlacementScript(
 
   script.append(f'exec touch {output_path}/{slot_name}_placed_free_run/{slot_name}.placement.done.flag') # signal that the DCP generation is finished
 
-  return script
+  open(f'{output_path}/{slot_name}_place.tcl', 'w').write('\n'.join(script))
 
-def getRoutingScript(
-    fpga_part_name, 
-    orig_rtl_path, 
-    slot_name,
-    output_path='.',
-    placement_strategy='Default'):
-  """ continue with the getPlacemetnScript, finish routing"""
-
-  script = []
-
-  # adjust the pblocks
-  script.append(f'source "{output_path}/{slot_name}_floorplan_routing_free_run.tcl"')
-
-  script.append(f'route_design')
-  script.append(f'phys_opt_design')
-
-  # lock design before writing to checkpoint
-  script.append(f'lock_design -unlock -level placement')
-
-  # write out the inner compute wrapper
-  script.append(f'exec mkdir {output_path}/{slot_name}_routed_free_run')
-  script.append(f'write_checkpoint -cell {slot_name}_U0 {output_path}/{slot_name}_routed_free_run/{slot_name}_ctrl_routed_free_run.dcp')
-  script.append(f'write_edif -cell {slot_name}_U0 {output_path}/{slot_name}_routed_free_run/{slot_name}_ctrl_routed_free_run.edf')
-  
-  # write out the whole anchored slot
-  script.append(f'write_checkpoint {output_path}/{slot_name}_routed_free_run/{slot_name}_routed_free_run.dcp')
-  script.append(f'write_edif {output_path}/{slot_name}_routed_free_run/{slot_name}_routed_free_run.edf')
-
-  script.append(f'exec touch {output_path}/{slot_name}_routed_free_run/{slot_name}.routing.done.flag') # signal that the DCP generation is finished
-
-  return script
-
-def getRouteFromDCPScript(
-    fpga_part_name, 
-    orig_rtl_path, 
-    slot_name,
-    output_path='.',
-    placement_strategy='Default'):
-  """ open checkpoint then do routing"""
-  script = []
-
-  script.append(f'open_checkpoint {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp')
-
-  script += getRoutingScript(fpga_part_name, orig_rtl_path, slot_name, output_path, placement_strategy)
-
-  return script
-
-def createVivadoRunScript(
-    fpga_part_name, 
-    orig_rtl_path, 
-    slot_name,
-    output_path='.',
-    placement_strategy='Default'):
-
-  placement_script = getPlacementScript(fpga_part_name, orig_rtl_path, slot_name, output_path, placement_strategy)
-  routing_script = getRoutingScript(fpga_part_name, orig_rtl_path, slot_name, output_path, placement_strategy)
-  routing_from_dcp_script = getRouteFromDCPScript(fpga_part_name, orig_rtl_path, slot_name, output_path, placement_strategy)
-
-  open(f'{output_path}/{slot_name}_place.tcl', 'w').write('\n'.join(placement_script))
-  open(f'{output_path}/{slot_name}_place_and_route.tcl', 'w').write('\n'.join(placement_script + routing_script))
-  open(f'{output_path}/{slot_name}_route_from_dcp.tcl', 'w').write('\n'.join(routing_from_dcp_script))
 
 def createClockXDC(
     slot_name, 
@@ -170,12 +109,9 @@ def createGNUParallelScript(hub, target_dir):
   vivado_command = 'VIV_VER=2020.1 vivado -mode batch -source'
   for slot_name in hub['SlotIO'].keys():
     place.append(f'cd {target_dir}/{slot_name} && {vivado_command} {slot_name}_place.tcl')
-    place_and_route.append(f'cd {target_dir}/{slot_name} && {vivado_command} {slot_name}_place_and_route.tcl')
-    route_from_dcp.append(f'cd {target_dir}/{slot_name} && {vivado_command} {slot_name}_route_from_dcp.tcl')
 
   open(f'{target_dir}/parallel-place-all.txt', 'w').write('\n'.join(place))
-  open(f'{target_dir}/parallel-place-and-route-all.txt', 'w').write('\n'.join(place_and_route))
-  open(f'{target_dir}/parallel-route-from-dcp-all.txt', 'w').write('\n'.join(route_from_dcp))
+
 
 def createMultiServerExecution(hub, target_dir, user_name, server_list):
   """

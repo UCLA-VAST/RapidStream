@@ -169,7 +169,3 @@ def createPBlockScript(hub, slot_name, output_path='.'):
     fp1.write('\n'.join(
       common + constraint_body_place + constrain_slot_free_run))
     fp1.close()
-  with open(f'{output_path}/{slot_name}_floorplan_routing_free_run.tcl', 'w') as fp3:
-    fp3.write('\n'.join(
-      common + constraint_body_route + constrain_slot_free_run))
-    fp3.close()
