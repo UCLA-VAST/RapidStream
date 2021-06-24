@@ -5,6 +5,46 @@ import math
 from autobridge.Device.DeviceManager import DeviceU250
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 
+def extractLagunaAnchorRoutes(slot_name):
+  """
+  record the ROUTE property of the nets to/from laguna anchors.
+  Will reuse them later in the final stitch
+  """
+  script = []
+  script.append(f'set target {slot_name}_U0')
+  script.append(
+r'''
+set anchor_nets [get_nets  -regexp -top_net_of_hierarchical_group $target/.* -filter { TYPE != "GROUND" && TYPE != "POWER" && NAME !~  ".*ap_clk.*" } ]
+set file [open "add_${target}_laguna_route.tcl" "w"]
+foreach net ${anchor_nets} {
+  # check if the net connects to a laguna anchor
+  set laguna_anchor [get_cells -of_objects [get_nets -segment $net] -filter {LOC =~ LAGUNA*}]
+  if {$laguna_anchor != [] } {
+    set net_route [get_property ROUTE $net]
+    puts $file "set_property ROUTE ${net_route} \[get_nets ${net} \]"
+  }
+}
+close $file
+''')
+
+  return script
+
+
+def pruneAnchors(hub):
+  """
+  after we mark the checkpoint as non-ooc, use write_checkpoint -cell
+  to remove the anchored wrapper
+  """
+  for slot_name in hub['SlotIO'].keys():
+    slot_dir = f'{routing_dir}/{slot_name}'
+
+    script = []
+    script.append(f'open_checkpoint {routing_dir}/{slot_name}/phys_opt_routed_with_ooc_clock.dcp')
+    script.append(f'write_checkpoint -cell {slot_name}_U0 {routing_dir}/{slot_name}/{slot_name}_ctrl.dcp')
+    
+    open(f'{slot_dir}/prune_anchors.tcl', 'w').write('\n'.join(script))
+
+
 def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
   """
   Run the final routing of each slot with the given clock network
@@ -60,6 +100,9 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
     script.append(f'phys_opt_design')
     script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/phys_opt_routed_with_ooc_clock.dcp')
 
+    # record the route of laguna nets
+    script += extractLagunaAnchorRoutes(slot_name)
+
     open(f'{routing_dir}/{slot_name}/route_with_ooc_clock.tcl', "w").write('\n'.join(script))
 
 def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name):
@@ -68,8 +111,15 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
   for slot_name in hub['SlotIO'].keys():
     vivado = 'VIV_VER=2020.1 vivado -mode batch -source route_with_ooc_clock.tcl'
     dir = f'{routing_dir}/{slot_name}/'
+    
+    # hack the generated checkpoint to unmark it as ooc
+    unset_ooc = f'{unset_ooc_script} phys_opt_routed_with_ooc_clock.dcp'
+
+    # remove the anchors
+    prune = f'VIV_VER=2020.1 vivado -mode batch -source prune_anchors.tcl'
+
     transfer = f'rsync -azh --delete -r {dir} {user_name}@{main_server_name}:{dir}'
-    all_tasks.append(f'cd {dir} && {vivado} && {transfer}')
+    all_tasks.append(f'cd {dir} && {vivado} && {unset_ooc} && {prune} && {transfer}')
     
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
@@ -84,6 +134,9 @@ if __name__ == '__main__':
   opt_dir = f'{base_dir}/opt_placement_iter0'
   routing_dir = f'{base_dir}/slot_routing'
 
+  current_path = os.path.dirname(os.path.realpath(__file__))
+  unset_ooc_script = f'{current_path}/../../../bash/unset_ooc.sh'
+
   user_name = 'einsx7'
   # server_list=['u5','u17','u18','u15']
   server_list=['u5']
@@ -92,4 +145,5 @@ if __name__ == '__main__':
 
   hub = json.loads(open(hub_path, 'r').read())
   routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir)
+  pruneAnchors(hub)
   getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
