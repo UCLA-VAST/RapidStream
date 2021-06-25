@@ -14,9 +14,10 @@ def extractLagunaAnchorRoutes(slot_name):
   script.append(f'set target {slot_name}_ctrl_U0')
   script.append(
 r'''
-set anchor_nets [get_nets  -regexp -top_net_of_hierarchical_group $target/.* -filter { TYPE != "GROUND" && TYPE != "POWER" && NAME !~  ".*ap_clk.*" } ]
+set laguna_anchors [get_cells -hierarchical -regexp -filter { LOC =~  ".*LAGUNA.*" } ]
+set laguna_anchor_nets [get_nets  -regexp -top_net_of_hierarchical_group -filter { TYPE != "GROUND" && TYPE != "POWER" && NAME !~  ".*ap_clk.*" && ROUTE_STATUS != "HIERPORT" }  -of_objects ${laguna_anchors} ]
 set file [open "add_${target}_laguna_route.tcl" "w"]
-foreach net ${anchor_nets} {
+foreach net ${laguna_anchor_nets} {
   # check if the net connects to a laguna anchor
   set laguna_anchor [get_cells -of_objects [get_nets -segment $net] -filter {LOC =~ LAGUNA*}]
   if {$laguna_anchor != [] } {
@@ -39,7 +40,7 @@ def pruneAnchors(hub):
     slot_dir = f'{routing_dir}/{slot_name}'
 
     script = []
-    script.append(f'open_checkpoint {routing_dir}/{slot_name}/phys_opt_routed_with_ooc_clock.dcp')
+    script.append(f'open_checkpoint {routing_dir}/{slot_name}/unset_dcp_ooc/phys_opt_routed_with_ooc_clock.dcp')
     script.append(f'set_property HD.RECONFIGURABLE 1 [get_cells {slot_name}_ctrl_U0]')
     script.append(f'write_checkpoint -cell {slot_name}_ctrl_U0 {routing_dir}/{slot_name}/{slot_name}_ctrl.dcp')
     
@@ -133,7 +134,7 @@ if __name__ == '__main__':
   base_dir = sys.argv[2]
   clock_dir = f'{base_dir}/clock_routing'
   opt_dir = f'{base_dir}/opt_placement_iter0'
-  routing_dir = f'{base_dir}/slot_routing'
+  routing_dir = f'{base_dir}/slot_routing_update_anchor_nets'
 
   current_path = os.path.dirname(os.path.realpath(__file__))
   unset_ooc_script = f'{current_path}/../../../bash/unset_ooc.sh'
