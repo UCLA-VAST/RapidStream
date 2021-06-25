@@ -11,7 +11,7 @@ def extractLagunaAnchorRoutes(slot_name):
   Will reuse them later in the final stitch
   """
   script = []
-  script.append(f'set target {slot_name}_U0')
+  script.append(f'set target {slot_name}_ctrl_U0')
   script.append(
 r'''
 set anchor_nets [get_nets  -regexp -top_net_of_hierarchical_group $target/.* -filter { TYPE != "GROUND" && TYPE != "POWER" && NAME !~  ".*ap_clk.*" } ]
@@ -40,7 +40,8 @@ def pruneAnchors(hub):
 
     script = []
     script.append(f'open_checkpoint {routing_dir}/{slot_name}/phys_opt_routed_with_ooc_clock.dcp')
-    script.append(f'write_checkpoint -cell {slot_name}_U0 {routing_dir}/{slot_name}/{slot_name}_ctrl.dcp')
+    script.append(f'set_property HD.RECONFIGURABLE 1 [get_cells {slot_name}_ctrl_U0]')
+    script.append(f'write_checkpoint -cell {slot_name}_ctrl_U0 {routing_dir}/{slot_name}/{slot_name}_ctrl.dcp')
     
     open(f'{slot_dir}/prune_anchors.tcl', 'w').write('\n'.join(script))
 
@@ -62,7 +63,7 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
     script.append(f'delete_pblock [get_pblocks *]')
     script.append(f'create_pblock {slot_name}')
     pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
-    script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_U0]')
+    script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_ctrl_U0]')
     script.append(f'resize_pblock [get_pblocks {slot_name}] -add {pblock_def}')
 
     # previously we set the pblock as the entire clock regions. 

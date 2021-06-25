@@ -2,7 +2,6 @@
 import logging
 import json
 import re
-from autoparallel.BE import CreateAnchorWrapper
 from autobridge.Device import DeviceManager
 
 def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
@@ -82,32 +81,28 @@ def __getBufferRegionSize(hub, slot_name):
   
   return buffer_col_num, buffer_row_num
 
-def __constrainSlotBody(hub, slot_name, output_path = '.', step = 'ROUTE'):
+def __constrainSlotBody(hub, slot_name):
   pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
   pblock_name = slot_name
-  targets = [f'{slot_name}_U0']
+  targets = [f'{slot_name}_ctrl_U0']
   comments = ['# Slot Body']
 
   # FIXME: only support U250 for now
-  if step == 'PLACE':
-    assert 'xcu250' in hub['FPGA_PART_NAME'] 
+  assert 'xcu250' in hub['FPGA_PART_NAME'] 
 
-    # the boundary of each slot will be left vacant to facilitate stitching
-    buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
+  # the boundary of each slot will be left vacant to facilitate stitching
+  buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
 
-    # including vertical & horizontal buffer region, also leave a column of SLICE adjacent to lagunas empty
-    # UPDATE: need additional empty space to facilitate routing. Thus we have the +1 adjustment
-    slice_buffer_at_boundary = DeviceManager.DeviceU250.getAllBoundaryBufferRegions(buffer_col_num+1, buffer_row_num+1)
-    slice_buffer_besides_laguna = DeviceManager.DeviceU250.getAllLagunaBufferRegions(add_empty_space=True)
-    list_of_anchor_region_dsp_and_bram = DeviceManager.DeviceU250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
-    SLICE_buffer_pblock = slice_buffer_at_boundary + '\n' + slice_buffer_besides_laguna + '\n' + '\n'.join(list_of_anchor_region_dsp_and_bram)
-
-  elif step == 'ROUTE':
-    SLICE_buffer_pblock = ''
+  # including vertical & horizontal buffer region, also leave a column of SLICE adjacent to lagunas empty
+  # UPDATE: need additional empty space to facilitate routing. Thus we have the +1 adjustment
+  slice_buffer_at_boundary = DeviceManager.DeviceU250.getAllBoundaryBufferRegions(buffer_col_num+1, buffer_row_num+1)
+  slice_buffer_besides_laguna = DeviceManager.DeviceU250.getAllLagunaBufferRegions(add_empty_space=True)
+  list_of_anchor_region_dsp_and_bram = DeviceManager.DeviceU250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+  SLICE_buffer_pblock = slice_buffer_at_boundary + '\n' + slice_buffer_besides_laguna + '\n' + '\n'.join(list_of_anchor_region_dsp_and_bram)
 
   return __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
 
-def __constrainSlotWires(hub, slot_name, output_path = '.'):
+def __constrainSlotWires(hub, slot_name):
   assert re.search(r'CR_X\d+Y\d+_To_CR_X\d+Y\d+', slot_name), f'unexpected format of the slot name {slot_name}'
   DL_x, DL_y, UR_x, UR_y = [int(val) for val in re.findall(r'[XY](\d+)', slot_name)] # DownLeft & UpRight
 
@@ -160,10 +155,9 @@ def createPBlockScript(hub, slot_name, output_path='.'):
   """
   common = ['delete_pblock [get_pblocks *]'] # in case duplicated definition
 
-  constraint_body_place = __constrainSlotBody(hub, slot_name, output_path, 'PLACE')
-  constraint_body_route = __constrainSlotBody(hub, slot_name, output_path, 'ROUTE')
+  constraint_body_place = __constrainSlotBody(hub, slot_name)
 
-  constrain_slot_free_run = __constrainSlotWires(hub, slot_name, output_path)
+  constrain_slot_free_run = __constrainSlotWires(hub, slot_name)
 
   with open(f'{output_path}/{slot_name}_floorplan_placement_free_run.tcl', 'w') as fp1:
     fp1.write('\n'.join(

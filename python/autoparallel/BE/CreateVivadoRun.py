@@ -50,7 +50,7 @@ def getPlacementScript(
 
   # synth
   script.append(f'exec mkdir {output_path}/{slot_name}_synth')
-  script.append(f'synth_design -top "{slot_name}_anchored" -part {fpga_part_name} -mode out_of_context')
+  script.append(f'synth_design -top "{slot_name}_ctrl_anchored" -part {fpga_part_name} -mode out_of_context')
   script.append(f'write_checkpoint {output_path}/{slot_name}_synth/{slot_name}_synth.dcp')
   # script.append(f'write_edif {output_path}/{slot_name}_synth/{slot_name}_synth.edf')
   
@@ -67,7 +67,7 @@ def getPlacementScript(
 
   # write out the ctrl wrapper only for anchor placement
   script.append(f'exec mkdir {output_path}/{slot_name}_placed_free_run')
-  script.append(f'write_checkpoint -cell {slot_name}_U0 {output_path}/{slot_name}_placed_free_run/{slot_name}_ctrl_placed_free_run.dcp')
+  script.append(f'write_checkpoint -cell {slot_name}_ctrl_U0 {output_path}/{slot_name}_placed_free_run/{slot_name}_ctrl_placed_free_run.dcp')
   # script.append(f'write_edif -cell {slot_name}_U0 {output_path}/{slot_name}_placed_free_run/{slot_name}_ctrl_placed_free_run.edf')
   
   # write out the whole anchored slot

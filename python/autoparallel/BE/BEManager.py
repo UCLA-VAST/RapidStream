@@ -4,7 +4,7 @@ import json
 import os
 import sys
 import math
-from autoparallel.BE.CreateAnchorWrapper import *
+from autoparallel.BE.UniversalWrapperCreater import getAnchorWrapperOfSlot
 from autoparallel.BE.GenAnchorConstraints import *
 from autoparallel.BE.CreateVivadoRun import *
 from autoparallel.BE.AnchorPlacement import *
@@ -79,7 +79,7 @@ def parallelSlotRun(hub, parallel_run_dir, user_name, server_list):
     # duplicate source RTL and add unique prefix
     target_rtl_path = f'{dir}/rtl'
     os.mkdir(target_rtl_path)
-    createAnchorWrapper(hub, slot_name, output_path=target_rtl_path)  
+    getAnchorWrapperOfSlot(hub, slot_name, output_path=target_rtl_path)  
 
     # create pblock constraints for each anchored wrapper
     createPBlockScript(hub, slot_name, output_path=dir)
