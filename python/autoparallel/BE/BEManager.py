@@ -4,7 +4,7 @@ import json
 import os
 import sys
 import math
-from autoparallel.BE.UniversalWrapperCreater import getAnchorWrapperOfSlot
+from autoparallel.BE.UniversalWrapperCreater import addAnchorToNonTopIOs
 from autoparallel.BE.GenAnchorConstraints import *
 from autoparallel.BE.CreateVivadoRun import *
 from autoparallel.BE.AnchorPlacement import *
@@ -64,6 +64,25 @@ def parallelSlotRun(hub, parallel_run_dir, user_name, server_list):
   """
   generate scripts to place & route each slot independently
   """
+  def getAnchorWrapperOfSlot(hub, slot_name, output_path='.'):
+    """
+    Top-level ports will be directly connected
+    All other IOs will be registered
+    """
+    slot_to_io = hub['SlotIO']
+    slot_to_rtl = hub['SlotWrapperRTL']
+    io_list = slot_to_io[slot_name]
+
+    wrapper = addAnchorToNonTopIOs(hub, f'{slot_name}_ctrl', io_list)
+    file = open(f'{output_path}/{slot_name}_anchored.v', 'w')
+    file.write('\n'.join(wrapper))
+
+    # add the rtl for the inner module (the slot wrapper)
+    # discard the first line (time scale)
+    assert 'timescale' in slot_to_rtl[slot_name][0]
+    file.write('\n\n')
+    file.write('\n'.join(slot_to_rtl[slot_name][1:]))
+
   fpga_part_name = hub['FPGA_PART_NAME']
   orig_rtl_path = hub['ORIG_RTL_PATH']
 
