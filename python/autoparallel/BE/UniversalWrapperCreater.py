@@ -174,7 +174,91 @@ def getWrapperOfSlots(wrapper_name, slot_name_2_io_name_2_dir_and_width, pipelin
   return wrapper, external_io_name_2_dir_and_width, inner_io_name_2_dir_and_width
 
 
+def addAnchorToNonTopIOs(hub, inner_module_name, io_list):
+  """
+  abstract the part to be reused for adding anchors to other wrappers
+  """
+  # first get the non-top IOs.
+  all_top_io = hub['TopIO']
+  top_io_names = set(io[-1] for io in all_top_io)
+  anchor_io_list = [io for io in io_list if io[-1] not in top_io_names] # not in top_io
+
+  wrapper = []
+  
+  # header
+  wrapper.append(r'`timescale 1 ns / 1 ps')
+  wrapper.append(f'module {inner_module_name}_anchored (')
+  for io in io_list[:-1]:
+    wrapper.append('    ' + ' '.join(io) + ',')
+  wrapper.append('    ' + ' '.join(io_list[-1]) + ');')
+
+  # TEST: replace the top port of ap_clk
+  wrapper = [line.replace('ap_clk', 'ap_clk_port') for line in wrapper]
+  wrapper.append(f'wire ap_clk; ')
+  wrapper.append(f'(* DONT_TOUCH = "yes", LOC = "BUFGCE_X0Y194" *) BUFGCE test_bufg ( ')
+  wrapper.append(f'  .I(ap_clk_port), ')
+  wrapper.append(f'  .CE(1\'b1),')
+  wrapper.append(f'  .O(ap_clk) );')
+
+  # anchor registers
+  for io in anchor_io_list:
+    wrapper.append('  ' + '(* dont_touch = "yes" *) reg ' + ' '.join(io[1:]) + '_q0' + ';')
+
+  # wire connection to inst
+  for io in anchor_io_list:
+    if io[0] == 'output':
+      wrapper.append('  ' + 'wire ' + ' '.join(io[1:]) + '_internal' + ';')
+      wrapper.append(f'  assign {io[-1]} = {io[-1]}_q0;')
+
+  # connect anchors
+  wrapper.append('  ' + 'always @ (posedge ap_clk) begin')
+  for io in anchor_io_list:
+    if io[0] == 'input':
+      wrapper.append('    ' + f'{io[-1]}_q0 <= {io[-1]};')
+    elif io[0] == 'output':
+      wrapper.append('    ' + f'{io[-1]}_q0 <= {io[-1]}_internal;')
+    else:
+      assert False
+  wrapper.append('  ' + 'end')
+
+  # instantiate slot wrapper. DO NOT change the suffix '_U0'
+  wrapper.append('  ' + f'(* dont_touch = "yes" *) {inner_module_name} {inner_module_name}_U0 (' )
+  for io in io_list: # try to preserve order
+    if io in anchor_io_list:
+      if io[0] == 'input':
+        wrapper.append('    ' + f'.{io[-1]}({io[-1]}_q0),')
+      elif io[0] == 'output':
+        wrapper.append('    ' + f'.{io[-1]}({io[-1]}_internal),')
+    else:
+      wrapper.append('    ' + f'.{io[-1]}({io[-1]}),') # direct connection to interface
+  wrapper[-1] = wrapper[-1].replace(',', ');')
+
+  # ending
+  wrapper.append('endmodule')
+
+  return wrapper
+
 ###################### Utilities ##########################
+
+def getAnchorWrapperOfSlot(hub, slot_name, output_path='.'):
+  """
+  Top-level ports will be directly connected
+  All other IOs will be registered
+  """
+  slot_to_io = hub['SlotIO']
+  slot_to_rtl = hub['SlotWrapperRTL']
+  io_list = slot_to_io[slot_name]
+
+  wrapper = addAnchorToNonTopIOs(hub, f'{slot_name}_ctrl', io_list)
+  file = open(f'{output_path}/{slot_name}_anchored.v', 'w')
+  file.write('\n'.join(wrapper))
+
+  # add the rtl for the inner module (the slot wrapper)
+  # discard the first line (time scale)
+  assert 'timescale' in slot_to_rtl[slot_name][0]
+  file.write('\n\n')
+  file.write('\n'.join(slot_to_rtl[slot_name][1:]))
+
 
 def getSlotsInSLRIndex(hub, slr_index):
   """

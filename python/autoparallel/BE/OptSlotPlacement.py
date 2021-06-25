@@ -34,7 +34,6 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   # do placement only so that we could track the change from the log
   script.append(f'phys_opt_design -verbose')
   script.append(f'write_checkpoint -force {slot_name}_post_placed_opt.dcp')
-  script.append(f'write_checkpoint -cell {slot_name}_U0 -force {slot_name}_ctrl_post_placed_opt.dcp')
 
   return script
 
