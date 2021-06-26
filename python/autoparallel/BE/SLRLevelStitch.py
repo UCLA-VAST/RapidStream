@@ -32,28 +32,64 @@ def getSlotsInSLRIndex(hub, slr_index):
 
   return slots_in_slr
 
+
 def getSLRLevelWrapperWithIOAnchors(hub, slr_num):
   """
   get a wrapper for all slots within an SLR
   """
   get_io_name_2_dir_and_width = lambda slot_io_list : {io[-1] : io[0:-1] for io in slot_io_list}
 
+  slr_name_2_dir_and_width_and_io_name = {}
+
   for slr_index in range(slr_num):
-    os.mkdir(f'{slr_stitch_dir}/slr_{slr_index}')
+    wrapper_name = f'slr_{slr_index}'
+
+    os.mkdir(f'{slr_stitch_dir}/{wrapper_name}')
     slr_slots = getSlotsInSLRIndex(hub, slr_index)
-      
+
     slr_slot_name_2_dir_and_width_and_io_name = {
       f'{name}_ctrl' : get_io_name_2_dir_and_width(hub['SlotIO'][name]) for name in slr_slots}
 
     slr_wrapper, external_io_name_2_dir_and_width, _ = \
-      getWrapperOfSlots(f'slr_{slr_index}', slr_slot_name_2_dir_and_width_and_io_name, pipeline_level=1)
+      getWrapperOfSlots(wrapper_name, slr_slot_name_2_dir_and_width_and_io_name, pipeline_level=1)
 
     slr_anchor_wrapper = \
-      getAnchorWrapperOfSLRWrapper(hub, f'slr_{slr_index}', external_io_name_2_dir_and_width)
+      getAnchorWrapperOfSLRWrapper(hub, wrapper_name, external_io_name_2_dir_and_width)
 
     final_rtl = slr_anchor_wrapper + slr_wrapper
 
-    open(f'{slr_stitch_dir}/slr_{slr_index}/slr_{slr_index}_wrapper.v', 'w').write('\n'.join(final_rtl))
+    open(f'{slr_stitch_dir}/{wrapper_name}/{wrapper_name}_wrapper.v', 'w').write('\n'.join(final_rtl))
+
+    slr_name_2_dir_and_width_and_io_name[wrapper_name] = external_io_name_2_dir_and_width
+
+  return slr_name_2_dir_and_width_and_io_name
+
+
+def extractLagunaAnchorRoutes(slr_name):
+  """
+  record the ROUTE property of the nets to/from laguna anchors.
+  Will reuse them later in the final stitch
+  """
+  script = []
+  script.append(f'set target {slr_name}')
+  script.append(
+r'''
+set laguna_anchors [get_cells -hierarchical -regexp -filter { LOC =~  ".*LAGUNA.*" } ]
+set laguna_anchor_nets [get_nets  -regexp -top_net_of_hierarchical_group -filter { TYPE != "GROUND" && TYPE != "POWER" && NAME !~  ".*ap_clk.*" && ROUTE_STATUS != "HIERPORT" }  -of_objects ${laguna_anchors} ]
+set file [open "add_${target}_laguna_route.tcl" "w"]
+foreach net ${laguna_anchor_nets} {
+  # check if the net connects to a laguna anchor
+  set laguna_anchor [get_cells -of_objects [get_nets -segment $net] -filter {LOC =~ LAGUNA*}]
+  if {$laguna_anchor != [] } {
+    set net_route [get_property ROUTE $net]
+    puts $file "set_property ROUTE ${net_route} \[get_nets ${net} \]"
+  }
+}
+close $file
+''')
+
+  return script
+
 
 def getSLRStitchScript(hub, slr_num):
   """
@@ -95,8 +131,8 @@ def getSLRStitchScript(hub, slr_num):
       script.append(f'source {local_placement_tcl_path}')
 
     # reuse the laguna anchor routes
-    for name in slot_names_in_slr:
-      script.append(f'source {base_dir}/slot_routing/{name}/add_{name}_ctrl_U0_laguna_route.tcl')
+    # for name in slot_names_in_slr:
+    #   script.append(f'source {base_dir}/slot_routing/{name}/add_{name}_ctrl_U0_laguna_route.tcl')
 
     # add clock stem
     script.append(f'set_property ROUTE "" [get_nets ap_clk]')
@@ -114,10 +150,42 @@ def getSLRStitchScript(hub, slr_num):
     script.append(f'route_design -preserve')
     script.append(f'write_checkpoint -force slr_{slr_index}_routed.dcp')
 
+    script += extractLagunaAnchorRoutes(f'slr_{slr_index}')
+
     open(f'{slr_stitch_dir}/slr_{slr_index}/stitch_slr_{slr_index}.tcl', 'w').write('\n'.join(script))
 
-  parallel = [f'cd {slr_stitch_dir}/slr_{slr_index}/ && VIV_VER=2020.1 vivado -mode batch -source stitch_slr_{slr_index}.tcl' \
-    for slr_index in range(slr_num)]
+  pruneAnchors(slr_num)
+  getSLRStitchParallelTasks(slr_num)
+
+def pruneAnchors(slr_num):
+  """
+  after we mark the checkpoint as non-ooc, use write_checkpoint -cell
+  to remove the anchored wrapper
+  """
+  for slr_index in range(slr_num):
+    slr_dir = f'{slr_stitch_dir}/slr_{slr_index}'
+
+    script = []
+    script.append(f'open_checkpoint {slr_dir}/unset_dcp_ooc/slr_{slr_index}_routed.dcp')
+    script.append(f'set_property HD.RECONFIGURABLE 1 [get_cells slr_{slr_index}_U0]')
+    script.append( 'set anchor_cells [get_cells -regexp .*q0_reg.*]')
+    script.append( 'route_design -unroute -nets [get_nets -of_object ${anchor_cells} -filter {TYPE != "GOURND" && TYPE != "POWER" && NAME !~ "*ap_clk*"} ]')
+    script.append(f'write_checkpoint -cell slr_{slr_index}_U0 {slr_dir}/slr_{slr_index}_no_anchor.dcp')
+    
+    open(f'{slr_dir}/prune_anchors.tcl', 'w').write('\n'.join(script))
+
+
+def getSLRStitchParallelTasks(slr_num):
+  parallel = []
+  for slr_index in range(slr_num):
+    cmd = []
+    cmd += [f'cd {slr_stitch_dir}/slr_{slr_index}/']
+    cmd += [f'VIV_VER=2020.1 vivado -mode batch -source stitch_slr_{slr_index}.tcl']
+    cmd += [f'{unset_ooc_script} slr_{slr_index}_routed.dcp']
+    cmd += [f'VIV_VER=2020.1 vivado -mode batch -source prune_anchors.tcl']
+    cmd += [f'{unset_hd_reconfigurable_script} slr_{slr_index}_no_anchor.dcp']
+    parallel += [ ' && '.join(cmd) ]
+
   open(f'{slr_stitch_dir}/parallel_slr_stitch.txt', 'w').write('\n'.join(parallel))
 
 ###################### TEST ##########################
@@ -127,10 +195,15 @@ if __name__ == '__main__':
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   hub = json.loads(open(hub_path, 'r').read())
+
+  current_path = os.path.dirname(os.path.realpath(__file__))
+  unset_ooc_script = f'{current_path}/../../../bash/unset_ooc.sh'
+  unset_hd_reconfigurable_script = f'{current_path}/../../../bash/unset_hd_reconfigurable.sh'
+
   get_pruned_dcp_path = lambda slot_name : f'{base_dir}/slot_routing/{slot_name}/unset_dcp_hd_reconfigurable/{slot_name}_ctrl.dcp'
   slr_stitch_dir = f'{base_dir}/SLR_level_stitch'
   anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter0'
   os.mkdir(slr_stitch_dir)
 
-  getSLRLevelWrapperWithIOAnchors(hub, slr_num=4)
+  slr_name_2_dir_and_width_and_io_name = getSLRLevelWrapperWithIOAnchors(hub, slr_num=4)
   getSLRStitchScript(hub, slr_num=4)
