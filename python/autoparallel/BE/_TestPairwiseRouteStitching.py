@@ -158,7 +158,7 @@ if __name__ == '__main__':
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   test_dir = f'{base_dir}/test_pairwise_route_stitching'
-  get_pruned_dcp_path = lambda slot_name : f'{base_dir}/slot_routing/{slot_name}/unset_dcp_ooc/phys_opt_routed_with_ooc_clock.dcp'
+  get_pruned_dcp_path = lambda slot_name : f'{base_dir}/slot_routing/{slot_name}/unset_dcp_hd_reconfigurable/{slot_name}_ctrl.dcp'
   os.mkdir(test_dir)
 
   hub = json.loads(open(hub_path, 'r').read())

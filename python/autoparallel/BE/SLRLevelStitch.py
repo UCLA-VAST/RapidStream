@@ -96,7 +96,7 @@ def getSLRStitchScript(hub, slr_num):
 
     # reuse the laguna anchor routes
     for name in slot_names_in_slr:
-      script.append(f'source {base_dir}/slot_routing/{name}/add_{name}_laguna_route.tcl')
+      script.append(f'source {base_dir}/slot_routing/{name}/add_{name}_ctrl_U0_laguna_route.tcl')
 
     # add clock stem
     script.append(f'set_property ROUTE "" [get_nets ap_clk]')
@@ -127,7 +127,7 @@ if __name__ == '__main__':
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   hub = json.loads(open(hub_path, 'r').read())
-  get_pruned_dcp_path = lambda slot_name : f'{base_dir}/slot_routing/{slot_name}/{slot_name}_ctrl.dcp'
+  get_pruned_dcp_path = lambda slot_name : f'{base_dir}/slot_routing/{slot_name}/unset_dcp_hd_reconfigurable/{slot_name}_ctrl.dcp'
   slr_stitch_dir = f'{base_dir}/SLR_level_stitch'
   anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter0'
   os.mkdir(slr_stitch_dir)

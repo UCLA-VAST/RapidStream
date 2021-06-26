@@ -42,6 +42,8 @@ def pruneAnchors(hub):
     script = []
     script.append(f'open_checkpoint {routing_dir}/{slot_name}/unset_dcp_ooc/phys_opt_routed_with_ooc_clock.dcp')
     script.append(f'set_property HD.RECONFIGURABLE 1 [get_cells {slot_name}_ctrl_U0]')
+    script.append( 'set anchor_cells [get_cells -regexp .*q0_reg.{0,6}]')
+    script.append( 'route_design -unroute -nets [get_nets -of_object ${anchor_cells} -filter {TYPE != "GOURND" && TYPE != "POWER" && NAME !~ "*ap_clk*"} ]')
     script.append(f'write_checkpoint -cell {slot_name}_ctrl_U0 {routing_dir}/{slot_name}/{slot_name}_ctrl.dcp')
     
     open(f'{slot_dir}/prune_anchors.tcl', 'w').write('\n'.join(script))
@@ -120,8 +122,11 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
     # remove the anchors
     prune = f'VIV_VER=2020.1 vivado -mode batch -source prune_anchors.tcl'
 
+    # unset the HD.RECONFIGURABLE property of the checkpoint
+    unset_reconfig = f'{unset_hd_reconfigurable_script} {slot_name}_ctrl.dcp'
+
     transfer = f'rsync -azh --delete -r {dir} {user_name}@{main_server_name}:{dir}'
-    all_tasks.append(f'cd {dir} && {vivado} && {unset_ooc} && {prune} && {transfer}')
+    all_tasks.append(f'cd {dir} && {vivado} && {unset_ooc} && {prune} && {unset_reconfig} && {transfer}')
     
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
@@ -134,10 +139,11 @@ if __name__ == '__main__':
   base_dir = sys.argv[2]
   clock_dir = f'{base_dir}/clock_routing'
   opt_dir = f'{base_dir}/opt_placement_iter0'
-  routing_dir = f'{base_dir}/slot_routing_update_anchor_nets'
+  routing_dir = f'{base_dir}/slot_routing'
 
   current_path = os.path.dirname(os.path.realpath(__file__))
   unset_ooc_script = f'{current_path}/../../../bash/unset_ooc.sh'
+  unset_hd_reconfigurable_script = f'{current_path}/../../../bash/unset_hd_reconfigurable.sh'
 
   user_name = 'einsx7'
   # server_list=['u5','u17','u18','u15']
