@@ -3,6 +3,8 @@ import json
 import re
 import os
 from autoparallel.BE.UniversalWrapperCreater import getWrapperOfSlots, addAnchorToNonTopIOs
+from autoparallel.BE.TopLevelStitch import setupTopStitch
+from autoparallel.BE.Utilities import getSlotsInSLRIndex
 
 def getAnchorWrapperOfSLRWrapper(hub, slr_wrapper_name, external_io_name_2_dir_and_width):
   """
@@ -12,25 +14,6 @@ def getAnchorWrapperOfSLRWrapper(hub, slr_wrapper_name, external_io_name_2_dir_a
     for io_name, dir_and_width in external_io_name_2_dir_and_width.items()]
   slr_anchor_wrapper = addAnchorToNonTopIOs(hub, slr_wrapper_name, io_list)
   return slr_anchor_wrapper
-
-
-def getSlotsInSLRIndex(hub, slr_index):
-  """
-  get all slots within a given SLR
-  """
-  all_slot_names = hub['SlotIO'].keys()
-  slots_in_slr = []
-  for name in all_slot_names:
-    match = re.search(r'CR_X(\d+)Y(\d+)_To_CR_X(\d+)Y(\d+)', name)
-    DL_y = int(match.group(2))
-    UR_y = int(match.group(4))
-
-    # assume that each SLR has 4 rows of clock regions
-    if slr_index * 4 <= DL_y <= slr_index * 4 + 3:
-      if slr_index * 4 <= UR_y <= slr_index * 4 + 3:
-        slots_in_slr.append(name)
-
-  return slots_in_slr
 
 
 def getSLRLevelWrapperWithIOAnchors(hub, slr_num):
@@ -119,6 +102,7 @@ def getSLRStitchScript(hub, slr_num):
         continue
 
       anchor_placement_tcl = f'{anchor_placement_dir}/{"_AND_".join(pair)}/place_anchors.tcl'
+      # make a copy of the script in local dir and make corresponding modifications
       local_placement_tcl_path = f'{slr_stitch_dir}/slr_{slr_index}/{"_AND_".join(pair)}_place_anchors.tcl'
       placement_tcl = open(anchor_placement_tcl).read().split('\n')
 
@@ -201,9 +185,11 @@ if __name__ == '__main__':
   unset_hd_reconfigurable_script = f'{current_path}/../../../bash/unset_hd_reconfigurable.sh'
 
   get_pruned_dcp_path = lambda slot_name : f'{base_dir}/slot_routing/{slot_name}/unset_dcp_hd_reconfigurable/{slot_name}_ctrl.dcp'
-  slr_stitch_dir = f'{base_dir}/SLR_level_stitch'
+  slr_stitch_dir = f'{base_dir}/test2_SLR_level_stitch'
   anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter0'
   os.mkdir(slr_stitch_dir)
 
   slr_name_2_dir_and_width_and_io_name = getSLRLevelWrapperWithIOAnchors(hub, slr_num=4)
   getSLRStitchScript(hub, slr_num=4)
+
+  setupTopStitch(base_dir, hub, slr_name_2_dir_and_width_and_io_name)
