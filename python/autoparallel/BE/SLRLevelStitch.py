@@ -185,7 +185,7 @@ if __name__ == '__main__':
   unset_hd_reconfigurable_script = f'{current_path}/../../../bash/unset_hd_reconfigurable.sh'
 
   get_pruned_dcp_path = lambda slot_name : f'{base_dir}/slot_routing/{slot_name}/unset_dcp_hd_reconfigurable/{slot_name}_ctrl.dcp'
-  slr_stitch_dir = f'{base_dir}/test2_SLR_level_stitch'
+  slr_stitch_dir = f'{base_dir}/SLR_level_stitch'
   anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter0'
   os.mkdir(slr_stitch_dir)
 
