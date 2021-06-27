@@ -192,29 +192,34 @@ def addAnchorToNonTopIOs(hub, inner_module_name, io_list):
 
   # wire connection to inst
   for io in anchor_io_list:
+    wrapper.append('  ' + 'wire ' + ' '.join(io[1:]) + '_in' + ';')
+    wrapper.append('  ' + 'wire ' + ' '.join(io[1:]) + '_out' + ';')
+
     if io[0] == 'output':
-      wrapper.append('  ' + 'wire ' + ' '.join(io[1:]) + '_internal' + ';')
-      wrapper.append(f'  assign {io[-1]} = {io[-1]}_q0;')
+      wrapper.append(f'  assign {io[-1]} = {io[-1]}_out;')
+    elif io[0] == 'input':
+      wrapper.append(f'  assign {io[-1]}_in = {io[-1]};')
+    else:
+      assert False
 
   # connect anchors
   wrapper.append('  ' + 'always @ (posedge ap_clk) begin')
   for io in anchor_io_list:
-    if io[0] == 'input':
-      wrapper.append('    ' + f'{io[-1]}_q0 <= {io[-1]};')
-    elif io[0] == 'output':
-      wrapper.append('    ' + f'{io[-1]}_q0 <= {io[-1]}_internal;')
-    else:
-      assert False
+    wrapper.append('    ' + f'{io[-1]}_q0 <= {io[-1]}_in;')
   wrapper.append('  ' + 'end')
+
+  for io in anchor_io_list:
+    wrapper.append('  assign ' + f'{io[-1]}_out = {io[-1]}_q0;')  
 
   # instantiate slot wrapper. DO NOT change the suffix '_U0'
   wrapper.append('  ' + f'(* dont_touch = "yes" *) {inner_module_name} {inner_module_name}_U0 (' )
   for io in io_list: # try to preserve order
     if io in anchor_io_list:
+      # for an input port, the output of the anchor register will connect to the instance
       if io[0] == 'input':
-        wrapper.append('    ' + f'.{io[-1]}({io[-1]}_q0),')
+        wrapper.append('    ' + f'.{io[-1]}({io[-1]}_out),')
       elif io[0] == 'output':
-        wrapper.append('    ' + f'.{io[-1]}({io[-1]}_internal),')
+        wrapper.append('    ' + f'.{io[-1]}({io[-1]}_in),')
     else:
       wrapper.append('    ' + f'.{io[-1]}({io[-1]}),') # direct connection to interface
   wrapper[-1] = wrapper[-1].replace(',', ');')
