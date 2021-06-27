@@ -21,7 +21,7 @@ def getInterSLRPairs(hub, slr_num):
   inter_slr_pairs = []
   for i in range(slr_num-1):
     for pair in pair_list:
-      if  pair[0] in slr_index_2_slots[i] != pair[1] in slr_index_2_slots[i]:
+      if  (pair[0] in slr_index_2_slots[i]) != (pair[1] in slr_index_2_slots[i]):
         inter_slr_pairs.append("_AND_".join(pair))  
   inter_slr_pairs = list(set(inter_slr_pairs))
 
