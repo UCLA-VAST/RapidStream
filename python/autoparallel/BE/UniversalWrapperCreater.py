@@ -192,8 +192,8 @@ def addAnchorToNonTopIOs(hub, inner_module_name, io_list):
 
   # wire connection to inst
   for io in anchor_io_list:
-    wrapper.append('  ' + 'wire ' + ' '.join(io[1:]) + '_in' + ';')
-    wrapper.append('  ' + 'wire ' + ' '.join(io[1:]) + '_out' + ';')
+    wrapper.append('  ' + '(* dont_touch = "yes" *) wire ' + ' '.join(io[1:]) + '_in' + ';')
+    wrapper.append('  ' + '(* dont_touch = "yes" *) wire ' + ' '.join(io[1:]) + '_out' + ';')
 
     if io[0] == 'output':
       wrapper.append(f'  assign {io[-1]} = {io[-1]}_out;')
