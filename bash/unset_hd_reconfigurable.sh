@@ -9,4 +9,5 @@ unzip $DCP
 rm $DCP
 sed -i 's/HDPlatform Name=\"1\"/HDPlatform Name=\"0\"/g' dcp.xml
 sed -i '/<HDInfo Name="HD.RECONFIGURABLE"\/>/d' dcp.xml
+sed -i '/set_property HD.RECONFIGURABLE true \[current_design\]/d' *.xdc
 zip -r $DCP *
