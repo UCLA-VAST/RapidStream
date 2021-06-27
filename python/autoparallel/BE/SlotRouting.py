@@ -35,6 +35,10 @@ def pruneAnchors(hub):
   """
   after we mark the checkpoint as non-ooc, use write_checkpoint -cell
   to remove the anchored wrapper
+  Note that the route of VCC/GND nets will be lost during write_checkpoint -cell
+  And 2020.1 has a bug that cannot route them back in preserve mode
+  To work around the problem, we first record the route of VCC/GND nets
+  then re-apply them in the child checkpoint
   """
   for slot_name in hub['SlotIO'].keys():
     slot_dir = f'{routing_dir}/{slot_name}'
@@ -42,10 +46,24 @@ def pruneAnchors(hub):
     script = []
     script.append(f'open_checkpoint {routing_dir}/{slot_name}/unset_dcp_ooc/phys_opt_routed_with_ooc_clock.dcp')
     script.append(f'set_property HD.RECONFIGURABLE 1 [get_cells {slot_name}_ctrl_U0]')
+    
+    # record the VCC/GND routes
+    script.append(f'set GND_route [get_property ROUTE [get_nets <const0>]]')
+    script.append(f'set VCC_route [get_property ROUTE [get_nets <const1>]]')
+    script.append(f'set_property HD.RECONFIGURABLE 1 [get_cells {slot_name}_ctrl_U0]')
     script.append( 'set anchor_cells [get_cells -regexp .*q0_reg.{0,6}]')
     script.append( 'route_design -unroute -nets [get_nets -of_object ${anchor_cells} -filter {TYPE != "GOURND" && TYPE != "POWER" && NAME !~ "*ap_clk*"} ]')
-    script.append(f'write_checkpoint -cell {slot_name}_ctrl_U0 {routing_dir}/{slot_name}/{slot_name}_ctrl.dcp')
+    script.append(f'write_checkpoint -cell {slot_name}_ctrl_U0 {routing_dir}/{slot_name}/{slot_name}_ctrl_temp.dcp')
     
+    # re-apply the VCC/GND routes
+    script.append(f'open_checkpoint {routing_dir}/{slot_name}/{slot_name}_ctrl_temp.dcp')
+    script.append(f'set_property ROUTE $GND_route [get_nets <const0>]')
+    script.append(f'set_property ROUTE $VCC_route [get_nets <const1>]')
+    
+    # since the anchors are gone, parts of the VCC/GND route are float. Clean it up. 
+    script.append(f'route_design -preserve -physical_nets')
+    script.append(f'write_checkpoint {routing_dir}/{slot_name}/{slot_name}_ctrl.dcp')
+
     open(f'{slot_dir}/prune_anchors.tcl', 'w').write('\n'.join(script))
 
 
