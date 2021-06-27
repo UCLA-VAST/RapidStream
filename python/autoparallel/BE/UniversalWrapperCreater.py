@@ -191,25 +191,32 @@ def addAnchorToNonTopIOs(hub, inner_module_name, io_list):
     wrapper.append('  ' + '(* dont_touch = "yes" *) reg ' + ' '.join(io[1:]) + '_q0' + ';')
 
   # wire connection to inst
+  # note that the "_in" and "_out" are refered to the IO direction of the module
+  # the wire connect to the output pin of a module is suffixed with "_out"
+  # in this situation, we regard the input port as the output pin of some external modules
   for io in anchor_io_list:
-    wrapper.append('  ' + '(* dont_touch = "yes" *) wire ' + ' '.join(io[1:]) + '_in' + ';')
-    wrapper.append('  ' + '(* dont_touch = "yes" *) wire ' + ' '.join(io[1:]) + '_out' + ';')
+    wrapper.append('  ' + 'wire ' + ' '.join(io[1:]) + '_in' + ';')
+    wrapper.append('  ' + 'wire ' + ' '.join(io[1:]) + '_out' + ';')
 
+    # may seem strange here. 
+    # the 'output' port of this wrapper is the 'input' pin of another module
+    # thus we name the wire with "_in"
+    # this is consistent with the getStitchLogicBetweenSlots()
     if io[0] == 'output':
-      wrapper.append(f'  assign {io[-1]} = {io[-1]}_out;')
+      wrapper.append(f'  assign {io[-1]} = {io[-1]}_in;')
     elif io[0] == 'input':
-      wrapper.append(f'  assign {io[-1]}_in = {io[-1]};')
+      wrapper.append(f'  assign {io[-1]}_out = {io[-1]};')
     else:
       assert False
 
   # connect anchors
   wrapper.append('  ' + 'always @ (posedge ap_clk) begin')
   for io in anchor_io_list:
-    wrapper.append('    ' + f'{io[-1]}_q0 <= {io[-1]}_in;')
+    wrapper.append('    ' + f'{io[-1]}_q0 <= {io[-1]}_out;')
   wrapper.append('  ' + 'end')
 
   for io in anchor_io_list:
-    wrapper.append('  assign ' + f'{io[-1]}_out = {io[-1]}_q0;')  
+    wrapper.append('  assign ' + f'{io[-1]}_in = {io[-1]}_q0;')  
 
   # instantiate slot wrapper. DO NOT change the suffix '_U0'
   wrapper.append('  ' + f'(* dont_touch = "yes" *) {inner_module_name} {inner_module_name}_U0 (' )
@@ -217,9 +224,9 @@ def addAnchorToNonTopIOs(hub, inner_module_name, io_list):
     if io in anchor_io_list:
       # for an input port, the output of the anchor register will connect to the instance
       if io[0] == 'input':
-        wrapper.append('    ' + f'.{io[-1]}({io[-1]}_out),')
-      elif io[0] == 'output':
         wrapper.append('    ' + f'.{io[-1]}({io[-1]}_in),')
+      elif io[0] == 'output':
+        wrapper.append('    ' + f'.{io[-1]}({io[-1]}_out),')
     else:
       wrapper.append('    ' + f'.{io[-1]}({io[-1]}),') # direct connection to interface
   wrapper[-1] = wrapper[-1].replace(',', ');')
