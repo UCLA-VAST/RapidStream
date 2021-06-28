@@ -4,7 +4,8 @@ import re
 import os
 from autoparallel.BE.UniversalWrapperCreater import getWrapperOfSlots, addAnchorToNonTopIOs
 from autoparallel.BE.TopLevelStitch import setupTopStitch
-from autoparallel.BE.Utilities import getSlotsInSLRIndex
+from autoparallel.BE.Utilities import getSlotsInSLRIndex, getPruningAnchorScript
+
 
 def getAnchorWrapperOfSLRWrapper(hub, slr_wrapper_name, external_io_name_2_dir_and_width):
   """
@@ -149,12 +150,11 @@ def pruneAnchors(slr_num):
   for slr_index in range(slr_num):
     slr_dir = f'{slr_stitch_dir}/slr_{slr_index}'
 
-    script = []
-    script.append(f'open_checkpoint {slr_dir}/unset_dcp_ooc/slr_{slr_index}_routed.dcp')
-    script.append(f'set_property HD.RECONFIGURABLE 1 [get_cells slr_{slr_index}_U0]')
-    script.append( 'set anchor_cells [get_cells -regexp .*q0_reg.*]')
-    script.append( 'route_design -unroute -nets [get_nets -of_object ${anchor_cells} -filter {TYPE != "GOURND" && TYPE != "POWER" && NAME !~ "*ap_clk*"} ]')
-    script.append(f'write_checkpoint -cell slr_{slr_index}_U0 {slr_dir}/slr_{slr_index}_no_anchor.dcp')
+    dcp_path = f'{slr_dir}/unset_dcp_ooc/slr_{slr_index}_routed.dcp'
+    inner_module_name = f'slr_{slr_index}_U0'
+    output_dir = slr_dir
+
+    script = getPruningAnchorScript(dcp_path, inner_module_name, output_dir)
     
     open(f'{slr_dir}/prune_anchors.tcl', 'w').write('\n'.join(script))
 
@@ -184,7 +184,7 @@ if __name__ == '__main__':
   unset_ooc_script = f'{current_path}/../../../bash/unset_ooc.sh'
   unset_hd_reconfigurable_script = f'{current_path}/../../../bash/unset_hd_reconfigurable.sh'
 
-  get_pruned_dcp_path = lambda slot_name : f'{base_dir}/slot_routing/{slot_name}/unset_dcp_hd_reconfigurable/{slot_name}_ctrl.dcp'
+  get_pruned_dcp_path = lambda slot_name : f'{base_dir}/slot_routing/{slot_name}/unset_dcp_hd_reconfigurable/{slot_name}_ctrl_U0.dcp'
   slr_stitch_dir = f'{base_dir}/SLR_level_stitch'
   anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter0'
   os.mkdir(slr_stitch_dir)

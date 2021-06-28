@@ -79,7 +79,7 @@ def setupTopStitch(base_dir, hub, slr_name_2_dir_and_width_and_io_name):
   top_stitch_dir = f'{base_dir}/top_stitch'
   os.mkdir(top_stitch_dir)
 
-  get_slr_dcp_path = lambda slr_index : f'{slr_stitch_dir}/slr_{slr_index}/unset_dcp_hd_reconfigurable/slr_{slr_index}_no_anchor.dcp'
+  get_slr_dcp_path = lambda slr_index : f'{slr_stitch_dir}/slr_{slr_index}/unset_dcp_hd_reconfigurable/slr_{slr_index}_U0.dcp'
 
   slr_num = len(slr_name_2_dir_and_width_and_io_name)
   getTopLevelWrapperForSLRSlots(top_stitch_dir, slr_name_2_dir_and_width_and_io_name)
