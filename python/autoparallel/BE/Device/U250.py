@@ -1,5 +1,7 @@
-from autobridge.Opt import Slot
-from autobridge.Device.DeviceManager import DeviceBase
+from autobridge.Opt.Slot import Slot
+from autobridge.Device.DeviceManager import DeviceU250
+
+U250_inst = DeviceU250()
 
 def getAllLagunaRange():
   return 'LAGUNA_X0Y0:LAGUNA_X31Y839'
@@ -131,8 +133,8 @@ def getBufferRegionBetweenSlotPair(slot_name1, slot_name2, col_width_each_side, 
   Slot_SLICE_height = 120 # 2x2 slot
   CR_SLICE_height = 60
   
-  slot1 = Slot(DeviceBase, slot_name1)
-  slot2 = Slot(DeviceBase, slot_name2)
+  slot1 = Slot(U250_inst, slot_name1)
+  slot2 = Slot(U250_inst, slot_name2)
 
   #******************************************
   # a hack to prevent routing conflicts between slots and anchors
