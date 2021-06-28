@@ -167,7 +167,7 @@ def getSLRStitchParallelTasks(slr_num):
     cmd += [f'VIV_VER=2020.1 vivado -mode batch -source stitch_slr_{slr_index}.tcl']
     cmd += [f'{unset_ooc_script} slr_{slr_index}_routed.dcp']
     cmd += [f'VIV_VER=2020.1 vivado -mode batch -source prune_anchors.tcl']
-    cmd += [f'{unset_hd_reconfigurable_script} slr_{slr_index}_no_anchor.dcp']
+    cmd += [f'{unset_hd_reconfigurable_script} slr_{slr_index}_U0.dcp']
     parallel += [ ' && '.join(cmd) ]
 
   open(f'{slr_stitch_dir}/parallel_slr_stitch.txt', 'w').write('\n'.join(parallel))
