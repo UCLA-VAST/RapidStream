@@ -10,10 +10,11 @@ from mip import Model, minimize, CONTINUOUS, xsum
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autoparallel.BE.BEManager import loggingSetup
 from autoparallel.BE.Device import U250
-from autobridge.Device.DeviceManager import DeviceBase
+from autobridge.Device.DeviceManager import DeviceU250
 from autobridge.Device.ResourceMapU250 import ResourceMapU250
 from autobridge.Opt.Slot import Slot
 
+U250_inst = DeviceU250()
 ######################### ILP placement ############################################
 
 def __getWeightMatchingBins(slot1_name, slot2_name, bin_size_x, bin_size_y):
@@ -201,8 +202,8 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
   """
 
   def __is_slr_crossing_pair():
-    slot1 = Slot(DeviceBase, slot1_name)
-    slot2 = Slot(DeviceBase, slot2_name)
+    slot1 = Slot(U250_inst, slot1_name)
+    slot2 = Slot(U250_inst, slot2_name)
 
     if slot1.down_left_x != slot2.down_left_x:
       return False
@@ -219,8 +220,8 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
     each anchor will use one SLL connection.
     get which direction will the SLL will be used, upward or downward
     """
-    slot1 = Slot(DeviceBase, slot1_name)
-    slot2 = Slot(DeviceBase, slot2_name)
+    slot1 = Slot(U250_inst, slot1_name)
+    slot2 = Slot(U250_inst, slot2_name)
     up_slot = slot1 if slot1.down_left_y > slot2.down_left_y else slot2
 
     # get the downward IO of the upper slot
