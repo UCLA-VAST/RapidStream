@@ -1,3 +1,4 @@
+import re
 from autobridge.Opt.Slot import Slot
 from autobridge.Device.DeviceManager import DeviceU250
 
@@ -71,6 +72,71 @@ y_idx_of_slice_besides_laguna = (
     (420, 539),
     (660, 779)
 )
+
+# record the X coordinates of the SLICE to the left of the BRAM column
+x_of_left_slice_of_bram_u250 = [
+  9, 14, 32, 54,
+  58, 89, 92, 112,
+  119, 143, 147, 177,
+  218, 223
+]
+
+    # record the X coordinates of the SLICE to the left of the DSP column
+x_of_left_slice_of_dsp_u250 = [
+  1, 16, 27, 30,
+  34, 41, 52, 56,
+  60, 71, 76, 87,
+  94, 99, 106, 114,
+  121, 128, 141, 145,
+  149, 156, 161, 166,
+  175, 179, 186, 191,
+  196, 205, 216, 229
+]
+
+# assume each DSP and BRAM takes 1 unit of width
+num_SLICE_column = 233
+calibrated_x_pos_of_slice = [
+  i + \
+  sum(x < i for x in x_of_left_slice_of_bram_u250) + \
+  sum(x < i for x in x_of_left_slice_of_dsp_u250) \
+    for i in range(num_SLICE_column)]
+
+# map from calibrated x -> orig x
+orig_x_pos_of_slice = {calibrated_x_pos_of_slice[i] : i \
+                            for i in range(num_SLICE_column)}
+
+calibrated_x_pos_of_bram = [
+  calibrated_x_pos_of_slice[i] + 1 \
+    for i in x_of_left_slice_of_bram_u250
+]
+
+calibrated_x_pos_of_dsp = [
+    calibrated_x_pos_of_slice[i] + 1 \
+    for i in x_of_left_slice_of_dsp_u250
+]
+
+def getSliceOrigXCoordinates(calibrated_x):
+  return orig_x_pos_of_slice[calibrated_x]
+
+def getCalibratedCoordinatesFromSiteName(site_name):
+  type, orig_x, orig_y = re.findall(r'(.*)_X(\d+)Y(\d+)', site_name)[0]
+  orig_x, orig_y = map(int, (orig_x, orig_y))
+  return getCalibratedCoordinates(type, orig_x, orig_y)
+
+def getCalibratedCoordinates(type, orig_x, orig_y):
+  if type == 'SLICE':
+    return (calibrated_x_pos_of_slice[orig_x], orig_y)
+  elif type == 'DSP48E2':
+    # each DSP is 2.5X the height of a SLICE
+    return (calibrated_x_pos_of_dsp[orig_x], orig_y * 2.5)
+  elif type == 'RAMB36':
+    # each RAMB36 is 5X the height
+    return (calibrated_x_pos_of_bram[orig_x], orig_y * 5)
+  elif type == 'RAMB18':
+    # each RAMB18 is 2.5X the height of a SLICE
+    return (calibrated_x_pos_of_bram[orig_x], orig_y * 2.5)
+  else:
+    assert False, f'unsupported type {type}'
 
 
 def __getSliceAroundLagunaSides(

@@ -11,7 +11,7 @@ from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autoparallel.BE.BEManager import loggingSetup
 from autoparallel.BE.Device import U250
 from autobridge.Device.DeviceManager import DeviceU250
-from autobridge.Device.ResourceMapU250 import ResourceMapU250
+from autoparallel.BE.Device import U250
 from autobridge.Opt.Slot import Slot
 
 U250_inst = DeviceU250()
@@ -36,7 +36,7 @@ def __getWeightMatchingBins(slot1_name, slot2_name, bin_size_x, bin_size_y):
                     for y in range(left_down_y, up_right_y + 1, bin_size_y) ]
 
   # calibrate the positions
-  bins_calibrated = [resource_map_u250.getCalibratedCoordinates('SLICE', orig_x, orig_y) \
+  bins_calibrated = [U250.getCalibratedCoordinates('SLICE', orig_x, orig_y) \
             for orig_x, orig_y in bins]
 
   return bins_calibrated
@@ -77,7 +77,7 @@ def __getILPResults(anchor2bin2var):
 
       if var_value == 1:
         # get the original coordinates
-        orig_x = resource_map_u250.getSliceOrigXCoordinates(bin[0])
+        orig_x = U250.getSliceOrigXCoordinates(bin[0])
         orig_y = bin[1]
 
         anchor_2_slice_xy[anchor] = (orig_x, orig_y)
@@ -414,7 +414,7 @@ def collectAllConnectionsOfTargetAnchors(pair_name):
         [(site_name, type)] = site_name_and_type.items()
 
         # convert the site name to coordinates
-        site_coordinate = resource_map_u250.getCalibratedCoordinatesFromSiteName(site_name)
+        site_coordinate = U250.getCalibratedCoordinatesFromSiteName(site_name)
         site_name2types[site_coordinate].append(type)
 
       assert(site_name2types)
@@ -459,8 +459,6 @@ if __name__ == '__main__':
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/placement_opt_iter{iter}/{slot_name}/anchor_connections.json'
 
   anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter{iter}'
-
-  resource_map_u250 = ResourceMapU250()
 
   # run this before the ILP anchor placement, setup for the later steps
   if option == 'SETUP':
