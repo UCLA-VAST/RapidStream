@@ -5,11 +5,12 @@ import os
 import logging
 import time
 import itertools
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 from mip import Model, minimize, CONTINUOUS, xsum
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autoparallel.BE.BEManager import loggingSetup
-from autobridge.Device.DeviceManager import DeviceU250
+from autoparallel.BE.Device import U250
+from autobridge.Device.DeviceManager import DeviceBase
 from autobridge.Device.ResourceMapU250 import ResourceMapU250
 from autobridge.Opt.Slot import Slot
 
@@ -20,7 +21,7 @@ def __getWeightMatchingBins(slot1_name, slot2_name, bin_size_x, bin_size_y):
   quantize the buffer region into disjoint bins
   """
   col_width, row_width = __getBufferRegionSize(None, None) # TODO: should automatically choose a suitable buffer region size
-  buffer_pblock = DeviceU250.getBufferRegionBetweenSlotPair(slot1_name, slot2_name, col_width, row_width)
+  buffer_pblock = U250.getBufferRegionBetweenSlotPair(slot1_name, slot2_name, col_width, row_width)
 
   # convert the pblock representation of the buffer region into individul bins
   bins = []
@@ -200,8 +201,8 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
   """
 
   def __is_slr_crossing_pair():
-    slot1 = Slot(DeviceU250, slot1_name)
-    slot2 = Slot(DeviceU250, slot2_name)
+    slot1 = Slot(DeviceBase, slot1_name)
+    slot2 = Slot(DeviceBase, slot2_name)
 
     if slot1.down_left_x != slot2.down_left_x:
       return False
@@ -218,8 +219,8 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
     each anchor will use one SLL connection.
     get which direction will the SLL will be used, upward or downward
     """
-    slot1 = Slot(DeviceU250, slot1_name)
-    slot2 = Slot(DeviceU250, slot2_name)
+    slot1 = Slot(DeviceBase, slot1_name)
+    slot2 = Slot(DeviceBase, slot2_name)
     up_slot = slot1 if slot1.down_left_y > slot2.down_left_y else slot2
 
     # get the downward IO of the upper slot
@@ -280,7 +281,7 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
     each SLICE site corresponds to 4 laguna sites, and we call them a laguna block
     get the mapping from each laguna block to all anchors to be placed on this block
     """
-    idx_of_right_side_slice_of_laguna_column = [x + 2 for x in DeviceU250.idx_of_left_side_slice_of_laguna_column]
+    idx_of_right_side_slice_of_laguna_column = [x + 2 for x in U250.idx_of_left_side_slice_of_laguna_column]
     # note that each laguna column has 2 units in Y dimension
     right_slice_x_2_laguna_x = {idx : i * 2 for i, idx in enumerate(idx_of_right_side_slice_of_laguna_column)}
 

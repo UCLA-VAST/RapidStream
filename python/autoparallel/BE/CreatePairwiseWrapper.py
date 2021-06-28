@@ -3,7 +3,7 @@ import logging
 import json
 import sys
 from autoparallel.BE.GenAnchorConstraints import createAnchorPlacementExtractScript, __getBufferRegionSize
-from autobridge.Device import DeviceManager
+from autoparallel.BE.Device import U250
 from typing import List, Set, Dict, Tuple
 
 def getHeader(slot1_name, slot2_name):
@@ -206,7 +206,7 @@ def createVivadoScriptForSlotPair(
   assert len(dcp_name2path) == 2
   names = list(dcp_name2path.keys())
   col_width, row_width = __getBufferRegionSize(None, None) # TODO: should automatically choose a suitable buffer region size
-  buffer_between_two_slots = DeviceManager.DeviceU250.getBufferRegionBetweenSlotPair(names[0], names[1], col_width, row_width)
+  buffer_between_two_slots = U250.getBufferRegionBetweenSlotPair(names[0], names[1], col_width, row_width)
 
   # note that we need to include lagunas into the pblocks
   # otherwise the placer will deem no SLL could be used

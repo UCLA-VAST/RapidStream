@@ -2,7 +2,7 @@ import sys
 import json
 import os
 import math
-from autobridge.Device.DeviceManager import DeviceU250
+from autoparallel.BE.Device import U250
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autoparallel.BE.Utilities import getPruningAnchorScript
 
@@ -80,19 +80,19 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
     # The prerequisite is that the placement pblock is even smaller than the routing pblock.
     # we need at least 1 row/col of empty space at the boundary to make the boundary nets routable.
     buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
-    slice_buffer_at_boundary = DeviceU250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num)
-    slice_buffer_besides_laguna = DeviceU250.getAllLagunaBufferRegions(add_empty_space=False)
+    slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+    slice_buffer_besides_laguna = U250.getAllLagunaBufferRegions(add_empty_space=False)
     script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_at_boundary} }}')
     script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_besides_laguna} }}')
 
     # remove from the routing pblock the dsp and bram that fall into the anchor region
     # otherwise those cells may suffer from contained routing
-    list_of_anchor_region_dsp_and_bram = DeviceU250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+    list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
     str_range = '\n'.join(list_of_anchor_region_dsp_and_bram)
     script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {str_range} }}')
 
     # remove laguna columns
-    laguna_ranges = DeviceU250.getAllLagunaRange()
+    laguna_ranges = U250.getAllLagunaRange()
     script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {laguna_ranges} }}')
 
     script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')

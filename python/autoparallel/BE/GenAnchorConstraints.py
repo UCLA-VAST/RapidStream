@@ -2,7 +2,7 @@
 import logging
 import json
 import re
-from autobridge.Device import DeviceManager
+from autoparallel.BE.Device import U250
 
 def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
   """
@@ -55,7 +55,7 @@ def __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets,
 
   # keep anchor registers from being placed to laguna 
   if exclude_laguna:
-    laguna_ranges = DeviceManager.DeviceU250.getAllLagunaRange()
+    laguna_ranges = U250.getAllLagunaRange()
     tcl.append(f'  resize_pblock [get_pblocks {pblock_name}] -remove {laguna_ranges}')
   tcl.append(f'endgroup')
 
@@ -95,9 +95,9 @@ def __constrainSlotBody(hub, slot_name):
 
   # including vertical & horizontal buffer region, also leave a column of SLICE adjacent to lagunas empty
   # UPDATE: need additional empty space to facilitate routing. Thus we have the +1 adjustment
-  slice_buffer_at_boundary = DeviceManager.DeviceU250.getAllBoundaryBufferRegions(buffer_col_num+1, buffer_row_num+1)
-  slice_buffer_besides_laguna = DeviceManager.DeviceU250.getAllLagunaBufferRegions(add_empty_space=True)
-  list_of_anchor_region_dsp_and_bram = DeviceManager.DeviceU250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+  slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num+1, buffer_row_num+1)
+  slice_buffer_besides_laguna = U250.getAllLagunaBufferRegions(add_empty_space=True)
+  list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
   SLICE_buffer_pblock = slice_buffer_at_boundary + '\n' + slice_buffer_besides_laguna + '\n' + '\n'.join(list_of_anchor_region_dsp_and_bram)
 
   return __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
