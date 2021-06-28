@@ -4,6 +4,8 @@ import os
 import math
 from autobridge.Device.DeviceManager import DeviceU250
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
+from autoparallel.BE.Utilities import getPruningAnchorScript
+
 
 def extractLagunaAnchorRoutes(slot_name):
   """
@@ -42,27 +44,11 @@ def pruneAnchors(hub):
   """
   for slot_name in hub['SlotIO'].keys():
     slot_dir = f'{routing_dir}/{slot_name}'
+    dcp_path = f'{routing_dir}/{slot_name}/unset_dcp_ooc/phys_opt_routed_with_ooc_clock.dcp'
+    inner_module_name = f'{slot_name}_ctrl_U0'
+    output_dir = f'{routing_dir}/{slot_name}/'
 
-    script = []
-    script.append(f'open_checkpoint {routing_dir}/{slot_name}/unset_dcp_ooc/phys_opt_routed_with_ooc_clock.dcp')
-    script.append(f'set_property HD.RECONFIGURABLE 1 [get_cells {slot_name}_ctrl_U0]')
-    
-    # record the VCC/GND routes
-    script.append(f'set GND_route [get_property ROUTE [get_nets <const0>]]')
-    script.append(f'set VCC_route [get_property ROUTE [get_nets <const1>]]')
-    script.append(f'set_property HD.RECONFIGURABLE 1 [get_cells {slot_name}_ctrl_U0]')
-    script.append( 'set anchor_cells [get_cells -regexp .*q0_reg.{0,6}]')
-    script.append( 'route_design -unroute -nets [get_nets -of_object ${anchor_cells} -filter {TYPE != "GOURND" && TYPE != "POWER" && NAME !~ "*ap_clk*"} ]')
-    script.append(f'write_checkpoint -cell {slot_name}_ctrl_U0 {routing_dir}/{slot_name}/{slot_name}_ctrl_temp.dcp')
-    
-    # re-apply the VCC/GND routes
-    script.append(f'open_checkpoint {routing_dir}/{slot_name}/{slot_name}_ctrl_temp.dcp')
-    script.append(f'set_property ROUTE $GND_route [get_nets <const0>]')
-    script.append(f'set_property ROUTE $VCC_route [get_nets <const1>]')
-    
-    # since the anchors are gone, parts of the VCC/GND route are float. Clean it up. 
-    script.append(f'route_design -preserve -physical_nets')
-    script.append(f'write_checkpoint {routing_dir}/{slot_name}/{slot_name}_ctrl.dcp')
+    script = getPruningAnchorScript(dcp_path, inner_module_name, output_dir)
 
     open(f'{slot_dir}/prune_anchors.tcl', 'w').write('\n'.join(script))
 
@@ -141,7 +127,7 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
     prune = f'VIV_VER=2020.1 vivado -mode batch -source prune_anchors.tcl'
 
     # unset the HD.RECONFIGURABLE property of the checkpoint
-    unset_reconfig = f'{unset_hd_reconfigurable_script} {slot_name}_ctrl.dcp'
+    unset_reconfig = f'{unset_hd_reconfigurable_script} {slot_name}_ctrl_U0.dcp'
 
     transfer = f'rsync -azh --delete -r {dir} {user_name}@{main_server_name}:{dir}'
     all_tasks.append(f'cd {dir} && {vivado} && {unset_ooc} && {prune} && {unset_reconfig} && {transfer}')
