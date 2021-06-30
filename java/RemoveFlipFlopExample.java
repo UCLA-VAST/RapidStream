@@ -44,6 +44,19 @@ public class RemoveFlipFlopExample {
             	if(inst.equals(output)) continue;
             	inputNet.addPortInst(inst);
             }
+
+            // disconnect the Q net from both the anchor and the inner module
+            // delete the Q net
+            EDIFNet outputNet = ffInst.getPortInst("Q").getNet();
+            List<EDIFPortInst> portsToRemove = new ArrayList<>();
+            for(EDIFPortInst inst : output.getNet().getPortInsts()) {
+            	if(inst.equals(output)) continue;
+                portsToRemove.add(inst);
+            }
+            for(EDIFPortInst inst : portsToRemove) {
+                outputNet.removePortInst(inst); // disconnect the Q net from the inner module
+            } 
+            ffInst.getParentCell().removeNet(outputNet); // remove the Q net 
             
             for(EDIFPortInst inst : ffInst.getPortInsts()) {
                 inst.getNet().removePortInst(inst);
