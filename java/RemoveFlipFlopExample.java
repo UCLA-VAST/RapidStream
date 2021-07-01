@@ -1,12 +1,15 @@
 package com.xilinx.rapidwright.examples;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.xilinx.rapidwright.design.Cell;
 import com.xilinx.rapidwright.design.Design;
+import com.xilinx.rapidwright.design.Net;
 import com.xilinx.rapidwright.design.SiteInst;
 import com.xilinx.rapidwright.edif.EDIFCell;
 import com.xilinx.rapidwright.edif.EDIFCellInst;
@@ -24,6 +27,7 @@ public class RemoveFlipFlopExample {
         // Find cells and site insts to remove (those with FFs)
         Set<SiteInst> siteInstsToRemove = new HashSet<>();
         List<Cell> cellsToRemove = new ArrayList<>();
+        Map<String,String> netReassignments = new HashMap<>();
         for(EDIFCellInst cellInst : design.getNetlist().getTopCell().getCellInsts()) {
         	EDIFCell cellType = cellInst.getCellType();
             if(cellType.isPrimitive() && cellType.getName().equals("FDRE")) {
@@ -39,33 +43,44 @@ public class RemoveFlipFlopExample {
             // Remove logical cell
             EDIFCellInst ffInst = cell.getEDIFCellInst();
             EDIFPortInst output = ffInst.getPortInst("Q");
+            EDIFNet qNet = output.getNet();
             EDIFNet inputNet = ffInst.getPortInst("D").getNet();
+            netReassignments.put(qNet.getName(), inputNet.getName());
             for(EDIFPortInst inst : output.getNet().getPortInsts()) {
             	if(inst.equals(output)) continue;
             	inputNet.addPortInst(inst);
             }
-
-            // disconnect the Q net from both the anchor and the inner module
-            // delete the Q net
-            EDIFNet outputNet = ffInst.getPortInst("Q").getNet();
-            List<EDIFPortInst> portsToRemove = new ArrayList<>();
-            for(EDIFPortInst inst : output.getNet().getPortInsts()) {
-            	if(inst.equals(output)) continue;
-                portsToRemove.add(inst);
-            }
-            for(EDIFPortInst inst : portsToRemove) {
-                outputNet.removePortInst(inst); // disconnect the Q net from the inner module
-            } 
-            ffInst.getParentCell().removeNet(outputNet); // remove the Q net 
             
             for(EDIFPortInst inst : ffInst.getPortInsts()) {
                 inst.getNet().removePortInst(inst);
             }
             ffInst.getParentCell().removeCellInst(ffInst);
+            ffInst.getParentCell().removeNet(qNet);
         }
         // Remove site insts
         for(SiteInst siteInst : siteInstsToRemove) {
             design.removeSiteInst(siteInst);
+        }
+        
+        // Replace the Q net with the D net in the physical site routing
+        for(SiteInst si : design.getSiteInsts()) {
+        	Map<Net,HashSet<String>> netMap = si.getSiteCTags();
+        	Map<String,Net> siteWireMap = si.getNetSiteWireMap();
+        	for(Net net : new ArrayList<>(netMap.keySet())) {
+        		String reassignmentNetName = netReassignments.get(net.getName());
+        		if(reassignmentNetName != null) {
+        			Net reassignmentNet = design.getNet(reassignmentNetName);
+        			HashSet<String> siteWires = si.getSiteCTags().remove(net);
+        			si.getNetList().remove(net);
+        			si.getNetList().add(reassignmentNet);
+        			if(siteWires != null) {
+        				si.getSiteCTags().put(reassignmentNet, siteWires);
+        			}
+        			for(String siteWire : siteWires) {
+        				siteWireMap.put(siteWire, reassignmentNet);
+        			}
+        		}
+        	}
         }
         
         t.stop().start("Write DCP");
