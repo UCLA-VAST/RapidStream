@@ -1,4 +1,5 @@
-from typing import List
+from typing import List, Tuple
+from graphviz import Digraph
 
 class Node:
   def __init__(self, tokens: List):
@@ -25,7 +26,7 @@ class Node:
       self.children.append(Node(closure))
 
 
-  def getClosure(self, tokens: List):
+  def getClosure(self, tokens: List) -> Tuple[List, List]:
     """
     if the first token is '{', return tokens until associated '}'
     else, return the first token
@@ -66,6 +67,17 @@ class Node:
       
       return route
 
+  def getDot(self, vertices: List, edges: List):
+    """
+    get the dot file for the tree.
+    """
+    vertices += [(str(id(self)), self.name)]
+    edges += [(str(id(self)), str(id(child))) for child in self.children]
+
+    for child in self.children:
+      child.getDot(vertices, edges)
+
+
 def compareRouteString(str1, str2):
   token_list_1 = [t for t in str1.split() if t]
   token_list_2 = [t for t in str2.split() if t]
@@ -74,10 +86,28 @@ def compareRouteString(str1, str2):
   for i in range(min(len1, len2)):
     print(token_list_1[i] == token_list_2[i], token_list_1[i], token_list_2[i])
 
+
+def getDotFile(tree: Node, filename = 'clock.dot'):
+  vertices = []
+  edges = []
+  tree.getDot(vertices, edges)
+
+  dot = Digraph(comment='Clock Route')
+  for v_id, v_name in vertices:
+    dot.node(v_id, v_name)
+  for src, sink in edges:
+    dot.edge(src, sink)
+
+  open(filename, 'w').write(dot.source)
+
+
 if __name__ == '__main__':
   test_input = '{ CLK_BUFGCE_9_CLK_OUT CLK_CMT_MUX_16_ENC_2_CLK_OUT CLK_CMT_MUX_2TO1_19_CLK_OUT CLK_HROUTE_0_2 CLK_HROUTE_L2 CLK_HROUTE_L2 CLK_CMT_MUX_3TO1_2_CLK_OUT CLK_VROUTE_BOT CLK_CMT_DRVR_TRI_ESD_3_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_2_CLK_OUT CLK_VROUTE_BOT CLK_CMT_DRVR_TRI_ESD_2_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP { CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B { CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_BUFCE_ROW_FSR_0_CLK_IN CLK_BUFCE_ROW_FSR_0_CLK_OUT CLK_TEST_BUF_SITE_1_CLK_IN } CLK_BUFCE_ROW_FSR_0_CLK_IN CLK_BUFCE_ROW_FSR_0_CLK_OUT CLK_TEST_BUF_SITE_1_CLK_IN } CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_BUFCE_ROW_FSR_0_CLK_IN CLK_BUFCE_ROW_FSR_0_CLK_OUT CLK_TEST_BUF_SITE_1_CLK_IN }'
   tokens = [t for t in test_input.split() if t]
   tree = Node(tokens)
 
   rebuild_tree = '{ ' + tree.dumpRouteString() + ' }'
-  print(test_input == rebuild_tree)
+  assert test_input == rebuild_tree
+
+  getDotFile(tree)
+
