@@ -7,6 +7,12 @@ class Node:
     given a list of tokens, use the first one as the name of the current node
     find the children nodes of the current node
     """
+    self.name: str = None
+    self.children: List[Node] = None
+
+    self.parseTokens(tokens)
+
+  def parseTokens(self, tokens):
     # get rid of the brackets if exist
     if tokens[0] == '{':
       assert tokens[-1] =='}'
@@ -88,6 +94,9 @@ def compareRouteString(str1, str2):
 
 
 def getDotFile(tree: Node, filename = 'clock.dot'):
+  """
+  use https://dreampuf.github.io/GraphvizOnline/ to visualize dot files
+  """
   vertices = []
   edges = []
   tree.getDot(vertices, edges)
@@ -104,10 +113,14 @@ def getDotFile(tree: Node, filename = 'clock.dot'):
 if __name__ == '__main__':
   test_input = '{ CLK_BUFGCE_9_CLK_OUT CLK_CMT_MUX_16_ENC_2_CLK_OUT CLK_CMT_MUX_2TO1_19_CLK_OUT CLK_HROUTE_0_2 CLK_HROUTE_L2 CLK_HROUTE_L2 CLK_CMT_MUX_3TO1_2_CLK_OUT CLK_VROUTE_BOT CLK_CMT_DRVR_TRI_ESD_3_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_2_CLK_OUT CLK_VROUTE_BOT CLK_CMT_DRVR_TRI_ESD_2_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP { CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B { CLK_CMT_MUX_3TO1_1_CLK_OUT CLK_VDISTR_TOP CLK_CMT_DRVR_TRI_ESD_0_CLK_OUT_SCHMITT_B CLK_BUFCE_ROW_FSR_0_CLK_IN CLK_BUFCE_ROW_FSR_0_CLK_OUT CLK_TEST_BUF_SITE_1_CLK_IN } CLK_BUFCE_ROW_FSR_0_CLK_IN CLK_BUFCE_ROW_FSR_0_CLK_OUT CLK_TEST_BUF_SITE_1_CLK_IN } CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_CMT_MUX_3TO1_0_CLK_OUT CLK_VDISTR_BOT CLK_CMT_DRVR_TRI_ESD_1_CLK_OUT_SCHMITT_B CLK_BUFCE_ROW_FSR_0_CLK_IN CLK_BUFCE_ROW_FSR_0_CLK_OUT CLK_TEST_BUF_SITE_1_CLK_IN }'
   tokens = [t for t in test_input.split() if t]
+
+  # construct a tree from the ROUTE string
   tree = Node(tokens)
 
+  # convert back to the ROUTE string
   rebuild_tree = '{ ' + tree.dumpRouteString() + ' }'
   assert test_input == rebuild_tree
 
+  # visualize the tree
   getDotFile(tree)
 
