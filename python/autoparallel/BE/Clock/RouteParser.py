@@ -10,6 +10,7 @@ class Node:
     self.name: str = None
     self.children: List[Node] = None
     self.attributes = {} # for dot visualization
+    self.sub_tree_has_pattern: bool = None
 
     self._parseTokens(tokens)
 
@@ -88,6 +89,27 @@ class Node:
   def addAttr(self, attrs: Dict[str, str]):
     self.attributes.update(attrs)
   
+  def ifSubTreeHasPattern(self, pattern: str):
+    """
+    check if any node in the subtree has "pattern" in name
+    """
+    if self.sub_tree_has_pattern == None:
+      for child in self.children:
+        child.ifSubTreeHasPattern(pattern)
+
+      self.sub_tree_has_pattern = (pattern in self.name) or any(child.sub_tree_has_pattern for child in self.children)
+
+    if not self.sub_tree_has_pattern:
+      self.addAttr({'color':'red'})
+
+    return self.sub_tree_has_pattern
+
+  def pruneSubTreeIfNotHasPattern(self, pattern: str):
+    # only keep the child that has the pattern
+    self.children = [child for child in self.children if child.ifSubTreeHasPattern(pattern)]
+    for child in self.children:
+      child.pruneSubTreeIfNotHasPattern(pattern)
+
 
 class Tree:
   def __init__(self, route: str):
@@ -114,6 +136,12 @@ class Tree:
 
   def dumpRouteString(self):
     return self.root.dumpRouteString()
+
+  def checkPattern(self, pattern: str):
+    self.root.ifSubTreeHasPattern(pattern)
+
+  def getFixRouteCommand(self):
+    return f'set_property ROUTE {self.root.dumpRouteString} [get_nets ap_clk]'
 
 
 def compareRouteString(str1, str2):
@@ -183,6 +211,16 @@ def testTreeBasics():
   # visualize the tree
   tree.getDotFile
 
+
 if __name__ == '__main__':
-  testCompareAndMarkTwoTrees()
-  testTreeBasics()
+  # testCompareAndMarkTwoTrees()
+  # testTreeBasics()
+
+  route = open('./test_sample_design/clock_route.txt', 'r').read()
+  tree = Tree(route)
+  tree.root.pruneSubTreeIfNotHasPattern('HDISTR')
+  tree.getDotFile('clock_stem.dot')
+
+  orig_tree = Tree(route)
+  compareAndMarkTwoTrees(tree.root, orig_tree.root)
+  orig_tree.getDotFile('show_pruned_parts.dot')
