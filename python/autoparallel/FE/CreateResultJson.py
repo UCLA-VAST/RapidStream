@@ -5,6 +5,8 @@ import re
 from collections import defaultdict
 from autobridge.Opt.Slot import Slot
 from autobridge.Device.DeviceManager import DeviceU250
+U250_inst = DeviceU250()
+
 
 class CreateResultJson:
   def __init__(
@@ -114,8 +116,8 @@ class CreateResultJson:
     for pair in all_slot_pairs:
       slot0_name = pair[0]
       slot1_name = pair[1]
-      slot0 = Slot(DeviceU250, slot0_name)
-      slot1 = Slot(DeviceU250, slot1_name)
+      slot0 = Slot(U250_inst, slot0_name)
+      slot1 = Slot(U250_inst, slot1_name)
 
       if slot0.isToTheLeftOf(slot1):
         if 'RIGHT' in slot_to_dir_to_num[slot0_name]:
