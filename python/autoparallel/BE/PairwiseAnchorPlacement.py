@@ -10,11 +10,13 @@ from mip import Model, minimize, CONTINUOUS, xsum
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autoparallel.BE.BEManager import loggingSetup
 from autoparallel.BE.Device import U250
+from autoparallel.BE.Utilities import isPairSLRCrossing
 from autobridge.Device.DeviceManager import DeviceU250
-from autoparallel.BE.Device import U250
 from autobridge.Opt.Slot import Slot
 
 U250_inst = DeviceU250()
+
+
 ######################### ILP placement ############################################
 
 def __getWeightMatchingBins(slot1_name, slot2_name, bin_size_x, bin_size_y):
@@ -182,6 +184,26 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connections):
 
 ######################### update placement results ############################################
 
+def  laguna_rule_check(anchor_2_laguna):
+  """
+  check that each SLL is only used by one anchor register
+  """
+  laguna_2_anchor = {laguna : anchor for anchor, laguna in anchor_2_laguna.items()}
+  for laguna in laguna_2_anchor.keys():
+    match = re.search(r'LAGUNA_X(\d+)Y(\d+)/.X_REG(\d)', laguna)
+    assert match, f'wrong laguna location: {laguna}'
+
+    x = int(match.group(1))
+    y = int(match.group(2))
+    reg = int(match.group(3))
+
+    if f'LAGUNA_X{x}Y{y+120}/TX_REG{reg}'  in laguna_2_anchor or \
+        f'LAGUNA_X{x}Y{y+120}/RX_REG{reg}'  in laguna_2_anchor or \
+        f'LAGUNA_X{x}Y{y-120}/TX_REG{reg}'  in laguna_2_anchor or \
+        f'LAGUNA_X{x}Y{y-120}/RX_REG{reg}'  in laguna_2_anchor:
+      assert False
+
+
 def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
   """
   for an SLR-crossing pair, move the anchor registers to the nearby laguna sites
@@ -199,22 +221,7 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
   if an anchor is at the up side, use the SLL from large index to small index
   if an anchor is at the down side, use the SLL from small index to large index
   assert that at most 12 FDREs can be placed into the same SLICE site
-  """
-
-  def __is_slr_crossing_pair():
-    slot1 = Slot(U250_inst, slot1_name)
-    slot2 = Slot(U250_inst, slot2_name)
-
-    if slot1.down_left_x != slot2.down_left_x:
-      return False
-    else:
-      up_slot = slot1 if slot1.down_left_y > slot2.down_left_y else slot2
-      if not any(y == up_slot.down_left_y for y in [4, 8, 12]):
-        return False
-      else:
-        return True
-
-        
+  """   
   def __get_anchor_2_sll_dir():
     """
     each anchor will use one SLL connection.
@@ -346,27 +353,9 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
 
     return anchor_2_laguna
 
-  def  __laguna_rule_check():
-    """
-    check that each SLL is only used by one anchor register
-    """
-    laguna_2_anchor = {laguna : anchor for anchor, laguna in anchor_2_laguna.items()}
-    for laguna in laguna_2_anchor.keys():
-      match = re.search(r'LAGUNA_X(\d+)Y(\d+)/.X_REG(\d)', laguna)
-      x = int(match.group(1))
-      y = int(match.group(2))
-      reg = int(match.group(3))
-
-      if f'LAGUNA_X{x}Y{y+120}/TX_REG{reg}'  in laguna_2_anchor or \
-         f'LAGUNA_X{x}Y{y+120}/RX_REG{reg}'  in laguna_2_anchor or \
-         f'LAGUNA_X{x}Y{y-120}/TX_REG{reg}'  in laguna_2_anchor or \
-         f'LAGUNA_X{x}Y{y-120}/RX_REG{reg}'  in laguna_2_anchor:
-        assert False
-
   # ---------- main ----------#
 
-  if not __is_slr_crossing_pair():
-    return {anchor : f'SLICE_X{xy[0]}Y{xy[1]}' for anchor, xy in anchor_2_slice_xy.items() }
+  assert isPairSLRCrossing(slot1_name, slot2_name)
 
   anchor_2_sll_dir = __get_anchor_2_sll_dir()
   anchor_2_top_or_bottom = __get_anchor_2_top_or_bottom()
@@ -374,10 +363,39 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
   laguna_block_2_anchor_list = __get_laguna_block_2_anchor_list()
   anchor_2_laguna = __get_anchor_to_laguna()
 
-  __laguna_rule_check()
+  laguna_rule_check(anchor_2_laguna)
 
   return anchor_2_laguna
 
+
+def moveTXLagunaAnchorsToRX(anchor_2_loc):
+  """
+  To fix the clock, we could only place the anchor on the RX side
+  otherwise Vivado could not resolve hold violation of SLR crossing
+  If a TX anchor is at the bottom part, change it to the RX anchor of the upper part, vice versa
+  """
+  for anchor in anchor_2_loc.keys():
+    loc = anchor_2_loc[anchor]
+    if 'TX' in loc:
+      match = re.search(r'LAGUNA_X(\d+)Y(\d+)/TX_REG(\d)', loc)
+      x = int(match.group(1))
+      y = int(match.group(2))
+      reg = int(match.group(3))
+
+      if 120 <= y <= 120 + 119 or \
+         360 <= y <= 360 + 119 or \
+         600 <= y <= 600 + 119:
+        y += 120
+      else:
+        y -= 120
+      
+      new_loc = f'LAGUNA_X{x}Y{y}/RX_REG{reg}'
+      anchor_2_loc[anchor] = new_loc   
+    
+    else:
+      assert 'RX' in loc, f'incorrect laguna location: {loc}'
+
+  laguna_rule_check(anchor_2_loc)
 
 
 ##################### helper #####################################
@@ -501,7 +519,16 @@ if __name__ == '__main__':
     anchor_2_slice_xy = runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
 
     slot1_name, slot2_name = pair_name.split('_AND_')
-    anchor_2_loc = moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name)
+
+    # if the pair is SLR crossing, move the anchors to nearby lagunas
+    if isPairSLRCrossing(slot1_name, slot2_name):
+      anchor_2_loc = moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name)  
+      
+      # to properly fix the clock for anchors, only place anchors on RX laguna registers
+      moveTXLagunaAnchorsToRX(anchor_2_loc)
+    else:
+      anchor_2_loc = {anchor : f'SLICE_X{xy[0]}Y{xy[1]}' for anchor, xy in anchor_2_slice_xy.items() }
+    
     writePlacementResults(anchor_2_loc)
     
     setupSlotClockRouting(anchor_2_loc)
