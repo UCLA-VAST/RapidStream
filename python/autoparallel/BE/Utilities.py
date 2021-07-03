@@ -1,5 +1,9 @@
 import re
 
+from autobridge.Opt.Slot import Slot
+from autobridge.Device.DeviceManager import DeviceU250
+U250_inst = DeviceU250()
+
 
 def getSlotsInSLRIndex(hub, slr_index):
   """
@@ -50,3 +54,20 @@ def getPruningAnchorScript(dcp_path, inner_module_name, output_dir):
   script.append(f'write_checkpoint {output_dir}/{inner_module_name}.dcp')
 
   return script
+
+
+def isPairSLRCrossing(slot1_name: str, slot2_name: str) -> bool:
+  """
+  check if two slots span two SLRs
+  """
+  slot1 = Slot(U250_inst, slot1_name)
+  slot2 = Slot(U250_inst, slot2_name)
+
+  if slot1.down_left_x != slot2.down_left_x:
+    return False
+  else:
+    up_slot = slot1 if slot1.down_left_y > slot2.down_left_y else slot2
+    if not any(y == up_slot.down_left_y for y in [4, 8, 12]):
+      return False
+    else:
+      return True
