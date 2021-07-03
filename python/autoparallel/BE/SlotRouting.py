@@ -99,7 +99,7 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
     
     # *** prevent gap in clock routing
     script.append(f'set_property ROUTE "" [get_nets ap_clk]')
-    script.append(f'source /home/einsx7/auto-parallel/src/clock/only_hdistr.tcl')
+    script.append(f'source -notrace {clock_dir}/{slot_name}/set_anchor_clock_route.tcl')
     script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
     script.append(f'route_design')
@@ -141,7 +141,7 @@ if __name__ == '__main__':
   assert len(sys.argv) == 3, 'input (1) the path to the front end result file; (2) the target directory; (3) which action'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
-  clock_dir = f'{base_dir}/clock_routing'
+  clock_dir = f'{base_dir}/slot_anchor_clock_routing'
   opt_dir = f'{base_dir}/opt_placement_iter0'
   routing_dir = f'{base_dir}/slot_routing'
 
