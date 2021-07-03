@@ -443,6 +443,35 @@ def setupAnchorPlacement(hub):
 
   open(f'{anchor_placement_dir}/parallel-ilp-placement-iter{iter}.txt', 'w').write('\n'.join(tasks))
 
+
+def setupSlotClockRouting(anchor_2_loc):
+  """
+  help setup the clock routing for the slots
+  create/place all anchor cells and connect them with clock
+  """
+  script = []
+  
+  # create cells
+  script.append('create_cell -reference FDRE { \\')
+  for anchor in anchor_2_loc.keys():
+    script.append(f'  {anchor} \\') # note that spaces are not allowed after \
+  script.append('}')
+
+  # place cells
+  script.append('place_cell { \\')
+  for anchor, loc in anchor_2_loc.items():
+    script.append(f'  {anchor} {loc} \\') # note that spaces are not allowed after \
+  script.append('}')
+  
+  # connect to clock
+  script.append('connect_net -net ap_clk -objects { \\')
+  for anchor in anchor_2_loc.keys():
+    script.append(f'  {anchor}/C \\') # note that spaces are not allowed after \
+  script.append('}')
+
+  open('create_and_place_anchors_for_clock_routing.tcl', 'w').write('\n'.join(script))
+
+
 if __name__ == '__main__':
   assert len(sys.argv) >= 5, 'input (1) the path to the front end result file; (2) the target directory; (3) which action; (4) which iteration'
   hub_path = sys.argv[1]
@@ -474,6 +503,8 @@ if __name__ == '__main__':
     slot1_name, slot2_name = pair_name.split('_AND_')
     anchor_2_loc = moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name)
     writePlacementResults(anchor_2_loc)
+    
+    setupSlotClockRouting(anchor_2_loc)
     
   else:
     assert False, f'unrecognized option {option}'
