@@ -140,9 +140,10 @@ class Tree:
   def checkPattern(self, pattern: str):
     self.root.ifSubTreeHasPattern(pattern)
 
-  def getFixRouteCommand(self):
-    return f'set_property ROUTE {self.root.dumpRouteString} [get_nets ap_clk]'
-
+  def getFixRouteCommand(self, filename):
+    cmd = [f'set_property ROUTE {{ {self.root.dumpRouteString()} }} [get_nets ap_clk]']
+    cmd += [f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]']
+    open(filename, 'w').write('\n'.join(cmd))
 
 def compareRouteString(str1, str2):
   token_list_1 = [t for t in str1.split() if t]
@@ -216,10 +217,11 @@ if __name__ == '__main__':
   # testCompareAndMarkTwoTrees()
   # testTreeBasics()
 
-  route = open('./test_sample_design/clock_route.txt', 'r').read()
+  route = open('./test_sample_design/clock_route_of_FF_chain_over_all_CR.txt', 'r').read()
   tree = Tree(route)
   tree.root.pruneSubTreeIfNotHasPattern('HDISTR')
-  tree.getDotFile('clock_stem.dot')
+  tree.getDotFile('clock_stem_from_FF_chain_over_all_CR_design.dot')
+  tree.getFixRouteCommand('set_clock_stem_from_FF_chain_over_all_CR_design.tcl')
 
   orig_tree = Tree(route)
   compareAndMarkTwoTrees(tree.root, orig_tree.root)
