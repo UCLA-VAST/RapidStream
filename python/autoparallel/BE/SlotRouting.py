@@ -102,6 +102,9 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
     script.append(f'source -notrace {clock_dir}/{slot_name}/set_anchor_clock_route.tcl')
     script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
+    # add hold uncertainty
+    script.append(f'set_clock_uncertainty -hold 0.15 [get_clocks ap_clk]')
+
     script.append(f'route_design')
     # sometimes phys_opt_design make things worse, probably because of the fixed clock
     script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/routed_with_ooc_clock.dcp')
