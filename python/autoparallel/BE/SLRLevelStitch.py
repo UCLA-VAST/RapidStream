@@ -124,6 +124,9 @@ def getSLRStitchScript(hub, slr_num):
     script.append(f'source /home/einsx7/auto-parallel/src/clock/only_hdistr.tcl')
     script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
+    # cancel the uncertainty in slot routing
+    script.append(f'set_clock_uncertainty -hold 0 [get_clocks ap_clk]')
+
     # SLR boundary should serve as a natural boundary
     script.append(f'delete_pblocks *')
 
