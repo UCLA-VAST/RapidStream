@@ -5,6 +5,7 @@ import os
 import logging
 import time
 import itertools
+from typing import List, Dict,
 from collections import defaultdict
 from mip import Model, minimize, CONTINUOUS, xsum
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
@@ -146,7 +147,7 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connections):
   Quantize the buffer region into separate bins and assign a cost for each bin
   minimize the total cost.
   Note that we could use CONTINOUS ILP variables in this special case
-  anchor_connections: anchor_name -> coordinates -> type(s)
+  anchor_connections: anchor_name -> coordinates -> types of end cell in this site
   """
   slot1_name, slot2_name = pair_name.split('_AND_')
 
@@ -413,13 +414,18 @@ def writePlacementResults(anchor_2_loc):
   f.close()
 
 
-def collectAllConnectionsOfTargetAnchors(pair_name):
+def collectAllConnectionsOfTargetAnchors(pair_name) -> Dict[Dict[str, List[str]]]:
   """
   for a pair of anchors, collect all connections of the anchors in between the two slots
+  return: anchor name -> normalized coordinate of site -> connected cells in this site
+  Note that one anchor may connect to multiple cells in the same site
   """  
   slot1_name, slot2_name = pair_name.split('_AND_')
-  connection1 = json.loads(open(get_anchor_connection_path(slot1_name), 'r').read())
-  connection2 = json.loads(open(get_anchor_connection_path(slot2_name), 'r').read())
+
+  # anchor name -> List[ sitename : cell_type ]
+  # e.g. XXX_q0_reg -> [ {"SLICE_X1Y2" : "CLB.SRL.SRL16E" } ]
+  connection1: Dict[str, List[Dict[str, str]]] = json.loads(open(get_anchor_connection_path(slot1_name), 'r').read())
+  connection2: Dict[str, List[Dict[str, str]]] = json.loads(open(get_anchor_connection_path(slot2_name), 'r').read())
 
   # get the common anchors
   common_anchor_connections = {} # anchor_reg_name -> site_coordinates -> all types of the cells in this site
@@ -428,10 +434,11 @@ def collectAllConnectionsOfTargetAnchors(pair_name):
       locs_part2 = connection2[anchor]
       site_name2types = defaultdict(list)
 
+      # Dict[str, str]
       for site_name_and_type in locs_part1 + locs_part2:
         [(site_name, type)] = site_name_and_type.items()
 
-        # convert the site name to coordinates
+        # convert the site name to coordinates. Especially for DSP, BRAM, etc.
         site_coordinate = U250.getCalibratedCoordinatesFromSiteName(site_name)
         site_name2types[site_coordinate].append(type)
 
