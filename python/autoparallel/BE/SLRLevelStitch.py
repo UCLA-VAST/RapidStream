@@ -121,7 +121,7 @@ def getSLRStitchScript(hub, slr_num):
 
     # add clock stem
     script.append(f'set_property ROUTE "" [get_nets ap_clk]')
-    script.append(f'source /home/einsx7/auto-parallel/src/clock/only_hdistr.tcl')
+    script.append(f'source {slr_anchor_clock_routing_dir}/slr_{slr_index}/set_anchor_clock_route.tcl')
     script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
     # cancel the uncertainty in slot routing
@@ -182,6 +182,7 @@ if __name__ == '__main__':
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   hub = json.loads(open(hub_path, 'r').read())
+  slr_anchor_clock_routing_dir =  base_dir + '/slr_anchor_clock_routing'
 
   current_path = os.path.dirname(os.path.realpath(__file__))
   unset_ooc_script = f'{current_path}/../../../bash/unset_ooc.sh'
