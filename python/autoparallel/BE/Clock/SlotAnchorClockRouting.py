@@ -3,8 +3,10 @@ import sys
 import os
 import json
 
+from autoparallel.BE.Utilities import getSlotsInSLRIndex, isPairSLRCrossing
 
-def getSlotAnchorRoutingScript(slot_name, anchor_initialization_scripts):
+
+def getSlotAnchorRoutingScript(anchor_initialization_scripts):
   """
   for each slot, get all anchors around the slot
   route the clock net towards all anchors
@@ -40,7 +42,7 @@ def getSlotAnchorRoutingScript(slot_name, anchor_initialization_scripts):
 
 def getAllSlotAnchorRoutingScripts():
   """
-  setup the opt script for each slot
+  setup the clock routing script for each slot
   """
   parallel = []
   for slot_name in hub['SlotIO'].keys():
@@ -49,7 +51,7 @@ def getAllSlotAnchorRoutingScripts():
     # create and place all anchors
     anchor_initialization_scripts = get_all_anchor_initialization_scripts(slot_name)
 
-    anchor_clock_route_script = getSlotAnchorRoutingScript(slot_name, anchor_initialization_scripts)
+    anchor_clock_route_script = getSlotAnchorRoutingScript(anchor_initialization_scripts)
 
     script_name = f'{slot_anchor_clock_routing_dir}/{slot_name}/{slot_name}_anchor_clock_routing.tcl'
     open(script_name, 'w').write('\n'.join(anchor_clock_route_script))
@@ -57,6 +59,34 @@ def getAllSlotAnchorRoutingScripts():
     parallel.append(f'cd {slot_anchor_clock_routing_dir}/{slot_name} && VIV_VER=2020.1 vivado -mode batch -source {script_name}')
 
   open(f'{slot_anchor_clock_routing_dir}/parallel-run-slot-clock-routing.txt', 'w').write('\n'.join(parallel))
+
+
+def getSLRAnchorRoutingScripts(SLR_NUM):
+  """
+  setup the clock routing script for each SLR
+  """
+  parallel = []
+  slr_2_slots = [ getSlotsInSLRIndex(hub, i) for i in range(SLR_NUM+1) ]
+  for slr_index in range(SLR_NUM):
+    os.mkdir(f'{slr_anchor_clock_routing_dir}/slr_{slr_index}')
+    slr_crossing_pairs = []
+    for pair in hub['AllSlotPairs']:
+      if (pair[0] in slr_2_slots[slr_index] and pair[1] in slr_2_slots[slr_index+1]) or \
+         (pair[1] in slr_2_slots[slr_index] and pair[0] in slr_2_slots[slr_index+1]) or \
+         (pair[0] in slr_2_slots[slr_index] and pair[1] in slr_2_slots[slr_index-1]) or \
+         (pair[1] in slr_2_slots[slr_index] and pair[0] in slr_2_slots[slr_index-1]) :
+        slr_crossing_pairs.append(pair)
+
+    anchor_init_scripts = [get_anchor_initialization_script('_AND_'.join(pair)) for pair in slr_crossing_pairs]
+
+    slr_anchor_clock_routing_script = getSlotAnchorRoutingScript(anchor_init_scripts)
+
+    script_name = f'{slr_anchor_clock_routing_dir}/slr_{slr_index}/slr_{slr_index}_anchor_clock_routing.tcl'
+    open(script_name, 'w').write('\n'.join(slr_anchor_clock_routing_script))
+
+    parallel.append(f'cd {slr_anchor_clock_routing_dir}/slr_{slr_index} && VIV_VER=2020.1 vivado -mode batch -source {script_name}')
+
+  open(f'{slr_anchor_clock_routing_dir}/parallel-run-slr-clock-routing.txt', 'w').write('\n'.join(parallel))
 
 
 if __name__ == '__main__':
@@ -71,6 +101,8 @@ if __name__ == '__main__':
 
   slot_anchor_clock_routing_dir = base_dir + '/slot_anchor_clock_routing'
   os.mkdir(slot_anchor_clock_routing_dir)
+  slr_anchor_clock_routing_dir =  base_dir + '/slr_anchor_clock_routing'
+  os.mkdir(slr_anchor_clock_routing_dir)
 
   current_path = os.path.dirname(os.path.realpath(__file__))
   empty_checkpoint_path = f'{current_path}/../../../../checkpoint/empty_U250.dcp'
@@ -90,4 +122,5 @@ if __name__ == '__main__':
   get_all_anchor_initialization_scripts = lambda slot_name : [get_anchor_initialization_script(pair_name) for pair_name in get_related_pairs(slot_name)]
   get_all_anchor_initialization_flags = lambda slot_name : [script + '.done.flag' for script in get_all_anchor_initialization_scripts(slot_name)]
 
-  getAllSlotAnchorRoutingScripts()
+  # getAllSlotAnchorRoutingScripts()
+  getSLRAnchorRoutingScripts(SLR_NUM=4)
