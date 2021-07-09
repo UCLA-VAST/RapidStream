@@ -122,5 +122,5 @@ if __name__ == '__main__':
   get_all_anchor_initialization_scripts = lambda slot_name : [get_anchor_initialization_script(pair_name) for pair_name in get_related_pairs(slot_name)]
   get_all_anchor_initialization_flags = lambda slot_name : [script + '.done.flag' for script in get_all_anchor_initialization_scripts(slot_name)]
 
-  # getAllSlotAnchorRoutingScripts()
+  getAllSlotAnchorRoutingScripts()
   getSLRAnchorRoutingScripts(SLR_NUM=4)
