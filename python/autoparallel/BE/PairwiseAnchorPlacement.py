@@ -5,13 +5,14 @@ import os
 import logging
 import time
 import itertools
-from typing import List, Dict,
+from typing import List, Dict
 from collections import defaultdict
 from mip import Model, minimize, CONTINUOUS, xsum
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autoparallel.BE.BEManager import loggingSetup
 from autoparallel.BE.Device import U250
 from autoparallel.BE.Utilities import isPairSLRCrossing
+from autoparallel.BE.AnchorPlacement.PairwiseAnchorPlacementForSLRCrossing import placeLagunaAnchors
 from autobridge.Device.DeviceManager import DeviceU250
 from autobridge.Opt.Slot import Slot
 
@@ -414,7 +415,7 @@ def writePlacementResults(anchor_2_loc):
   f.close()
 
 
-def collectAllConnectionsOfTargetAnchors(pair_name) -> Dict[Dict[str, List[str]]]:
+def collectAllConnectionsOfTargetAnchors(pair_name) -> Dict[str, Dict[str, List[str]]]:
   """
   for a pair of anchors, collect all connections of the anchors in between the two slots
   return: anchor name -> normalized coordinate of site -> connected cells in this site
@@ -522,18 +523,13 @@ if __name__ == '__main__':
   # run the ILP placement for the given slot pairs
   elif option == 'RUN':
     pair_name = sys.argv[5]
-    common_anchor_connections = collectAllConnectionsOfTargetAnchors(pair_name) 
-    anchor_2_slice_xy = runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
-
+    common_anchor_connections = collectAllConnectionsOfTargetAnchors(pair_name)
     slot1_name, slot2_name = pair_name.split('_AND_')
 
-    # if the pair is SLR crossing, move the anchors to nearby lagunas
     if isPairSLRCrossing(slot1_name, slot2_name):
-      anchor_2_loc = moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name)  
-      
-      # to properly fix the clock for anchors, only place anchors on RX laguna registers
-      moveTXLagunaAnchorsToRX(anchor_2_loc)
+      anchor_2_loc = placeLagunaAnchors(hub, pair_name, common_anchor_connections)
     else:
+      anchor_2_slice_xy = runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
       anchor_2_loc = {anchor : f'SLICE_X{xy[0]}Y{xy[1]}' for anchor, xy in anchor_2_slice_xy.items() }
     
     writePlacementResults(anchor_2_loc)
