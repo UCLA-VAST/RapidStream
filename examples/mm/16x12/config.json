@@ -1,0 +1,26 @@
+{
+  "Board" : "U250",
+  "HLSProjectPath" : "/home/einsx7/auto-parallel/benchmark/mm/16x12/mm_16x12",
+  "HLSSolutionName" : "solution",
+  "TopName" : "kernel0",
+
+  "FloorplanMethod": "floorplanVHHvh",
+  "AreaUtilizationRatio" : 0.75,
+
+  "PipelineStyle" : "LUT",
+
+  "Floorplan" : {
+    "CLOCKREGION_X4Y0:CLOCKREGION_X5Y1" : [
+      "kernel0_control_s_axi_U",
+      "kernel0_gmem_cin_m_axi_U"
+    ],
+    "CLOCKREGION_X4Y4:CLOCKREGION_X5Y5" : [
+      "kernel0_gmem_w_m_axi_U"
+    ],
+    "CLOCKREGION_X4Y12:CLOCKREGION_X5Y13" : [
+      "kernel0_gmem_cout_m_axi_U"
+    ]
+  },
+
+  "ResultReuse" : "/home/einsx7/auto-parallel/src/e2e_test/mm/16x12_balance_route/front_end_result.json"
+}
