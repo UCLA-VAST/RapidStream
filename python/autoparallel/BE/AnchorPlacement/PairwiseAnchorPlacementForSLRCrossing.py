@@ -33,7 +33,7 @@ class SLLChannel:
     self._initRXList(i_th_column, bottom_coor_y)
 
   def __hash__(self):
-    return (self.bottom_coor_x, self.bottom_coor_y)
+    return hash((self.bottom_coor_x, self.bottom_coor_y))
 
   def _initRXList(self, i_th_column, bottom_coor_y):
     """
@@ -51,7 +51,7 @@ class SLLChannel:
     self.bottom_laguna_RX = [f'{site}/RX_REG{i}' for i in range(6) for site in bottom_laguna_sites]
     self.top_laguna_RX = [f'{site}/RX_REG{i}' for i in range(6) for site in top_laguna_sites]    
 
-  def _get_nearest_laguna_y(slice_y):
+  def _get_nearest_laguna_y(self, slice_y):
     """
     convert from SLICE coordinate to laguna coordinate
     """
@@ -104,9 +104,13 @@ class SLLChannel:
   def placeAnchor(self, anchor_dir):
     """
     mark an RX register as occupied by popping it out
+    The sites at the top will use the RX from small index to large index
+    the sites at the bottom will use the RX from large index to small index
+    Note that each SLL is associate with two RX and two TX registers 
+    so that it can be used in both directions. But only one of them could be used.
     """
     if anchor_dir == 'UP':
-      return self.top_laguna_RX.pop(0)
+      return self.top_laguna_RX.pop()
     elif anchor_dir == 'DOWN':
       return self.bottom_laguna_RX.pop(0)
     else:
@@ -243,7 +247,7 @@ def placeAnchorToSLLChannel(anchor_to_sll_to_cost) -> Dict[str, SLLChannel]:
   return anchor_to_sll
 
 
-def runILPWeightMatchingPlacementForSLRCrossingPair(hub, pair_name, anchor_to_coor_to_cell_types):
+def placeLagunaAnchors(hub, pair_name, anchor_to_coor_to_cell_types):
   """
   separally handle the anchor placement for SLR crossing pairs
   The source cannot be too close to the chose SLL
