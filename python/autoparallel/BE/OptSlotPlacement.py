@@ -28,8 +28,8 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
 
   # get rid of the place holder LUTs
   # currently keep the LUTs to alleviate hold violations
-  # if hub['InSlotPipelineStyle'] == 'LUT':
-  #   script += removeLUTPlaceholders()
+  if hub['InSlotPipelineStyle'] == 'LUT':
+    script += removeLUTPlaceholders()
 
   # optimize the slot based on the given anchor placement
   # do placement only so that we could track the change from the log
