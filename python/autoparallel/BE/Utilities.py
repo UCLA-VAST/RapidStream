@@ -1,4 +1,5 @@
 import re
+from typing import List
 
 from autobridge.Opt.Slot import Slot
 from autobridge.Device.DeviceManager import DeviceU250
@@ -71,3 +72,14 @@ def isPairSLRCrossing(slot1_name: str, slot2_name: str) -> bool:
       return False
     else:
       return True
+
+
+def getNeighborSlots(hub, slot_name: str) -> List[str]:
+  neighbors = []
+  for slot1_name, slot2_name in hub["AllSlotPairs"]:
+    if slot1_name == slot_name:
+      neighbors.append(slot2_name)
+    elif slot2_name == slot_name:
+      neighbors.append(slot1_name)
+
+  return neighbors
