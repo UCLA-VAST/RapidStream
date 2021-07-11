@@ -53,7 +53,7 @@ def pruneAnchors(hub):
     open(f'{slot_dir}/prune_anchors.tcl', 'w').write('\n'.join(script))
 
 
-def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
+def routeWithGivenClock(hub, opt_dir, routing_dir):
   """
   Run the final routing of each slot with the given clock network
   """
@@ -99,7 +99,7 @@ def routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir):
     
     # *** prevent gap in clock routing
     script.append(f'set_property ROUTE "" [get_nets ap_clk]')
-    script.append(f'source -notrace {clock_dir}/{slot_name}/set_anchor_clock_route.tcl')
+    script.append(f'source -notrace {clock_trunk_path}')
     script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
     # add hold uncertainty
@@ -144,13 +144,15 @@ if __name__ == '__main__':
   assert len(sys.argv) == 3, 'input (1) the path to the front end result file; (2) the target directory; (3) which action'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
-  clock_dir = f'{base_dir}/slot_anchor_clock_routing'
   opt_dir = f'{base_dir}/opt_placement_iter0'
   routing_dir = f'{base_dir}/slot_routing'
 
   current_path = os.path.dirname(os.path.realpath(__file__))
   unset_ooc_script = f'{current_path}/../../../bash/unset_ooc.sh'
   unset_hd_reconfigurable_script = f'{current_path}/../../../bash/unset_hd_reconfigurable.sh'
+
+  # clock trunk, including tap level for row buffers
+  clock_trunk_path = f'{current_path}/../Clock/set_clock_stem_from_FF_chain_over_all_CR_design.tcl'
 
   user_name = 'einsx7'
   # server_list=['u5','u17','u18','u15']
@@ -159,6 +161,6 @@ if __name__ == '__main__':
   print(f'WARNING: the server list is: {server_list}' )
 
   hub = json.loads(open(hub_path, 'r').read())
-  routeWithGivenClock(hub, clock_dir, opt_dir, routing_dir)
+  routeWithGivenClock(hub, opt_dir, routing_dir)
   pruneAnchors(hub)
   getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
