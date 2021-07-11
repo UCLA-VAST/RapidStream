@@ -53,6 +53,18 @@ def pruneAnchors(hub):
     open(f'{slot_dir}/prune_anchors.tcl', 'w').write('\n'.join(script))
 
 
+def addAllAnchors():
+  """
+  when route a slot, instantiate and place all anchors, so that the tap of row buffers are closer to the real case.
+  """
+  pair_name_list = ['_AND_'.join(pair) for pair in hub["AllSlotPairs"]]
+  get_create_anchor_script = lambda pair_name : f'{base_dir}/ILP_anchor_placement_iter0/{pair_name}/create_and_place_anchors_for_clock_routing.tcl'
+
+  script = ['set_property DONT_TOUCH 0 [get_nets ap_clk]']
+  script += [f'catch {{ source -notrace {get_create_anchor_script(pair_name)} }}' for pair_name in pair_name_list]
+
+  return script
+
 def routeWithGivenClock(hub, opt_dir, routing_dir):
   """
   Run the final routing of each slot with the given clock network
@@ -103,7 +115,11 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
     # add hold uncertainty
-    script.append(f'set_clock_uncertainty -hold 0.15 [get_clocks ap_clk]')
+    # since we find a trick to keep a consistent tap for row buffers, we don't need this
+    # script.append(f'set_clock_uncertainty -hold 0.15 [get_clocks ap_clk]')
+
+    # include all anchors to ensure the tap of row buffers are properly set
+    script += addAllAnchors()
 
     script.append(f'route_design')
     # sometimes phys_opt_design make things worse, probably because of the fixed clock
@@ -152,7 +168,7 @@ if __name__ == '__main__':
   unset_hd_reconfigurable_script = f'{current_path}/../../../bash/unset_hd_reconfigurable.sh'
 
   # clock trunk, including tap level for row buffers
-  clock_trunk_path = f'{current_path}/../Clock/set_clock_stem_from_FF_chain_over_all_CR_design.tcl'
+  clock_trunk_path = f'{current_path}/Clock/set_clock_stem_from_FF_chain_over_all_CR_design.tcl'
 
   user_name = 'einsx7'
   # server_list=['u5','u17','u18','u15']
