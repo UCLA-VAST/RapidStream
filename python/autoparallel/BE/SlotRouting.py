@@ -134,14 +134,14 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
   # generate the gnu parallel tasks
   all_tasks = []
   for slot_name in hub['SlotIO'].keys():
-    vivado = 'VIV_VER=2020.1 vivado -mode batch -source route_with_ooc_clock.tcl'
+    vivado = 'VIV_VER=2020.2 vivado -mode batch -source route_with_ooc_clock.tcl'
     dir = f'{routing_dir}/{slot_name}/'
     
     # hack the generated checkpoint to unmark it as ooc
     unset_ooc = f'{unset_ooc_script} phys_opt_routed_with_ooc_clock.dcp'
 
     # remove the anchors
-    prune = f'VIV_VER=2020.1 vivado -mode batch -source prune_anchors.tcl'
+    prune = f'VIV_VER=2020.2 vivado -mode batch -source prune_anchors.tcl'
 
     # unset the HD.RECONFIGURABLE property of the checkpoint
     unset_reconfig = f'{unset_hd_reconfigurable_script} {slot_name}_ctrl_U0.dcp'
