@@ -17,6 +17,8 @@ def getAnchorConnectionExtractionScript():
   extraction_script_path = f'{current_path}/../../../tcl/extractSrcAndDstOfAnchors.tcl'
   return [
     f'source {extraction_script_path}',
+    f'report_timing -from [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_from_anchor.txt',
+    f'report_timing -to [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_to_anchor.txt',
     f'exec touch anchor_connections.json.done.flag']
 
 def getPlacementScript(
