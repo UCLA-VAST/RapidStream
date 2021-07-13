@@ -88,6 +88,22 @@ def __getILPResults(anchor2bin2var):
 
   return anchor_2_slice_xy
 
+def __debug_logging(anchor2bin2cost, anchor2site_coor2type):
+
+  anchor2loc2cost = {}
+  for anchor, bin2score in anchor2bin2cost.items():
+    loc2score = {f'SLICE_X{U250.getSliceOrigXCoordinates(bin[0])}Y{bin[1]}' : score for bin, score in bin2score.items()}
+    anchor2loc2cost[anchor] = loc2score
+  open('debug_anchor_to_bin_2_cost.json', 'w').write(json.dumps(anchor2loc2cost, indent=2))
+
+  anchor2loc2type = {}
+  for anchor, coor2type in anchor2site_coor2type.items():
+    loc2type = {f'SLICE_X{U250.getSliceOrigXCoordinates(coor[0])}Y{coor[1]}' : score for coor, score in coor2type.items()}
+    anchor2loc2type[anchor] = loc2type
+
+  open('debug_anchor_connections.json', 'w').write(json.dumps(anchor2loc2type, indent=2))
+
+
 def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
   """
   set up and solve the weight matching ILP
@@ -103,6 +119,8 @@ def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
   for anchor in anchor_connections.keys():
     bin2cost = {bin : __getEdgeCost(anchor_connections[anchor], bin) for bin in bins }
     anchor2bin2cost[anchor] = bin2cost
+
+  # __debug_logging(anchor2bin2cost, anchor_connections)
 
   # create ILP variables.
   # Note that we use the CONTINOUS type due to this special case
@@ -357,7 +375,8 @@ def moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name):
 
   # ---------- main ----------#
 
-  assert isPairSLRCrossing(slot1_name, slot2_name)
+  if not isPairSLRCrossing(slot1_name, slot2_name):
+    return {anchor : f'SLICE_X{xy[0]}Y{xy[1]}' for anchor, xy in anchor_2_slice_xy.items() }
 
   anchor_2_sll_dir = __get_anchor_2_sll_dir()
   anchor_2_top_or_bottom = __get_anchor_2_top_or_bottom()
@@ -524,14 +543,12 @@ if __name__ == '__main__':
   elif option == 'RUN':
     pair_name = sys.argv[5]
     common_anchor_connections = collectAllConnectionsOfTargetAnchors(pair_name)
-    slot1_name, slot2_name = pair_name.split('_AND_')
-
-    if isPairSLRCrossing(slot1_name, slot2_name):
-      anchor_2_loc = placeLagunaAnchors(hub, pair_name, common_anchor_connections)
-    else:
-      anchor_2_slice_xy = runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
-      anchor_2_loc = {anchor : f'SLICE_X{xy[0]}Y{xy[1]}' for anchor, xy in anchor_2_slice_xy.items() }
     
+    anchor_2_slice_xy = runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
+
+    slot1_name, slot2_name = pair_name.split('_AND_')
+    anchor_2_loc = moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name)
+
     writePlacementResults(anchor_2_loc)
     
     setupSlotClockRouting(anchor_2_loc)
