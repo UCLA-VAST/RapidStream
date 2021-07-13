@@ -52,7 +52,7 @@ def __getEdgeCost(neighbor_cell_loc2types, FDRE_loc):
   If the target is a LUT, we add a penalty to the distance
   """
   dist = lambda loc1, loc2 : abs(loc1[0] -loc2[0]) + abs(loc1[1] - loc2[1])
-  lut_penalty = lambda types : 3 if any('LUT' in type for type in types) else 1
+  lut_penalty = lambda types : 1.2 if any('LUT' in type for type in types) else 1
 
   dists = [dist(cell_loc, FDRE_loc) * lut_penalty(types) for cell_loc, types in neighbor_cell_loc2types.items()]
 
