@@ -94,19 +94,8 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
     slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num)
     script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_at_boundary} }}')
-
-    # remove from the routing pblock the dsp and bram that fall into the anchor region
-    # otherwise those cells may suffer from contained routing
-    list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
-    str_range = '\n'.join(list_of_anchor_region_dsp_and_bram)
-    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {str_range} }}')
-
-    # remove laguna columns
-    laguna_ranges = U250.getAllLagunaRange()
-    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {laguna_ranges} }}')
-
     script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
-    
+
     # *** prevent gap in clock routing
     script.append(f'set_property ROUTE "" [get_nets ap_clk]')
     script.append(f'source -notrace {clock_trunk_path}')
