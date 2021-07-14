@@ -5,6 +5,7 @@ import os
 import logging
 import time
 import itertools
+import operator
 from typing import List, Dict
 from collections import defaultdict
 from mip import Model, minimize, CONTINUOUS, xsum
@@ -73,28 +74,69 @@ def __getILPResults(anchor2bin2var):
   """
   interpret the ILP solving results. Map anchor to locations
   """
-  anchor_2_slice_xy = {}
+
+  # get the mapping from anchor to bin
+  anchor_to_selected_bin = {}
   for anchor, bin2var in anchor2bin2var.items():
     for bin, var in bin2var.items():
       var_value = round(var.x)
       assert abs(var.x - var_value) < 0.000001, var.x # check that we are correctly treating each ILP var as CONTINOUS
 
       if var_value == 1:
-        # get the original coordinates
-        orig_x = U250.getSliceOrigXCoordinates(bin[0])
-        orig_y = bin[1]
+        anchor_to_selected_bin[anchor] = bin
+  
+  return anchor_to_selected_bin
 
-        anchor_2_slice_xy[anchor] = (orig_x, orig_y)
+
+def __getPlacementResults(anchor_to_selected_bin):
+
+  # get the mapping from anchor to the coordiantes
+  anchor_2_slice_xy = {}
+  for anchor, bin in anchor_to_selected_bin.items():
+    orig_x = U250.getSliceOrigXCoordinates(bin[0])
+    orig_y = bin[1]
+
+    anchor_2_slice_xy[anchor] = (orig_x, orig_y)
 
   return anchor_2_slice_xy
 
+
+def __analyzeILPResults(anchor2bin2cost, anchor_to_selected_bin):
+  """
+  get how optimal is the final position for each anchor
+  """
+
+  ilp_report = {}
+
+  for anchor, chosen_bin in anchor_to_selected_bin.items():
+    ilp_report[anchor] = {}
+
+    bin2cost = anchor2bin2cost[anchor]
+    all_cost_list = [[cost, bin] for bin, cost in bin2cost.items()]
+    all_cost_list = sorted(all_cost_list, key=operator.itemgetter(0))
+    cost_value_list = [x[0] for x in all_cost_list]
+
+    ilp_report[anchor]['curr_cost'] = bin2cost[chosen_bin]
+    ilp_report[anchor]['min_cost'] = all_cost_list[0][0]
+    ilp_report[anchor]['max_cost'] = all_cost_list[-1][0]
+    ilp_report[anchor]['rank_of_chosen_bin'] = cost_value_list.index(bin2cost[chosen_bin])
+    ilp_report[anchor]['total_bin_num'] = len(all_cost_list)
+    ilp_report[anchor]['bin_location'] = [chosen_bin[0], chosen_bin[1]]
+    optimal_bin = all_cost_list[0][1]
+    ilp_report[anchor]['optimal_location'] = [optimal_bin[0], optimal_bin[1]]
+    
+
+  open('ilp_quality_report.json', 'w').write(json.dumps(ilp_report, indent=2))
+
+
 def __debug_logging(anchor2bin2cost, anchor2site_coor2type):
+  logging.info('start dumping anchor_to_bin_to_cost')
 
   anchor2loc2cost = {}
   for anchor, bin2score in anchor2bin2cost.items():
     loc2score = {f'SLICE_X{U250.getSliceOrigXCoordinates(bin[0])}Y{bin[1]}' : score for bin, score in bin2score.items()}
     anchor2loc2cost[anchor] = loc2score
-  open('debug_anchor_to_bin_2_cost.json', 'w').write(json.dumps(anchor2loc2cost, indent=2))
+  open('debug_anchor_to_bin_to_cost.json', 'w').write(json.dumps(anchor2loc2cost, indent=2))
 
   anchor2loc2type = {}
   for anchor, coor2type in anchor2site_coor2type.items():
@@ -102,6 +144,8 @@ def __debug_logging(anchor2bin2cost, anchor2site_coor2type):
     anchor2loc2type[anchor] = loc2type
 
   open('debug_anchor_connections.json', 'w').write(json.dumps(anchor2loc2type, indent=2))
+
+  logging.info('finish dumping anchor_to_bin_to_cost')
 
 
 def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
@@ -120,7 +164,7 @@ def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
     bin2cost = {bin : __getEdgeCost(anchor_connections[anchor], bin) for bin in bins }
     anchor2bin2cost[anchor] = bin2cost
 
-  # __debug_logging(anchor2bin2cost, anchor_connections)
+  __debug_logging(anchor2bin2cost, anchor_connections)
 
   # create ILP variables.
   # Note that we use the CONTINOUS type due to this special case
@@ -157,7 +201,13 @@ def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
   m.optimize()
   logging.info(f'finish the solving process... {get_time_stamp()}')
 
-  return __getILPResults(anchor2bin2var)
+  anchor_to_selected_bin = __getILPResults(anchor2bin2var)
+
+  # analyze the ILP results
+  __analyzeILPResults(anchor2bin2cost, anchor_to_selected_bin)
+
+  # get the mapping from anchor to SLICE coordinates
+  return __getPlacementResults(anchor_to_selected_bin)
 
 
 def runILPWeightMatchingPlacement(pair_name, anchor_connections):
@@ -532,7 +582,8 @@ if __name__ == '__main__':
   else:
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/placement_opt_iter{iter}/{slot_name}/anchor_connections.json'
 
-  anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter{iter}'
+  # anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter{iter}'
+  anchor_placement_dir = f'{base_dir}/debug_ILP_placement'
 
   # run this before the ILP anchor placement, setup for the later steps
   if option == 'SETUP':
