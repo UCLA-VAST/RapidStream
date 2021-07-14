@@ -106,7 +106,7 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     # script.append(f'set_clock_uncertainty -hold 0.15 [get_clocks ap_clk]')
 
     # include all anchors to ensure the tap of row buffers are properly set
-    script += addAllAnchors()
+    # script += addAllAnchors()
 
     script.append(f'route_design')
     # sometimes phys_opt_design make things worse, probably because of the fixed clock
