@@ -5,7 +5,7 @@ import re
 
 class CreateRoutingSlotWrapper:
 
-  def __init__(self, compute_wrapper_creater, floorplan, global_router, top_rtl_parser, pipeline_style):
+  def __init__(self, compute_wrapper_creater, floorplan, global_router, top_rtl_parser, pipeline_style, anchor_plan: int):
     self.compute_wrapper_creater = compute_wrapper_creater
     self.compute_slot_to_io = compute_wrapper_creater.getSlotToIOList()
     self.floorplan = floorplan
@@ -14,6 +14,7 @@ class CreateRoutingSlotWrapper:
     self.pure_routing_slots = global_router.getPureRoutingSlots()
     self.target = compute_wrapper_creater.target # maintain the same interface with CreateSlotWrapper
     self.in_slot_pipeline_style = pipeline_style
+    self.anchor_plan = anchor_plan
 
     self.edge_wire_to_suffix_index = {}
 
@@ -204,6 +205,15 @@ class CreateRoutingSlotWrapper:
     v_set = set(s2v[slot])
     intra_edges, inter_edges = self.floorplan.getIntraAndInterEdges(s2v[slot])
 
+    if self.anchor_plan == 3:
+      reg_type = 'posedge ap_clk'
+      mark_dont_touch = '(* dont_touch = "yes" *)'
+    elif self.anchor_plan == 1:
+      reg_type = '*'
+      mark_dont_touch = ''
+    else:
+      assert False, f'only 1-FF and 3-FF plans are supported'
+
     for e in inter_edges:
       path_len = self.global_router.getPathLength(e.name)
 
@@ -212,30 +222,31 @@ class CreateRoutingSlotWrapper:
         if any(port_name.endswith(tag) for tag in ['_din', '_write', '_full_n']):
           wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
           connection_stmt.append(f'wire {wire_width} {wire_name};')
-
+          
         if e.dst in s2v[slot]: # process in-bound edges
           # _din and _write are input
           if port_name.endswith('_din') or port_name.endswith('_write'):
-            wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
-            connection_stmt.append(f'assign {wire_name} = {wire_name}_pass_{path_len};')
+            connection_stmt.append(f'{mark_dont_touch} reg {wire_width} {wire_name}_input_reg;')
+            connection_stmt.append(f'always @ ({reg_type}) {wire_name}_input_reg <= {wire_name}_pass_{path_len};')
+            connection_stmt.append(f'assign {wire_name} = {wire_name}_input_reg;')
           # _full_n is output
           elif port_name.endswith('_full_n'):
-            wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
-            connection_stmt.append(f'assign {wire_name}_pass_{path_len} = {wire_name};')
+            connection_stmt.append(f'{mark_dont_touch} reg {wire_width} {wire_name}_output_reg;')
+            connection_stmt.append(f'always @ ({reg_type}) {wire_name}_output_reg <= {wire_name};')
+            connection_stmt.append(f'assign {wire_name}_pass_{path_len} = {wire_name}_output_reg;')
 
         else: # out-bound edges. Note the direction of assignment is reversed than the inbound case
           # _din and _write are output
           if port_name.endswith('_din') or port_name.endswith('_write'):
-            wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
-            connection_stmt.append(f'assign {wire_name}_pass_0 = {wire_name};')
+            connection_stmt.append(f'{mark_dont_touch} reg {wire_width} {wire_name}_output_reg;')
+            connection_stmt.append(f'always @ ({reg_type}) {wire_name}_output_reg <= {wire_name};')
+            connection_stmt.append(f'assign {wire_name}_pass_0 = {wire_name}_output_reg;')
           # _full_n is input
           # additional pipelining to mitigate the broadcast effect
           elif port_name.endswith('_full_n'):
-            wire_width = self.top_rtl_parser.getWidthOfRegOrWire(wire_name)
-            assert connection_stmt[-1] == f'wire {wire_width} {wire_name};'
-            connection_stmt.append(f'reg {wire_width} {wire_name}_q_for_broadcast;')
-            connection_stmt.append(f'always @ (posedge ap_clk) {wire_name}_q_for_broadcast <= {wire_name}_pass_0;')
-            connection_stmt.append(f'assign {wire_name} = {wire_name}_q_for_broadcast;')
+            connection_stmt.append(f'{mark_dont_touch} reg {wire_width} {wire_name}_input_reg;')
+            connection_stmt.append(f'always @ ({reg_type}) {wire_name}_input_reg <= {wire_name}_pass_0;')
+            connection_stmt.append(f'assign {wire_name} = {wire_name}_input_reg;')
 
     return connection_stmt
 

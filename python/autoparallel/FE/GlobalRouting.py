@@ -5,7 +5,7 @@ from collections import defaultdict
 from autobridge.Opt.DataflowGraph import Vertex, Edge
 
 class GlobalRouting:
-  def __init__(self, floorplan, top_rtl_parser, slot_manager, pipeline_style):
+  def __init__(self, floorplan, top_rtl_parser, slot_manager, pipeline_style, anchor_plan: int):
     self.floorplan = floorplan
     self.top_rtl_parser = top_rtl_parser
     self.slot_manager = slot_manager
@@ -19,6 +19,7 @@ class GlobalRouting:
     
     self.in_slot_pipeline_style = pipeline_style
     logging.info(f'Pipeline style: {pipeline_style}')
+    self.anchor_plan = anchor_plan
 
     logging.critical('current latency counting depends on 4-CR slot size')
     self.naiveGlobalRouting()
@@ -176,6 +177,11 @@ class GlobalRouting:
       pipeline_level = int(dist / 2)
     elif self.in_slot_pipeline_style == 'DOUBLE_REG':
       pipeline_level = dist 
+
+    if self.anchor_plan != 1:
+      assert self.in_slot_pipeline_style == 'WIRE', f'currently 3-FF or 2-FF plan could only be used with LUT in-slot-pipeline'
+      assert self.anchor_plan == 3
+      pipeline_level = int(dist / 2) + 2
 
     logging.info(f'edge {e.name}: ({src_x}, {src_y}) -> ({dst_x}, {dst_y}); pipeline level : {pipeline_level}')
     
