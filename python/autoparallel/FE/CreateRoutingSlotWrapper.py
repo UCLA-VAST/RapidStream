@@ -169,8 +169,7 @@ class CreateRoutingSlotWrapper:
                 for i in range(width_int):
                   stmt.append(f'(* dont_touch = "yes" *) LUT1 #(.INIT(2\'b10)) {wire_name}_q0_{i}_lut ( .O({wire_name}_q0[{i}]), .I0({wire_name}_pass_{src_idx}[{i}]) );')
             elif style == 'WIRE':
-              # 'always @ *' will be synthesized into pure wire 
-              stmt.append(f'  always @ (*) {wire_name}_q0 = {wire_name}_pass_{src_idx};')
+              stmt.append(f'  wire {wire_width} {wire_name}_q0 = {wire_name}_pass_{src_idx};')
               
             elif style == 'DOUBLE_REG':
               # experiment: use reg both inside and out
