@@ -51,22 +51,34 @@ def __getEdgeCost(neighbor_cell_loc2types, FDRE_loc):
   """
   use the distance as the cost function
   If the target is a LUT, we add a penalty to the distance
+  UPDATE:
+  need to get a bounding box based on the end cells.
+  the unbalance penalty should only be added for locations inside the bounding box
   """
+  end_cell_locs = neighbor_cell_loc2types.keys()
+  
+  # get bounding box
+  down_left_x = min(loc[0] for loc in end_cell_locs)
+  down_left_y = min(loc[1] for loc in end_cell_locs)
+  up_right_x = max(loc[0] for loc in end_cell_locs)
+  up_right_y = max(loc[1] for loc in end_cell_locs)
+  is_in_bounding_box = lambda loc: (down_left_x <= loc[0] <= up_right_x) and (down_left_y <= loc[1] <= up_right_y)
+
   dist = lambda loc1, loc2 : abs(loc1[0] -loc2[0]) + abs(loc1[1] - loc2[1])
   lut_penalty = lambda types : 1.2 if any('LUT' in type for type in types) else 1
 
   dists = [dist(cell_loc, FDRE_loc) * lut_penalty(types) for cell_loc, types in neighbor_cell_loc2types.items()]
 
-  # the total wire length
+  # the average wire length
   dist_score = sum(dists) / len(neighbor_cell_loc2types)
 
   # want the anchor to be near the mid point
   unbalance_penalty = max(dists) - min(dists)
-  weight = 1
 
-  # TODO: maybe penalize extreme long wires
-
-  final_score = dist_score + weight * unbalance_penalty
+  if is_in_bounding_box(FDRE_loc):
+    final_score = dist_score + unbalance_penalty
+  else:
+    final_score = 2 * dist_score + unbalance_penalty
 
   return final_score
 
@@ -125,6 +137,12 @@ def __analyzeILPResults(anchor2bin2cost, anchor_to_selected_bin):
     optimal_bin = all_cost_list[0][1]
     ilp_report[anchor]['optimal_location'] = [optimal_bin[0], optimal_bin[1]]
     
+  ranks = [anchor_info['rank_of_chosen_bin'] for anchor_info in ilp_report.values()]
+  if len(ranks):
+    logging.info(f'average rank of the final placed bins: {sum(ranks) / len(ranks)}')
+    logging.info(f'worst rank of the final placed bins: {max(ranks)}')
+  else:
+    logging.warning(f'no anchors between the pair')
 
   open('ilp_quality_report.json', 'w').write(json.dumps(ilp_report, indent=2))
 
