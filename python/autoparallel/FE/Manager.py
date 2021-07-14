@@ -55,7 +55,7 @@ class Manager:
 
     # grid routing of edges 
     logging.info(f'Pipeline style is: {self.pipeline_style}')
-    global_router = GlobalRouting(floorplan, top_rtl_parser, slot_manager, self.pipeline_style)
+    global_router = GlobalRouting(floorplan, top_rtl_parser, slot_manager, self.pipeline_style, self.anchor_plan)
 
     # latency balancing
     rebalance = LatencyBalancing(graph, floorplan, global_router)
@@ -65,7 +65,7 @@ class Manager:
     compute_wrapper_creater.getSlotWrapperForAll(dir='wrapper_rtl')
 
     logging.info(f'Creating routing inclusive wrappers...')
-    routing_wrapper_creater = CreateRoutingSlotWrapper(compute_wrapper_creater, floorplan, global_router, top_rtl_parser, self.pipeline_style)
+    routing_wrapper_creater = CreateRoutingSlotWrapper(compute_wrapper_creater, floorplan, global_router, top_rtl_parser, self.pipeline_style, self.anchor_plan)
     routing_wrapper_creater.createRoutingInclusiveWrapperForAll(dir='wrapper_rtl')
 
     logging.info(f'Creating ctrl inclusive wrappers...')
@@ -102,6 +102,14 @@ class Manager:
     self.hls_solution_name = self.config["HLSSolutionName"]
 
     self.pipeline_style = self.config['PipelineStyle']
+
+    # how many anchor to use between two slots
+    # originally the plan is to use 1 FF to pipeline the connection between two adjacent slots
+    # in order to make the stitching easier, here we use more FFs.
+    # from the outside, we still only use 1 FF between the slots
+    # however, inside the slot, the input / output ports are additionally registered
+    # in this way, when we do the slot stitching, we only need to route between registers
+    self.anchor_plan = int(self.config['AnchorPlan'])
 
     if "LoggingLevel" in self.config:
       self.logging_level = self.config["LoggingLevel"]
