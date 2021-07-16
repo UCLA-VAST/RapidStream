@@ -121,7 +121,7 @@ if __name__ == '__main__':
   print(f'WARNING: the server list is: {server_list}' )
 
   # path of the checkpoint in the last iteration
-  get_dcp_path = lambda slot_name: f'{base_dir}/parallel_run/{slot_name}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp'
+  get_dcp_path = lambda slot_name: f'{base_dir}/init_slot_placement/{slot_name}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp'
   get_anchor_placement_script = lambda pair_name : f'{base_dir}/ILP_anchor_placement_iter0/{pair_name}/place_anchors.tcl'
   get_anchor_placement_flag = lambda pair_name : get_anchor_placement_script(pair_name) + '.done.flag'
 

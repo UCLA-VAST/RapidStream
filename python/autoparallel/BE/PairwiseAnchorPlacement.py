@@ -596,7 +596,7 @@ if __name__ == '__main__':
   loggingSetup()
 
   if iter == 0:
-    get_anchor_connection_path = lambda slot_name : f'{base_dir}/parallel_run/{slot_name}/anchor_connections.json'
+    get_anchor_connection_path = lambda slot_name : f'{base_dir}/init_slot_placement/{slot_name}/anchor_connections.json'
   else:
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/placement_opt_iter{iter}/{slot_name}/anchor_connections.json'
 
