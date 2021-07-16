@@ -9,7 +9,7 @@ from autoparallel.BE.GenAnchorConstraints import *
 from autoparallel.BE.InitialSlotPlacement import *
 from autoparallel.BE.AnchorPlacement import *
 from autoparallel.BE.CreatePairwiseWrapper import *
-from autoparallel.BE.CreateTopRun import createTopRun
+
 
 def parallelAnchorPlacement(
     hub, 
@@ -159,4 +159,3 @@ if __name__ == '__main__':
   # final stitch
   final_slot_run_dir = f'{backend_run_dir}/pruning_anchors'
   interconnect_placement_path = f'{pairwise_placement_dir}/place_interconnect.tcl'
-  createTopRun(hub, backend_run_dir, final_slot_run_dir, interconnect_placement_path)
