@@ -7,8 +7,6 @@ import os
 
 from autoparallel.BE.Utilities import getAnchorTimingReportScript, getAnchorConectionExtractionScript
 
-# For historical reasons this file is called CreateVivadoRun
-# What it actually does is setting up the synthesis and initial placement of each slot
 
 def getPlacementScript(
     fpga_part_name, 

@@ -3,7 +3,7 @@ import json
 import sys
 import re
 import os
-from autoparallel.BE.CreateVivadoRun import createClockFromBUFGXDC
+from autoparallel.BE.InitialSlotPlacement import createClockFromBUFGXDC
 
 def createTopRunScript(hub, rtl_path, xdc_path, final_slot_run_dir, interconnect_placement_path):
   """

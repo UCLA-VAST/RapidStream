@@ -6,7 +6,7 @@ import sys
 import math
 from autoparallel.BE.UniversalWrapperCreater import addAnchorToNonTopIOs
 from autoparallel.BE.GenAnchorConstraints import *
-from autoparallel.BE.CreateVivadoRun import *
+from autoparallel.BE.InitialSlotPlacement import *
 from autoparallel.BE.AnchorPlacement import *
 from autoparallel.BE.CreatePairwiseWrapper import *
 from autoparallel.BE.CreateTopRun import createTopRun
