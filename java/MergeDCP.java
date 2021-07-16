@@ -16,6 +16,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.Scanner;
+import java.io.*;
 
 import com.xilinx.rapidwright.design.Design;
 import com.xilinx.rapidwright.design.Net;
@@ -183,21 +185,50 @@ public class MergeDCP {
     }
     
     public static void main(String[] args) {
-        if(args.length != 3) {
-            System.out.println("Usage: <input DCP 0 filename> <input DCP 1 filename> <merged output DCP filename>");
+        if(args.length != 2) {
+            System.out.println("Usage: <file that contains DCPs> <merged output DCP filename>");
             return;
         }
+
         CodePerfTracker t = new CodePerfTracker("Merge DCP");
-        t.start("Read DCP 0");
-        Design design0 = Design.readCheckpoint(args[0], CodePerfTracker.SILENT);
-        t.stop().start("Read DCP 1");
-        Design design1 = Design.readCheckpoint(args[1], CodePerfTracker.SILENT);
-        t.stop().start("Merge Design");
-        
-        Design output = mergeDCP(design0, design1);
+        t.start("Getting target checkpoitns");
+
+        List<String> checkpoints = new ArrayList<String>();
+        try {
+            // get all DCPs to be merged
+            FileInputStream fis = new FileInputStream(args[0]);
+            Scanner sc = new Scanner(fis);
+            
+            while (sc.hasNextLine()) {
+                checkpoints.add(sc.nextLine());
+            }
+        }
+        catch (IOException e)   {
+            e.printStackTrace(); 
+        }
+
+
+        // loading all checkpoints
+        List<Design> designs_list = new ArrayList<Design>();
+        for (String dcp : checkpoints) {
+            t.stop().start("Read DCP ".concat(dcp));
+            Design design = Design.readCheckpoint(dcp, CodePerfTracker.SILENT);
+            designs_list.add(design);
+        }
+
+        Design[] designs = new Design[designs_list.size()];
+        designs = designs_list.toArray(designs);
+
+        // use the first checkpoint as the base
+        // add all checkpoitns into the base checkpoint
+        Design output = designs[0];
+        for (int i = 1; i < designs_list.size(); i++) {
+            t.stop().start("Start merging chcekpoint " + i);
+            output = mergeDCP(output, designs[i]);
+        }
         
         t.stop().start("Write DCP");
-        output.writeCheckpoint(args[2], CodePerfTracker.SILENT);
+        output.writeCheckpoint(args[1], CodePerfTracker.SILENT);
         t.stop().printSummary();
     }
 }
