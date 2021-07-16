@@ -96,3 +96,75 @@ def getAnchorConectionExtractionScript() -> List[str]:
   current_path = os.path.dirname(os.path.realpath(__file__))
   extraction_script_path = f'{current_path}/../../../tcl/extractSrcAndDstOfAnchors.tcl'
   return [f'source {extraction_script_path}']
+
+
+class TimingReportParser:
+  def __init__(self, timing_report_path: str) -> None:
+    self.timing_report_path = timing_report_path
+
+    # each timing path is a list of lines
+    self.timing_paths = self.parseReport()
+
+  def parseReport(self) -> List[List[str]]:
+    """
+    partition the original report into local groups of lines
+    each group correspond to one timing path
+    """
+    report = open(self.timing_report_path)
+    timing_paths = []
+
+    curr = []
+    for line in report:
+      if line.startswith('Slack'):
+        timing_paths.append(curr)
+        curr = []
+      else:
+        curr.append(line)
+
+    timing_paths.append(curr)
+
+    # not that the first entry is the headings of the report
+    return timing_paths[1:]
+
+  def getAnchorFromTimingPath(self, timing_path: List[str]) -> str:
+    """
+    extract which anchor is in this timing path
+    """
+    for line in timing_path:
+      if 'Source:' in line or 'Destination:' in line:
+        if '_q0_reg' in line:
+          # example:   
+          # "Destination:            PE_wrapper247_U0_fifo_cout_drain_out_V_write_pass_0_q0_reg/D"
+          return re.search(' ([^/ ]+)/', line).group(1)
+
+    assert False      
+
+  def getLUTCountInTimingPath(self, timing_path: List[str]) -> int:
+    """
+    count how many LUTs are there in the path from/to the anchor
+    Example:
+    -------------------------------------------------------------------    -------------------
+    SLICE_X54Y111        FDRE (Prop_DFF_SLICEL_C_Q)
+                                                      0.079     3.871 r  CR_X0Y0_To_CR_X1Y1_ctrl_U0/ap_done_Boundary_X0Y2_To_X2Y2_q_reg/Q
+                         net (fo=2, estimated)        0.146     4.017    CR_X0Y0_To_CR_X1Y1_ctrl_U0/ap_done_Boundary_X0Y2_To_X2Y2_q
+    SLICE_X54Y111                                                     r  CR_X0Y0_To_CR_X1Y1_ctrl_U0/ap_done_Boundary_X2Y0_To_X2Y2_INST_0/I0
+    SLICE_X54Y111        LUT2 (Prop_H6LUT_SLICEL_I0_O)
+                                                      0.051     4.068 r  CR_X0Y0_To_CR_X1Y1_ctrl_U0/ap_done_Boundary_X2Y0_To_X2Y2_INST_0/O
+                         net (fo=1, estimated)        0.385     4.453    ap_done_Boundary_X2Y0_To_X2Y2_out
+    SLICE_X57Y111        FDRE                                         r  ap_done_Boundary_X2Y0_To_X2Y2_q0_reg/D
+    -------------------------------------------------------------------    -------------------
+    Seems that we only need to count how many lines have the '  LUT' pattern
+    """
+    return len([line for line in timing_path if '   LUT' in line])
+
+  def getSetupSlackOfTimingPath(self, timing_path: List[str]) -> float:
+    """
+    extract setup slack. Examples:
+    Slack (MET) :             1.347ns  (required time - arrival time)
+    Slack (VIOLATED) :        -1.347ns  (required time - arrival time)
+    """
+    for line in timing_path:
+      if re.search('^Slack', line):
+        return float(re.search(' ([-]*[ ]*[0-9.]+)ns', line).group(1))
+    
+    assert False
