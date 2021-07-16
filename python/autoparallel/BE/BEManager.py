@@ -146,7 +146,7 @@ if __name__ == '__main__':
   os.mkdir(backend_run_dir)
 
   # p&r each slot
-  parallel_run_dir = f'{backend_run_dir}/parallel_run'
+  parallel_run_dir = f'{backend_run_dir}/init_slot_placement'
   os.mkdir(parallel_run_dir)
   parallelSlotRun(hub, parallel_run_dir, user_name=user_name, server_list=server_list)
 
