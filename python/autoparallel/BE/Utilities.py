@@ -1,4 +1,5 @@
 import re
+import os
 from typing import List
 
 from autobridge.Opt.Slot import Slot
@@ -83,3 +84,15 @@ def getNeighborSlots(hub, slot_name: str) -> List[str]:
       neighbors.append(slot1_name)
 
   return neighbors
+
+
+def getAnchorTimingReportScript() -> List[str]:
+  return [
+      f'report_timing -from [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_from_anchor.txt',
+      f'report_timing -to [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_to_anchor.txt']
+
+
+def getAnchorConectionExtractionScript() -> List[str]:
+  current_path = os.path.dirname(os.path.realpath(__file__))
+  extraction_script_path = f'{current_path}/../../../tcl/extractSrcAndDstOfAnchors.tcl'
+  return [f'source {extraction_script_path}']

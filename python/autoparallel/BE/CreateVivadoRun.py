@@ -5,21 +5,10 @@ import math
 import re
 import os
 
+from autoparallel.BE.Utilities import getAnchorTimingReportScript, getAnchorConectionExtractionScript
+
 # For historical reasons this file is called CreateVivadoRun
 # What it actually does is setting up the synthesis and initial placement of each slot
-
-def getAnchorConnectionExtractionScript():
-  """
-  print out the locations of the cells that the anchors connect to
-  For use in the customized ILP placement
-  """
-  current_path = os.path.dirname(os.path.realpath(__file__))
-  extraction_script_path = f'{current_path}/../../../tcl/extractSrcAndDstOfAnchors.tcl'
-  return [
-    f'source {extraction_script_path}',
-    f'report_timing -from [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_from_anchor.txt',
-    f'report_timing -to [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_to_anchor.txt',
-    f'exec touch anchor_connections.json.done.flag']
 
 def getPlacementScript(
     fpga_part_name, 
@@ -77,7 +66,14 @@ def getPlacementScript(
   # script.append(f'write_edif {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.edf')
 
   # print out anchor connections for customized ILP anchor placement
-  script += getAnchorConnectionExtractionScript()
+  script += getAnchorConectionExtractionScript()
+
+  # get the timing report of anchors. At this point the timing report is meaningless
+  # however, we use the report to extract the number of LUTs on the timing paths
+  script += getAnchorTimingReportScript()
+
+  # flag to signal the end of process
+  script.append(f'exec touch anchor_connections.json.done.flag')
 
   script.append(f'exec touch {output_path}/{slot_name}_placed_free_run/{slot_name}.placement.done.flag') # signal that the DCP generation is finished
 

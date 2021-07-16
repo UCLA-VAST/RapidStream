@@ -3,6 +3,7 @@ import json
 import sys
 import os
 import math
+from autoparallel.BE.Utilities import getAnchorTimingReportScript, getAnchorConectionExtractionScript
 
 def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts):
   """ phys_opt_design the slot based on the dictated anchor locations """
@@ -31,10 +32,19 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   if hub['InSlotPipelineStyle'] == 'LUT':
     script += removeLUTPlaceholders()
 
+  # report timing to check the quality of anchor placement
+  script += getAnchorTimingReportScript()
+
   # optimize the slot based on the given anchor placement
   # do placement only so that we could track the change from the log
   script.append(f'phys_opt_design -verbose')
   script.append(f'write_checkpoint -force {slot_name}_post_placed_opt.dcp')
+
+  # report timing to check the timing improvement of slot phys_opt_design
+  script += getAnchorTimingReportScript()
+
+  # get the new anchor connection for next round anchor placement
+  script += getAnchorConectionExtractionScript()
 
   return script
 
