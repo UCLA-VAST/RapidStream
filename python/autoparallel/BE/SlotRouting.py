@@ -4,7 +4,7 @@ import os
 import math
 from autoparallel.BE.Device import U250
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
-from autoparallel.BE.Utilities import getPruningAnchorScript
+from autoparallel.BE.Utilities import getPruningAnchorScript, getAnchorTimingReportScript
 
 
 def extractLagunaAnchorRoutes(slot_name):
@@ -76,6 +76,9 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
     script = []
     script.append(f'open_checkpoint {opt_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp')
+
+    # report timing to check the quality of the final anchor placement
+    script += getAnchorTimingReportScript()
 
     # relax placement pblocks
     # do this before updating the clock to prevent vivado crash
