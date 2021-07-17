@@ -88,8 +88,8 @@ def getNeighborSlots(hub, slot_name: str) -> List[str]:
 
 def getAnchorTimingReportScript() -> List[str]:
   return [
-      f'report_timing -from [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_from_anchor.txt',
-      f'report_timing -to [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_to_anchor.txt']
+      f'report_timing -from [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file slack_section_from_anchor.txt',
+      f'report_timing -to [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file slack_section_to_anchor.txt']
 
 
 def getAnchorConectionExtractionScript() -> List[str]:
@@ -103,43 +103,43 @@ class TimingReportParser:
     self.timing_report_path = timing_report_path
 
     # each timing path is a list of lines
-    self.timing_paths = self.parseReport()
+    self.slack_sections = self.splitReportIntoSlackSections()
 
-  def parseReport(self) -> List[List[str]]:
+  def splitReportIntoSlackSections(self) -> List[List[str]]:
     """
     partition the original report into local groups of lines
-    each group correspond to one timing path
+    each group correspond to one slack section
     """
     report = open(self.timing_report_path)
-    timing_paths = []
+    slack_sections = []
 
     curr = []
     for line in report:
       if line.startswith('Slack'):
-        timing_paths.append(curr)
+        slack_sections.append(curr)
         curr = []
       else:
         curr.append(line)
 
-    timing_paths.append(curr)
+    slack_sections.append(curr)
 
     # not that the first entry is the headings of the report
-    return timing_paths[1:]
+    return slack_sections[1:]
 
-  def getAnchorFromTimingPath(self, timing_path: List[str]) -> str:
+  def getAnchorFromSlackSection(self, slack_section: List[str]) -> str:
     """
     extract which anchor is in this timing path
     """
-    for line in timing_path:
+    for line in slack_section:
       if 'Source:' in line or 'Destination:' in line:
         if '_q0_reg' in line:
           # example:   
           # "Destination:            PE_wrapper247_U0_fifo_cout_drain_out_V_write_pass_0_q0_reg/D"
           return re.search(' ([^/ ]+)/', line).group(1)
 
-    assert False      
+    assert False
 
-  def getLUTCountInTimingPath(self, timing_path: List[str]) -> int:
+  def getLUTCountInSlackSection(self, slack_section: List[str]) -> int:
     """
     count how many LUTs are there in the path from/to the anchor
     Example:
@@ -155,15 +155,15 @@ class TimingReportParser:
     -------------------------------------------------------------------    -------------------
     Seems that we only need to count how many lines have the '  LUT' pattern
     """
-    return len([line for line in timing_path if '   LUT' in line])
+    return len([line for line in slack_section if '   LUT' in line])
 
-  def getSetupSlackOfTimingPath(self, timing_path: List[str]) -> float:
+  def getSetupSlackOfSlackSection(self, slack_section: List[str]) -> float:
     """
     extract setup slack. Examples:
     Slack (MET) :             1.347ns  (required time - arrival time)
     Slack (VIOLATED) :        -1.347ns  (required time - arrival time)
     """
-    for line in timing_path:
+    for line in slack_section:
       if re.search('^Slack', line):
         return float(re.search(' ([-]*[ ]*[0-9.]+)ns', line).group(1))
     
