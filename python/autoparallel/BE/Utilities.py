@@ -1,7 +1,9 @@
+import json
 import re
 import os
-from typing import List
-from collections import OrderedDict
+from typing import List, Dict, Tuple
+from typing_extensions import Literal
+from collections import OrderedDict, defaultdict
 
 from autobridge.Opt.Slot import Slot
 from autobridge.Device.DeviceManager import DeviceU250
@@ -100,11 +102,42 @@ def getAnchorConectionExtractionScript() -> List[str]:
 
 
 class TimingReportParser:
-  def __init__(self, timing_report_path: str) -> None:
+  def __init__(self, direction: Literal['to_anchor', 'from_anchor'], timing_report_path: str) -> None:
     self.timing_report_path = timing_report_path
 
     # each timing path is a list of lines
     self.slack_sections = self.splitReportIntoSlackSections()
+
+    self.direction = direction # whether the timing paths in the report are to anchors or from anchors
+    self.end_cell_role = 'source' if self.direction == 'to_anchor' else 'sinks'
+
+  def getAnchorConnection(self, filename='') -> Dict[str, Dict[Literal['source', 'sinks'], List[Dict]]]:
+    """
+    anchor -> source/sinks -> { timing_path_source_site , LUT_count }
+    """
+    anchor_connections = defaultdict(lambda: defaultdict(list))
+    for slack_section in self.slack_sections:
+      anchor = self.getAnchorFromSlackSection(slack_section)
+      
+      timing_path = self.getDataTimingPathOfSlackSection(slack_section)
+      if self.direction == 'to_anchor':
+        end_cell_site = timing_path[0]
+      else:
+        end_cell_site = timing_path[-1]
+
+      lut_count = self.getLUTCountInSlackSection(slack_section)
+
+      anchor_connections[anchor][self.end_cell_role].append(
+        {
+          'end_cell_site': end_cell_site,
+          'num_lut_on_path' : lut_count
+        }  
+      )
+
+    if filename:
+      open(filename, 'w').write(json.dumps(anchor_connections, indent=2))
+      
+    return anchor_connections
 
   def splitReportIntoSlackSections(self) -> List[List[str]]:
     """
@@ -235,3 +268,12 @@ class TimingReportParser:
     data_signal_path = list(OrderedDict.fromkeys(data_signal_path))
 
     return data_signal_path
+
+
+if __name__ == '__main__':
+  parser_from_anchor = TimingReportParser('from_anchor', '/expr/mm/16x12_route_with_2020_2/opt_placement_iter0/CR_X4Y4_To_CR_X5Y5/timing_path_from_anchor.txt')
+  parser_to_anchor = TimingReportParser('to_anchor', '/expr/mm/16x12_route_with_2020_2/opt_placement_iter0/CR_X4Y4_To_CR_X5Y5/timing_path_to_anchor.txt')
+
+  parser_from_anchor.getAnchorConnection('connection_from_anchor.json')
+  parser_to_anchor.getAnchorConnection('connection_to_anchor.json')
+  
