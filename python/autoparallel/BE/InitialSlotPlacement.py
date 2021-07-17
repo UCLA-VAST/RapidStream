@@ -5,7 +5,7 @@ import math
 import re
 import os
 
-from autoparallel.BE.Utilities import getAnchorTimingReportScript, getAnchorConectionExtractionScript
+from autoparallel.BE.Utilities import getAnchorTimingReportScript
 
 
 def getPlacementScript(
@@ -62,9 +62,6 @@ def getPlacementScript(
   # write out the whole anchored slot
   script.append(f'write_checkpoint {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp')
   # script.append(f'write_edif {output_path}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.edf')
-
-  # print out anchor connections for customized ILP anchor placement
-  script += getAnchorConectionExtractionScript()
 
   # get the timing report of anchors. At this point the timing report is meaningless
   # however, we use the report to extract the number of LUTs on the timing paths
