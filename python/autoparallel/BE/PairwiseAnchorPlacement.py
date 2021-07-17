@@ -600,8 +600,7 @@ if __name__ == '__main__':
   else:
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/placement_opt_iter{iter}/{slot_name}/anchor_connections.json'
 
-  # anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter{iter}'
-  anchor_placement_dir = f'{base_dir}/debug_ILP_placement'
+  anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter{iter}'
 
   # run this before the ILP anchor placement, setup for the later steps
   if option == 'SETUP':
