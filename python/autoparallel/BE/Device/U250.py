@@ -115,6 +115,28 @@ calibrated_x_pos_of_dsp = [
     for i in x_of_left_slice_of_dsp_u250
 ]
 
+def getSLICEYFromLagunaY(laguna_y: int) -> int:
+  """
+  get the y of the slice in the same row as the laguna
+  """
+  if 120 <= laguna_y <= 359:
+    slice_y = (laguna_y-120) / 2 + 180
+  elif 360 <= laguna_y <= 599:
+    slice_y = (laguna_y-360) / 2 + 420
+  elif 600 <= laguna_y <= 839:
+    slice_y = (laguna_y -600) / 2 + 660
+  else:
+    assert False
+  
+  return int(slice_y)
+
+# note that one column of slice corresponds to 2 columns of laguna
+# thus we have the j dimension
+calibrated_x_pos_of_laguna = [
+  x for x in idx_of_left_side_slice_of_laguna_column \
+      for j in range(2)
+]
+
 def getSliceOrigXCoordinates(calibrated_x):
   return orig_x_pos_of_slice[calibrated_x]
 
@@ -135,6 +157,10 @@ def getCalibratedCoordinates(type, orig_x, orig_y):
   elif type == 'RAMB18':
     # each RAMB18 is 2.5X the height of a SLICE
     return (calibrated_x_pos_of_bram[orig_x], orig_y * 2.5)
+  elif type == 'LAGUNA':
+    x = calibrated_x_pos_of_laguna[orig_x]
+    y = getSLICEYFromLagunaY(orig_y)
+    return (x, y)
   else:
     assert False, f'unsupported type {type}'
 
