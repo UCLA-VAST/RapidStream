@@ -1,6 +1,7 @@
 import re
 import os
 from typing import List
+from collections import OrderedDict
 
 from autobridge.Opt.Slot import Slot
 from autobridge.Device.DeviceManager import DeviceU250
@@ -168,3 +169,69 @@ class TimingReportParser:
         return float(re.search(' ([-]*[ ]*[0-9.]+)ns', line).group(1))
     
     assert False
+
+  def getDataTimingPathOfSlackSection(self, slack_section: List[str]) -> List[str]:
+    """
+    get all elements from the last/next sequential element to the anchor register
+    a sample slack section. The data signal path is the 2nd section divided by '---------'
+
+    Slack (MET) :             0.208ns  (required time - arrival time)
+    Source:                 CR_X4Y4_To_CR_X5Y5_ctrl_U0/CR_X4Y4_To_CR_X5Y5_routing_U0/CR_X4Y4_To_CR_X5Y5_U0/cout_drain_IO_L1_out_wrapper441_U0/grp_cout_drain_IO_L1_out_fu_28/local_cout_V_U/kernel0_cout_drain_IO_L1_out_boundary_wrapper367_local_cout_V_ram_U/ram_reg/CLKARDCLK
+                              (rising edge-triggered cell RAMB36E2 clocked by ap_clk  {rise@0.000ns fall@1.250ns period=2.500ns})
+    Destination:            cout_drain_IO_L1_out_wrapper441_U0_fifo_cout_drain_out_V_V_din_pass_0_q0_reg[42]/D
+                              (rising edge-triggered cell FDRE clocked by ap_clk  {rise@0.000ns fall@1.250ns period=2.500ns})
+    ......
+    ......
+
+      Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+    -------------------------------------------------------------------    -------------------
+                          (clock ap_clk rise edge)     0.000     0.000 r  
+      BUFGCE_X0Y194        BUFGCE                       0.000     0.000 r  test_bufg/O
+      X4Y4 (CLOCK_ROOT)    net (fo=22739, estimated)    2.677     2.677    CR_X4Y4_To_CR_X5Y5_ctrl_U0/CR_X4Y4_To_CR_X5Y5_routing_U0/CR_X4Y4_To_CR_X5Y5_U0/cout_drain_IO_L1_out_wrapper441_U0/grp_cout_drain_IO_L1_out_fu_28/local_cout_V_U/kernel0_cout_drain_IO_L1_out_boundary_wrapper367_local_cout_V_ram_U/ap_clk
+      SLR Crossing[2->1]   
+      RAMB36_X10Y61        RAMB36E2                                     r  CR_X4Y4_To_CR_X5Y5_ctrl_U0/CR_X4Y4_To_CR_X5Y5_routing_U0/CR_X4Y4_To_CR_X5Y5_U0/cout_drain_IO_L1_out_wrapper441_U0/grp_cout_drain_IO_L1_out_fu_28/local_cout_V_U/kernel0_cout_drain_IO_L1_out_boundary_wrapper367_local_cout_V_ram_U/ram_reg/CLKARDCLK
+    -------------------------------------------------------------------    -------------------
+      RAMB36_X10Y61        RAMB36E2 (Prop_RAMB36E2_RAMB36_CLKARDCLK_DOUTBDOUT[10])
+                                                        0.830     3.507 r  CR_X4Y4_To_CR_X5Y5_ctrl_U0/CR_X4Y4_To_CR_X5Y5_routing_U0/CR_X4Y4_To_CR_X5Y5_U0/cout_drain_IO_L1_out_wrapper441_U0/grp_cout_drain_IO_L1_out_fu_28/local_cout_V_U/kernel0_cout_drain_IO_L1_out_boundary_wrapper367_local_cout_V_ram_U/ram_reg/DOUTBDOUT[10]
+                          net (fo=2, estimated)        0.478     3.985    CR_X4Y4_To_CR_X5Y5_ctrl_U0/CR_X4Y4_To_CR_X5Y5_routing_U0/CR_X4Y4_To_CR_X5Y5_U0/cout_drain_IO_L1_out_wrapper441_U0/grp_cout_drain_IO_L1_out_fu_28/local_cout_V_U/kernel0_cout_drain_IO_L1_out_boundary_wrapper367_local_cout_V_ram_U/local_cout_V_q0[42]
+      SLICE_X156Y305                                                    r  CR_X4Y4_To_CR_X5Y5_ctrl_U0/CR_X4Y4_To_CR_X5Y5_routing_U0/CR_X4Y4_To_CR_X5Y5_U0/cout_drain_IO_L1_out_wrapper441_U0/grp_cout_drain_IO_L1_out_fu_28/local_cout_V_U/kernel0_cout_drain_IO_L1_out_boundary_wrapper367_local_cout_V_ram_U/fifo_cout_drain_out_V_V_din[42]_INST_0/I0
+      SLICE_X156Y305       LUT5 (Prop_E6LUT_SLICEM_I0_O)
+                                                        0.124     4.109 r  CR_X4Y4_To_CR_X5Y5_ctrl_U0/CR_X4Y4_To_CR_X5Y5_routing_U0/CR_X4Y4_To_CR_X5Y5_U0/cout_drain_IO_L1_out_wrapper441_U0/grp_cout_drain_IO_L1_out_fu_28/local_cout_V_U/kernel0_cout_drain_IO_L1_out_boundary_wrapper367_local_cout_V_ram_U/fifo_cout_drain_out_V_V_din[42]_INST_0/O
+                          net (fo=1, estimated)        0.572     4.681    cout_drain_IO_L1_out_wrapper441_U0_fifo_cout_drain_out_V_V_din_pass_0_out[42]
+      SLICE_X175Y292       FDRE                                         r  cout_drain_IO_L1_out_wrapper441_U0_fifo_cout_drain_out_V_V_din_pass_0_q0_reg[42]/D
+    -------------------------------------------------------------------    -------------------
+
+                          (clock ap_clk rise edge)     2.500     2.500 r  
+      BUFGCE_X0Y194        BUFGCE                       0.000     2.500 r  test_bufg/O
+      X4Y4 (CLOCK_ROOT)    net (fo=22739, estimated)    2.268     4.768    ap_clk
+      SLR Crossing[2->1]   
+      SLICE_X175Y292       FDRE                                         r  cout_drain_IO_L1_out_wrapper441_U0_fifo_cout_drain_out_V_V_din_pass_0_q0_reg[42]/C
+                          clock pessimism              0.131     4.899    
+                          clock uncertainty           -0.035     4.864    
+      SLICE_X175Y292       FDRE (Setup_GFF2_SLICEM_C_D)
+                                                        0.025     4.889    cout_drain_IO_L1_out_wrapper441_U0_fifo_cout_drain_out_V_V_din_pass_0_q0_reg[42]
+    -------------------------------------------------------------------
+                          required time                          4.889    
+                          arrival time                          -4.681    
+    -------------------------------------------------------------------
+                          slack                                  0.208    
+    """
+    dividing_line_indices = []
+    for i in range(len(slack_section)):
+      if '-----' in slack_section[i]:
+        dividing_line_indices.append(i)
+
+    data_signal_path_begin = dividing_line_indices[1] + 1 # inclusive
+    data_signal_path_end = dividing_line_indices[2] # exclusive
+    data_signal_path_part = slack_section[data_signal_path_begin : data_signal_path_end]
+
+    data_signal_path = []
+    for line in data_signal_path_part:
+      match = re.search(' ([^ ]*_X\d+Y\d+) ', line)
+      if match:
+        data_signal_path.append(match.group(1))
+
+    # remove repetitions
+    data_signal_path = list(OrderedDict.fromkeys(data_signal_path))
+
+    return data_signal_path
