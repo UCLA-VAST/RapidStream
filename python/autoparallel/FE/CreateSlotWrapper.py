@@ -383,7 +383,8 @@ class CreateSlotWrapper:
     Prevent unexpected behaviour from the synthesizer
     Also we need more control of the connection in the BE
     """
-    return ['(* keep_hierarchy = "yes" *)' + inst for inst in insts]
+    get_tag = lambda inst: '(* keep_hierarchy = "yes" *)' if 'fifo_almost_full' not in inst else '(* dont_touch = "yes" *)'
+    return [get_tag(inst) + inst for inst in insts]
 
   def createSlotWrapper(self, slot):
     header = self.__getHeader(slot)
