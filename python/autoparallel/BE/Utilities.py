@@ -93,3 +93,22 @@ def getAnchorTimingReportScript() -> List[str]:
   script.append('report_timing -to [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_to_anchor.txt')
 
   return script
+
+def getDirectionOfSlotname(slot_name1: str, slot_name2: str) -> str:
+  """
+  which direction slot_name2 is with reference to slot_name1 
+  """
+  slot1 = Slot(U250_inst, slot_name1)
+  slot2 = Slot(U250_inst, slot_name2)
+
+  if slot2.isAbove(slot1):
+    return 'UP'
+  elif slot2.isBelow(slot1):
+    return 'DOWN'
+  elif slot2.isToTheLeftOf(slot1):
+    return 'LEFT'
+  elif slot2.isToTheRightOf(slot1):
+    return 'RIGHT'
+  else:
+    assert False
+
