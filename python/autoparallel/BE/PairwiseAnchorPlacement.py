@@ -12,7 +12,7 @@ from mip import Model, minimize, CONTINUOUS, xsum
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autoparallel.BE.BEManager import loggingSetup
 from autoparallel.BE.Device import U250
-from autoparallel.BE.Utilities import isPairSLRCrossing
+from autoparallel.BE.Utilities import isPairSLRCrossing, getDirectionOfSlotname
 from autoparallel.BE.AnchorPlacement.PairwiseAnchorPlacementForSLRCrossing import placeLagunaAnchors
 from autobridge.Device.DeviceManager import DeviceU250
 from autobridge.Opt.Slot import Slot
@@ -149,7 +149,7 @@ def __analyzeILPResults(anchor2bin2cost, anchor_to_selected_bin):
   open('ilp_quality_report.json', 'w').write(json.dumps(ilp_report, indent=2))
 
 
-def __debug_logging(anchor2bin2cost, anchor2site_coor2type):
+def __debug_logging(anchor2bin2cost, anchor_connections):
   logging.info('start dumping anchor_to_bin_to_cost')
 
   anchor2loc2cost = {}
@@ -157,6 +157,8 @@ def __debug_logging(anchor2bin2cost, anchor2site_coor2type):
     loc2score = {f'SLICE_X{U250.getSliceOrigXCoordinates(bin[0])}Y{bin[1]}' : score for bin, score in bin2score.items()}
     anchor2loc2cost[anchor] = loc2score
   open('debug_anchor_to_bin_to_cost.json', 'w').write(json.dumps(anchor2loc2cost, indent=2))
+
+  open('anchor_connection_of_the_pair.json', 'w').write(json.dumps(anchor_connections, indent=2))
 
   logging.info('finish dumping anchor_to_bin_to_cost')
 
@@ -509,11 +511,37 @@ def collectAllConnectionsOfTargetAnchors(pair_name) -> Dict[str, Dict[str, List[
   connection1: Dict[str, List[Dict[str, str]]] = json.loads(open(get_anchor_connection_path(slot1_name), 'r').read())
   connection2: Dict[str, List[Dict[str, str]]] = json.loads(open(get_anchor_connection_path(slot2_name), 'r').read())
 
+  dir_of_slot2_wrt_slot1 = getDirectionOfSlotname(slot1_name, slot2_name)
+
+  try:
+    anchor_wire_names = [ io[-1] for io in hub["PathPlanningWire"][slot1_name][dir_of_slot2_wrt_slot1] ]
+  except Exception as e:
+    logging.critical(f'cannot find {dir_of_slot2_wrt_slot1} in hub["PathPlanningWire"]["{slot1_name}"]')
+    anchor_wire_names = []
+
   # get the common anchors
-  common_anchor_connections = {} # anchor_reg_name -> [ {}, ... ]
+  shared_anchors = set()
+  for anchor in list(connection1.keys()) + list(connection2.keys()):
+    if any(f'{anchor_wire_name}_q0_reg' in anchor for anchor_wire_name in anchor_wire_names):
+      shared_anchors.add(anchor)
+      if anchor not in connection1:
+        logging.critical(f'anchor {anchor} not found in the timing report of slot {slot1_name}')
+      if anchor not in connection2:
+        logging.critical(f'anchor {anchor} not found in the timing report of slot {slot2_name}')
+
+  # get the common anchors
+  common_anchor_connections = {
+    anchor : connection1.get(anchor, []) + connection2.get(anchor, []) \
+      for anchor in shared_anchors
+  } 
+  
+  # obtained the shared anchors in anothe way to double check
   for anchor in connection1.keys():
     if anchor in connection2:
-      common_anchor_connections[anchor] = connection1[anchor] + connection2[anchor]
+      if not any(f'{anchor_wire_name}_q0_reg' in anchor for anchor_wire_name in anchor_wire_names):
+        logging.error(f'shared anchor {anchor} not found in front_end_result.json')
+        assert False
+  
   return common_anchor_connections
 
 
