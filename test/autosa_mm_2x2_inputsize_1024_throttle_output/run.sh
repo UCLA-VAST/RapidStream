@@ -3,10 +3,11 @@ export PATH="${PATH}:${GUROBI_HOME}/bin"
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib"
 export GRB_LICENSE_FILE=/home/einsx7/gurobi.lic
 
-export VIV_VER=2019.2
+export VIV_VER=2020.1
 # export LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
-source /opt/tools/xilinx/Vitis/${VIV_VER}/settings64.sh
-source /opt/xilinx/xrt/setup.sh
+
+cd /home/einsx7/auto-parallel/Peregrine/ && source setup.sh
+cd -
 
 TOOL=vivado_hls
 
@@ -14,7 +15,7 @@ TOOL=vivado_hls
 ${TOOL} -f step1-run-hls.tcl
 
 # step 2: run autoparallel
-python3.6 -m autoparallel.FE.Manager systolic_2x2_config.json
+python3.6 -m autoparallel.FE.Manager systolic_2x2_config_2.json
 if [ $? -ne 0 ]; then
   echo "AutoParallel Front End Failed!"
   exit 1
@@ -38,10 +39,11 @@ for wrapper in wrapper_rtl/*.v; do
 done
 
 # step 4: run cosim
-for wrapper in wrapper_rtl/*.v; do
+for wrapper in wrapper_rtl/*ctrl.v; do
   cat ${wrapper} >> kernel0_kernel0.v
 done
+cat wrapper_rtl/kernel0_kernel0.v >> kernel0_kernel0.v
 
 mv kernel0_kernel0.v ./kernel0/solution/syn/verilog/
 
-timeout 600 ${TOOL} -f step3-cosim.tcl || (echo 'FAILED' && exit)
+${TOOL} -f step3-cosim.tcl || (echo 'FAILED' && exit)

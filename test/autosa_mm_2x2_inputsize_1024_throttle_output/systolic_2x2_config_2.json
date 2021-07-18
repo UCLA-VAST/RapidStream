@@ -4,22 +4,21 @@
   "HLSSolutionName" : "solution",
   "TopName" : "kernel0",
 
-  "FloorplanMethod": "IterativeDivisionToFourCRs",
+  "FloorplanMethod": "PatternBasedFineGrainedFloorplan",
   "AreaUtilizationRatio" : 0.7,
+
+  "PipelineStyle" : "DOUBLE_REG",
+  "AnchorPlan" : 3,
 
   "Floorplan" : {
     "CLOCKREGION_X4Y0:CLOCKREGION_X5Y1" : [
-      "A_IO_L3_in_serialize_U0",
       "kernel0_gmem_A_m_axi_U",
-      "kernel0_control_s_axi_U",
-      "kernel0_entry12_U0"
+      "kernel0_control_s_axi_U"
     ],
     "CLOCKREGION_X4Y6:CLOCKREGION_X5Y7" : [
-      "B_IO_L3_in_serialize_U0",
       "kernel0_gmem_B_m_axi_U"
     ],
     "CLOCKREGION_X4Y8:CLOCKREGION_X5Y9" : [
-      "C_drain_IO_L3_out_serialize_U0",
       "kernel0_gmem_C_m_axi_U"
     ]
   },
