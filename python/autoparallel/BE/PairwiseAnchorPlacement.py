@@ -158,13 +158,6 @@ def __debug_logging(anchor2bin2cost, anchor2site_coor2type):
     anchor2loc2cost[anchor] = loc2score
   open('debug_anchor_to_bin_to_cost.json', 'w').write(json.dumps(anchor2loc2cost, indent=2))
 
-  anchor2loc2type = {}
-  for anchor, coor2type in anchor2site_coor2type.items():
-    loc2type = {f'SLICE_X{U250.getSliceOrigXCoordinates(coor[0])}Y{coor[1]}' : score for coor, score in coor2type.items()}
-    anchor2loc2type[anchor] = loc2type
-
-  open('debug_anchor_connections.json', 'w').write(json.dumps(anchor2loc2type, indent=2))
-
   logging.info('finish dumping anchor_to_bin_to_cost')
 
 
@@ -180,7 +173,7 @@ def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
   logging.info(f'calculate bin cost... {get_time_stamp()}')
   anchor2bin2cost = {} # for each anchor, the cost of each bin
 
-  for anchor, properties_of_end_cells_list in anchor_connections.keys():
+  for anchor, properties_of_end_cells_list in anchor_connections.items():
     bin2cost = {bin : __getEdgeCost(properties_of_end_cells_list, bin) for bin in bins }
     anchor2bin2cost[anchor] = bin2cost
 
