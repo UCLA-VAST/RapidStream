@@ -242,10 +242,11 @@ class CreateRoutingSlotWrapper:
             connection_stmt.append(f'always @ ({reg_type}) {wire_name}_output_reg <= {wire_name};')
             connection_stmt.append(f'assign {wire_name}_pass_0 = {wire_name}_output_reg;')
           # _full_n is input
-          # additional pipelining to mitigate the broadcast effect
+          # always set additional pipelining to mitigate the broadcast effect
+          # this will not affect latency balancing. Just remember to increase the grace period of the FIFO
           elif port_name.endswith('_full_n'):
-            connection_stmt.append(f'{mark_dont_touch} reg {wire_width} {wire_name}_input_reg;')
-            connection_stmt.append(f'always @ ({reg_type}) {wire_name}_input_reg <= {wire_name}_pass_0;')
+            connection_stmt.append(f'(* dont_touch = "yes" *) reg {wire_width} {wire_name}_input_reg;')
+            connection_stmt.append(f'always @ (posedge ap_clk) {wire_name}_input_reg <= {wire_name}_pass_0;')
             connection_stmt.append(f'assign {wire_name} = {wire_name}_input_reg;')
 
     return connection_stmt
