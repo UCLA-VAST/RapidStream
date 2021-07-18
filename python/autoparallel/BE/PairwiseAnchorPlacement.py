@@ -47,30 +47,31 @@ def __getWeightMatchingBins(slot1_name, slot2_name, bin_size_x, bin_size_y):
   return bins_calibrated
 
 
-def __getEdgeCost(neighbor_cell_loc2types, FDRE_loc):
+def __getEdgeCost(properties_of_end_cells_list: List[Dict], FDRE_loc):
   """
   use the distance as the cost function
   If the target is a LUT, we add a penalty to the distance
   UPDATE:
   need to get a bounding box based on the end cells.
   the unbalance penalty should only be added for locations inside the bounding box
+  properties_of_end_cells_list: [{end_cell_site, num_lut_on_path, normalized_coordinate}, ...]
   """
-  end_cell_locs = neighbor_cell_loc2types.keys()
-  
   # get bounding box
-  down_left_x = min(loc[0] for loc in end_cell_locs)
-  down_left_y = min(loc[1] for loc in end_cell_locs)
-  up_right_x = max(loc[0] for loc in end_cell_locs)
-  up_right_y = max(loc[1] for loc in end_cell_locs)
+  down_left_x = min(prop["normalized_coordinate"][0] for prop in properties_of_end_cells_list)
+  down_left_y = min(prop["normalized_coordinate"][1] for prop in properties_of_end_cells_list)
+  up_right_x = max(prop["normalized_coordinate"][0] for prop in properties_of_end_cells_list)
+  up_right_y = max(prop["normalized_coordinate"][1] for prop in properties_of_end_cells_list)
+
   is_in_bounding_box = lambda loc: (down_left_x <= loc[0] <= up_right_x) and (down_left_y <= loc[1] <= up_right_y)
 
   dist = lambda loc1, loc2 : abs(loc1[0] -loc2[0]) + abs(loc1[1] - loc2[1])
-  lut_penalty = lambda types : 1.2 if any('LUT' in type for type in types) else 1
+  lut_penalty = lambda num_lut_on_path : 1 + 0.3 * num_lut_on_path
 
-  dists = [dist(cell_loc, FDRE_loc) * lut_penalty(types) for cell_loc, types in neighbor_cell_loc2types.items()]
+  dists = [dist(prop["normalized_coordinate"], FDRE_loc) * lut_penalty(prop["num_lut_on_path"]) \
+    for prop in properties_of_end_cells_list]
 
   # the average wire length
-  dist_score = sum(dists) / len(neighbor_cell_loc2types)
+  dist_score = sum(dists) / len(properties_of_end_cells_list)
 
   # want the anchor to be near the mid point
   unbalance_penalty = max(dists) - min(dists)
@@ -81,6 +82,7 @@ def __getEdgeCost(neighbor_cell_loc2types, FDRE_loc):
     final_score = 2 * dist_score + unbalance_penalty
 
   return final_score
+
 
 def __getILPResults(anchor2bin2var):
   """
@@ -178,8 +180,8 @@ def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
   logging.info(f'calculate bin cost... {get_time_stamp()}')
   anchor2bin2cost = {} # for each anchor, the cost of each bin
 
-  for anchor in anchor_connections.keys():
-    bin2cost = {bin : __getEdgeCost(anchor_connections[anchor], bin) for bin in bins }
+  for anchor, properties_of_end_cells_list in anchor_connections.keys():
+    bin2cost = {bin : __getEdgeCost(properties_of_end_cells_list, bin) for bin in bins }
     anchor2bin2cost[anchor] = bin2cost
 
   __debug_logging(anchor2bin2cost, anchor_connections)
@@ -234,7 +236,7 @@ def runILPWeightMatchingPlacement(pair_name, anchor_connections):
   Quantize the buffer region into separate bins and assign a cost for each bin
   minimize the total cost.
   Note that we could use CONTINOUS ILP variables in this special case
-  anchor_connections: anchor_name -> coordinates -> types of end cell in this site
+  anchor_connections: anchor_name -> [ {src_or_sink, site, num_lut, coordiante}, ... ]
   """
   slot1_name, slot2_name = pair_name.split('_AND_')
 
@@ -510,30 +512,17 @@ def collectAllConnectionsOfTargetAnchors(pair_name) -> Dict[str, Dict[str, List[
   """  
   slot1_name, slot2_name = pair_name.split('_AND_')
 
-  # anchor name -> List[ sitename : cell_type ]
-  # e.g. XXX_q0_reg -> [ {"SLICE_X1Y2" : "CLB.SRL.SRL16E" } ]
+  # anchor name -> "source"/"sinks" -> [ {"end_cell_site" : str, "num_lut_on_path": int}, ... ]
   connection1: Dict[str, List[Dict[str, str]]] = json.loads(open(get_anchor_connection_path(slot1_name), 'r').read())
   connection2: Dict[str, List[Dict[str, str]]] = json.loads(open(get_anchor_connection_path(slot2_name), 'r').read())
 
   # get the common anchors
-  common_anchor_connections = {} # anchor_reg_name -> site_coordinates -> all types of the cells in this site
-  for anchor, locs_part1 in connection1.items():
+  common_anchor_connections = {} # anchor_reg_name -> [ {}, ... ]
+  for anchor in connection1.keys():
     if anchor in connection2:
-      locs_part2 = connection2[anchor]
-      site_name2types = defaultdict(list)
-
-      # Dict[str, str]
-      for site_name_and_type in locs_part1 + locs_part2:
-        [(site_name, type)] = site_name_and_type.items()
-
-        # convert the site name to coordinates. Especially for DSP, BRAM, etc.
-        site_coordinate = U250.getCalibratedCoordinatesFromSiteName(site_name)
-        site_name2types[site_coordinate].append(type)
-
-      assert(site_name2types)
-      common_anchor_connections[anchor] = dict(site_name2types)
-
+      common_anchor_connections[anchor] = connection1[anchor] + connection2[anchor]
   return common_anchor_connections
+
 
 def setupAnchorPlacement(hub):
   """

@@ -67,9 +67,6 @@ def getPlacementScript(
   # however, we use the report to extract the number of LUTs on the timing paths
   script += getAnchorTimingReportScript()
 
-  # flag to signal the end of process
-  script.append(f'exec touch anchor_connections.json.done.flag')
-
   script.append(f'exec touch {output_path}/{slot_name}_placed_free_run/{slot_name}.placement.done.flag') # signal that the DCP generation is finished
 
   open(f'{output_path}/{slot_name}_place.tcl', 'w').write('\n'.join(script))
@@ -100,8 +97,9 @@ def createGNUParallelScript(hub, target_dir):
   route_from_dcp = []
 
   vivado_command = 'VIV_VER=2020.1 vivado -mode batch -source'
+  parse_timing_report = 'python3.6 -m autoparallel.BE.TimingReportParser'
   for slot_name in hub['SlotIO'].keys():
-    place.append(f'cd {target_dir}/{slot_name} && {vivado_command} {slot_name}_place.tcl')
+    place.append(f'cd {target_dir}/{slot_name} && {vivado_command} {slot_name}_place.tcl && {parse_timing_report}')
 
   open(f'{target_dir}/parallel-place-all.txt', 'w').write('\n'.join(place))
 
@@ -113,8 +111,9 @@ def createMultiServerExecution(hub, target_dir, user_name, server_list):
   """
   place = []
   vivado_command = 'VIV_VER=2020.1 vivado -mode batch -source'
+  parse_timing_report = 'python3.6 -m autoparallel.BE.TimingReportParser'
   for slot_name in hub['SlotIO'].keys():
-    command = f'cd {target_dir}/{slot_name}/ && {vivado_command} {slot_name}_place.tcl'
+    command = f'cd {target_dir}/{slot_name}/ && {vivado_command} {slot_name}_place.tcl && {parse_timing_report}'
 
     # broadcast the results to all servers
     for server in server_list:

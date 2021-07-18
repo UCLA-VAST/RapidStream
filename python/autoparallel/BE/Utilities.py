@@ -89,13 +89,7 @@ def getAnchorTimingReportScript() -> List[str]:
   script = []
 
   # generate the timing report
-  script.append('report_timing -from [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_report_from_anchor.txt')
-  script.append('report_timing -to [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_report_to_anchor.txt')
-
-  # this is to enable calling python from within vivado
-  script.append('unset ::env(PYTHONPATH)')
-  script.append('unset ::env(PYTHONHOME)')
-
-  script.append(f'exec python3.6 autoparallel.BE.TimingReportParser')
+  script.append('report_timing -from [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_from_anchor.txt')
+  script.append('report_timing -to [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_to_anchor.txt')
 
   return script
