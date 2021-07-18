@@ -42,7 +42,8 @@ class TimingReportParser:
           'src_or_sink' : self.end_cell_role,
           'end_cell_site': end_cell_site,
           'num_lut_on_path' : lut_count,
-          'normalized_coordinate' : U250.getCalibratedCoordinatesFromSiteName(end_cell_site)
+          'normalized_coordinate' : U250.getCalibratedCoordinatesFromSiteName(end_cell_site),
+          'setup_slack': self.getSetupSlackOfSlackSection(slack_section)
         }  
       )
 
@@ -63,7 +64,7 @@ class TimingReportParser:
     for line in report:
       if line.startswith('Slack'):
         slack_sections.append(curr)
-        curr = []
+        curr = [line]
       else:
         curr.append(line)
 
