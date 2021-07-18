@@ -85,12 +85,12 @@ def getNeighborSlots(hub, slot_name: str) -> List[str]:
   return neighbors
 
 
-def getAnchorTimingReportScript() -> List[str]:
+def getAnchorTimingReportScript(report_prefix: str) -> List[str]:
   script = []
 
   # generate the timing report
-  script.append('report_timing -from [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_from_anchor.txt')
-  script.append('report_timing -to [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file timing_path_to_anchor.txt')
+  script.append(f'report_timing -from [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file {report_prefix}_timing_path_from_anchor.txt')
+  script.append(f'report_timing -to [get_cells  "*q0_reg*"] -delay_type max -max_paths 100000 -sort_by group -input_pins -routable_nets -file {report_prefix}_timing_path_to_anchor.txt')
 
   return script
 

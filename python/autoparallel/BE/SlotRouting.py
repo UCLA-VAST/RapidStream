@@ -78,7 +78,7 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script.append(f'open_checkpoint {opt_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp')
 
     # report timing to check the quality of the final anchor placement
-    script += getAnchorTimingReportScript()
+    script += getAnchorTimingReportScript(report_prefix='ILP_anchor_placement_iter1')
 
     # relax placement pblocks
     # do this before updating the clock to prevent vivado crash
@@ -116,6 +116,8 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/routed_with_ooc_clock.dcp')
     script.append(f'phys_opt_design')
     script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/phys_opt_routed_with_ooc_clock.dcp')
+
+    script += getAnchorTimingReportScript(report_prefix='slot_routing_iter0')
 
     # record the route of laguna nets
     script += extractLagunaAnchorRoutes(slot_name)

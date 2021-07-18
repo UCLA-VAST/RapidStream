@@ -606,9 +606,9 @@ if __name__ == '__main__':
   loggingSetup()
 
   if iter == 0:
-    get_anchor_connection_path = lambda slot_name : f'{base_dir}/init_slot_placement/{slot_name}/anchor_connections.json'
+    get_anchor_connection_path = lambda slot_name : f'{base_dir}/init_slot_placement/{slot_name}/init_placement_anchor_connections.json'
   else:
-    get_anchor_connection_path = lambda slot_name : f'{base_dir}/placement_opt_iter{iter}/{slot_name}/anchor_connections.json'
+    get_anchor_connection_path = lambda slot_name : f'{base_dir}/placement_opt_iter{iter-1}/{slot_name}/phys_opt_design_iter{iter-1}_anchor_connections.json'
 
   anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter{iter}'
 
