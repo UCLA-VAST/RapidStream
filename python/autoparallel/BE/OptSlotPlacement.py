@@ -33,7 +33,7 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
     script += removeLUTPlaceholders()
 
   # report timing to check the quality of anchor placement
-  script += getAnchorTimingReportScript()
+  script += getAnchorTimingReportScript(report_prefix='ILP_anchor_placement_iter0')
 
   # optimize the slot based on the given anchor placement
   # do placement only so that we could track the change from the log
@@ -41,7 +41,7 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   script.append(f'write_checkpoint -force {slot_name}_post_placed_opt.dcp')
 
   # report timing to check the timing improvement of slot phys_opt_design
-  script += getAnchorTimingReportScript()
+  script += getAnchorTimingReportScript(report_prefix='phys_opt_design_iter0')
 
   return script
 
@@ -64,7 +64,8 @@ def generateParallelScript(hub, user_name, server_list):
   """
   all_tasks = []
   slot_names = hub['SlotIO'].keys()
-  parse_timing_report = 'python3.6 -m autoparallel.BE.TimingReportParser'
+  parse_timing_report_1 = 'python3.6 -m autoparallel.BE.TimingReportParser ILP_anchor_placement_iter0'
+  parse_timing_report_2 = 'python3.6 -m autoparallel.BE.TimingReportParser phys_opt_design_iter0'
 
   for slot_name in slot_names:
     # wait until local anchors are ready
@@ -79,7 +80,7 @@ def generateParallelScript(hub, user_name, server_list):
     for server in server_list:
       vivado += f' && rsync -azh --delete -r {opt_dir}/{slot_name}/ {user_name}@{server}:{opt_dir}/{slot_name}/'
 
-    command = f' {guards} && cd {opt_dir}/{slot_name} && {vivado} && {parse_timing_report}'
+    command = f' {guards} && cd {opt_dir}/{slot_name} && {vivado} && {parse_timing_report_1} && {parse_timing_report_2}'
     all_tasks.append(command)
 
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 

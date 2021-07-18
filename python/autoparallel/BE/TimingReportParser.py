@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import sys
 
 from typing import List, Dict
 from collections import OrderedDict, defaultdict
@@ -195,11 +196,16 @@ class TimingReportParser:
 
 if __name__ == '__main__':
   curr_dir = os.getcwd()
-  assert os.path.isfile(f'{curr_dir}/timing_path_from_anchor.txt')
-  assert os.path.isfile(f'{curr_dir}/timing_path_to_anchor.txt')
+  assert len(sys.argv) == 2
+  report_prefix = sys.argv[1]
 
-  parser_from_anchor = TimingReportParser('from_anchor', f'{curr_dir}/timing_path_from_anchor.txt')
-  parser_to_anchor = TimingReportParser('to_anchor', f'{curr_dir}/timing_path_to_anchor.txt')
+  from_anchor_report = f'{curr_dir}/{report_prefix}_timing_path_from_anchor.txt'
+  to_anchor_report = f'{curr_dir}/{report_prefix}_timing_path_to_anchor.txt'
+  assert os.path.isfile(from_anchor_report)
+  assert os.path.isfile(to_anchor_report)
+
+  parser_from_anchor = TimingReportParser('from_anchor', from_anchor_report)
+  parser_to_anchor = TimingReportParser('to_anchor', to_anchor_report)
   connection_from_anchor = parser_from_anchor.getAnchorConnection()
   connection_to_anchor = parser_to_anchor.getAnchorConnection()
 
@@ -208,8 +214,8 @@ if __name__ == '__main__':
   # check that one anchor must not exist in both report
   assert len(anchor_connections) == len(connection_from_anchor) + len(connection_to_anchor)
 
-  open('anchor_connections.json', 'w').write(json.dumps(anchor_connections, indent=2))
-  open('anchor_connections_source.json', 'w').write(json.dumps(connection_to_anchor, indent=2))
-  open('anchor_connections_sink.json', 'w').write(json.dumps(connection_from_anchor, indent=2))
-  open('anchor_connections.json.done.flag', 'w').write(' ')
+  open(f'{report_prefix}_anchor_connections.json', 'w').write(json.dumps(anchor_connections, indent=2))
+  open(f'{report_prefix}_anchor_connections_source.json', 'w').write(json.dumps(connection_to_anchor, indent=2))
+  open(f'{report_prefix}_anchor_connections_sink.json', 'w').write(json.dumps(connection_from_anchor, indent=2))
+  open(f'{report_prefix}_anchor_connections.json.done.flag', 'w').write(' ')
 
