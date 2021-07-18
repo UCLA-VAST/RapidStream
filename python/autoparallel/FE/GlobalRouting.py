@@ -178,10 +178,11 @@ class GlobalRouting:
     elif self.in_slot_pipeline_style == 'DOUBLE_REG':
       pipeline_level = dist 
 
-    if self.anchor_plan != 1:
-      assert self.in_slot_pipeline_style == 'WIRE', f'currently 3-FF or 2-FF plan could only be used with LUT in-slot-pipeline'
-      assert self.anchor_plan == 3
-      pipeline_level = int(dist / 2) + 2
+    # anchor_plan will take effect when connecting to the inner slot
+    # for a long connection, anchor_plan of 3 will add one additonal register between the source inner-most wrapper 
+    # and the first anchor register; and add another register between the last anchor register and the 
+    # destination inner-most wrapper
+    pipeline_level += (self.anchor_plan - 1)
 
     logging.info(f'edge {e.name}: ({src_x}, {src_y}) -> ({dst_x}, {dst_y}); pipeline level : {pipeline_level}')
     
