@@ -3,7 +3,7 @@ import json
 import sys
 import os
 import math
-from autoparallel.BE.Utilities import getAnchorTimingReportScript, getAnchorConectionExtractionScript
+from autoparallel.BE.Utilities import getAnchorTimingReportScript
 
 def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts):
   """ phys_opt_design the slot based on the dictated anchor locations """
@@ -43,9 +43,6 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   # report timing to check the timing improvement of slot phys_opt_design
   script += getAnchorTimingReportScript()
 
-  # get the new anchor connection for next round anchor placement
-  script += getAnchorConectionExtractionScript()
-
   return script
 
 def removeLUTPlaceholders():
@@ -67,6 +64,8 @@ def generateParallelScript(hub, user_name, server_list):
   """
   all_tasks = []
   slot_names = hub['SlotIO'].keys()
+  parse_timing_report = 'python3.6 -m autoparallel.BE.TimingReportParser'
+
   for slot_name in slot_names:
     # wait until local anchors are ready
     # check flags to prevent race conditions
@@ -80,7 +79,7 @@ def generateParallelScript(hub, user_name, server_list):
     for server in server_list:
       vivado += f' && rsync -azh --delete -r {opt_dir}/{slot_name}/ {user_name}@{server}:{opt_dir}/{slot_name}/'
 
-    command = f' {guards} && cd {opt_dir}/{slot_name} && {vivado}'
+    command = f' {guards} && cd {opt_dir}/{slot_name} && {vivado} && {parse_timing_report}'
     all_tasks.append(command)
 
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 

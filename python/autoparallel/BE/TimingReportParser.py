@@ -3,12 +3,16 @@ import os
 import re
 
 from typing import List, Dict
-from typing_extensions import Literal
 from collections import OrderedDict, defaultdict
+
+from autoparallel.BE.Device import U250
 
 
 class TimingReportParser:
-  def __init__(self, direction: Literal['to_anchor', 'from_anchor'], timing_report_path: str) -> None:
+  def __init__(self, direction: str, timing_report_path: str) -> None:
+    """
+    direction: Literal['to_anchor', 'from_anchor']
+    """
     self.timing_report_path = timing_report_path
 
     # each timing path is a list of lines
@@ -17,11 +21,11 @@ class TimingReportParser:
     self.direction = direction # whether the timing paths in the report are to anchors or from anchors
     self.end_cell_role = 'source' if self.direction == 'to_anchor' else 'sinks'
 
-  def getAnchorConnection(self, filename='') -> Dict[str, Dict[Literal['source', 'sinks'], List[Dict]]]:
+  def getAnchorConnection(self, filename='') -> Dict[str, Dict[str, List[Dict]]]:
     """
-    anchor -> source/sinks -> { timing_path_source_site , LUT_count }
+    anchor -> [ {timing_path_source_site, LUT_count, ...}, ... ]
     """
-    anchor_connections = defaultdict(lambda: defaultdict(list))
+    anchor_connections = defaultdict(list)
     for slack_section in self.slack_sections:
       anchor = self.getAnchorFromSlackSection(slack_section)
       
@@ -33,10 +37,12 @@ class TimingReportParser:
 
       lut_count = self.getLUTCountInSlackSection(slack_section)
 
-      anchor_connections[anchor][self.end_cell_role].append(
+      anchor_connections[anchor].append(
         {
+          'src_or_sink' : self.end_cell_role,
           'end_cell_site': end_cell_site,
-          'num_lut_on_path' : lut_count
+          'num_lut_on_path' : lut_count,
+          'normalized_coordinate' : U250.getCalibratedCoordinatesFromSiteName(end_cell_site)
         }  
       )
 
@@ -198,14 +204,11 @@ if __name__ == '__main__':
 
   anchor_connections = {**connection_from_anchor, **connection_to_anchor}
 
-  print(len(anchor_connections))
-  print(len(connection_from_anchor))
-  print(len(connection_to_anchor))
-
   # check that one anchor must not exist in both report
   assert len(anchor_connections) == len(connection_from_anchor) + len(connection_to_anchor)
 
   open('anchor_connections.json', 'w').write(json.dumps(anchor_connections, indent=2))
   open('anchor_connections_source.json', 'w').write(json.dumps(connection_to_anchor, indent=2))
   open('anchor_connections_sink.json', 'w').write(json.dumps(connection_from_anchor, indent=2))
+  open('anchor_connections.json.done.flag', 'w').write(' ')
 
