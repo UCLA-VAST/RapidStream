@@ -65,31 +65,56 @@ class SLLChannel:
       assert False
     return (laguna_y, laguna_y+1)
 
-  def getCostForAnchor(self, coor_to_cell_types):
+  def getCostForAnchor(self, list_of_cell_property_dict: List[Dict], anchor_direction: str) -> float:
     """
     the cost for placing an anchor on this channel
     """
-    lut_penalty = lambda types : 2 if any('LUT' in type for type in types) else 1
+    SLR_crossing_penalty = 10
+    SLL_length = 60
 
-    def getDistFromCells(coor_to_cell_types: Dict[str, str]) -> List[int]:
+    lut_penalty = lambda num_lut_on_path : 1 + 0.3 * num_lut_on_path
+
+    def getDistFromCells(list_of_cell_property_dict: List[Dict]) -> List[int]:
       """
-      the distances from each endpoint of an anchor. Penalize if an endpoint is LUT
+      Distance between the RX of the SLL and the end cell.
+      If the connection goes up, the dist is between the end cells and the top_coor
+      Else the dist is between the end cells and the bottom_coor
       """
-      dist = []
-      for loc, type in coor_to_cell_types.items():
+      dists = []
+      # for loc, type in coor_to_cell_types.items():
+      for cell_property_dict in list_of_cell_property_dict:
+        loc = cell_property_dict["normalized_coordinate"]
+
         x, y = loc[0], loc[1]
+
         # determine if the cell is at the top side or bottom side
-        if self.bottom_slot_y_min <= y <= self.bottom_slot_y_max:
-          orig_dist = abs(x - self.bottom_coor_x) + abs(y - self.bottom_coor_y)
+        is_cell_at_bottom = self.bottom_slot_y_min <= y <= self.bottom_slot_y_max
+
+        if anchor_direction == 'DOWN':
+          if is_cell_at_bottom:
+            orig_dist = abs(x - self.bottom_coor_x) + abs(y - self.bottom_coor_y)
+          else:
+            # if a connection goes down, the end cell at the top will connect to 
+            # the input of the SLL at the top, then travel through SLL to the RX at the bottom
+            orig_dist = SLR_crossing_penalty + SLL_length + abs(x - self.top_coor_x) + abs(y - self.top_coor_y)
+
+        elif anchor_direction == 'UP':
+          if is_cell_at_bottom:
+            # if a connection goes up, the end cell at the bottom will connect to
+            # the input of the SLL at the bottom, then travel through SLL to the RX at the top
+            orig_dist = SLR_crossing_penalty + SLL_length + abs(x - self.bottom_coor_x) + abs(y - self.bottom_coor_y)
+          else:
+            orig_dist = abs(x - self.top_coor_x) + abs(y - self.top_coor_y)
+
         else:
-          orig_dist = abs(x - self.top_coor_x) + abs(y - self.top_coor_y)
+          assert False
 
         # penaltize wires to LUTs
-        dist.append(orig_dist * lut_penalty(type))
+        dists.append(orig_dist * lut_penalty(cell_property_dict["num_lut_on_path"]))
 
-      return dist
+      return dists
 
-    dists = getDistFromCells(coor_to_cell_types)
+    dists = getDistFromCells(list_of_cell_property_dict)
 
     # avg wire length
     dist_score = sum(dists) / len(dists)
@@ -99,7 +124,8 @@ class SLLChannel:
     # prevent extremely short wires
     hold_penalty = max(0, 10 - min(dists))
 
-    return dist_score + unbalance_penalty + 5 * hold_penalty
+    return dist_score + unbalance_penalty + hold_penalty
+
 
   def placeAnchor(self, anchor_dir):
     """
@@ -117,7 +143,7 @@ class SLLChannel:
       assert False, anchor_dir
 
 
-def _get_anchor_2_sll_dir(hub, slot1_name, slot2_name, anchor_to_coor_to_cell_types):
+def _get_anchor_2_sll_dir(hub, slot1_name, slot2_name, anchor_connections: Dict[str, List[Dict[str, str]]]) -> Dict[str, str]:
   """
   each anchor will use one SLL connection.
   get which direction will the SLL will be used, upward or downward
@@ -142,14 +168,17 @@ def _get_anchor_2_sll_dir(hub, slot1_name, slot2_name, anchor_to_coor_to_cell_ty
   slot_io_2_sll_dir = {io[-1] : get_sll_dir(io[0]) for io in up_slot_io}
 
   anchor_2_sll_dir = {}
-  for anchor in anchor_to_coor_to_cell_types.keys():
+  for anchor in anchor_connections.keys():
     hls_var_name = anchor.split('_q0_reg')[0]
     anchor_2_sll_dir[anchor] = slot_io_2_sll_dir[hls_var_name]
 
   return anchor_2_sll_dir
 
 
-def getSLLChannelToAnchorCost(sll_channel_list: List[SLLChannel], anchor_to_coor_to_cell_types):
+def getSLLChannelToAnchorCost(
+    sll_channel_list: List[SLLChannel], 
+    anchor_connections: Dict[str, List[Dict]], 
+    anchor_to_sll_dir: Dict[str, str]):
   """
   We need to assign a score if an anchor is placed in a bin
   To prevent hold violation, we neglect the length of the SLL. Thus the distance will be 
@@ -161,8 +190,8 @@ def getSLLChannelToAnchorCost(sll_channel_list: List[SLLChannel], anchor_to_coor
   sll_to_anchor_to_cost = {}
 
   for sll_channel in sll_channel_list:
-    anchor_to_cost = {anchor : sll_channel.getCostForAnchor(coor_to_cell_types) \
-      for anchor, coor_to_cell_types in anchor_to_coor_to_cell_types.items()}
+    anchor_to_cost = {anchor : sll_channel.getCostForAnchor(list_of_cell_property_dict, anchor_to_sll_dir[anchor]) \
+      for anchor, list_of_cell_property_dict in anchor_connections.items()}
     sll_to_anchor_to_cost[sll_channel] = anchor_to_cost
 
   anchor_to_sll_to_cost = defaultdict(dict)
@@ -247,7 +276,7 @@ def placeAnchorToSLLChannel(anchor_to_sll_to_cost) -> Dict[str, SLLChannel]:
   return anchor_to_sll
 
 
-def placeLagunaAnchors(hub, pair_name, anchor_to_coor_to_cell_types):
+def placeLagunaAnchors(hub, pair_name: str, anchor_connections: Dict[str, List[Dict[str, str]]]) -> Dict[str, str]:
   """
   separally handle the anchor placement for SLR crossing pairs
   The source cannot be too close to the chose SLL
@@ -265,11 +294,12 @@ def placeLagunaAnchors(hub, pair_name, anchor_to_coor_to_cell_types):
 
   sll_channels = getSLLChannels(slot1_name, slot2_name)
 
-  _, anchor_to_sll_to_cost = getSLLChannelToAnchorCost(sll_channels, anchor_to_coor_to_cell_types)
+  anchor_to_sll_dir = _get_anchor_2_sll_dir(hub, slot1_name, slot2_name, anchor_connections)
+
+  _, anchor_to_sll_to_cost = getSLLChannelToAnchorCost(sll_channels, anchor_connections, anchor_to_sll_dir)
 
   anchor_to_sll = placeAnchorToSLLChannel(anchor_to_sll_to_cost)
 
-  anchor_to_sll_dir = _get_anchor_2_sll_dir(hub, slot1_name, slot2_name, anchor_to_coor_to_cell_types)
 
   anchor_to_laguna_reg = {}
   for anchor, sll in anchor_to_sll.items():
