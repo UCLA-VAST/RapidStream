@@ -158,8 +158,6 @@ def __debug_logging(anchor2bin2cost, anchor_connections):
     anchor2loc2cost[anchor] = loc2score
   open('debug_anchor_to_bin_to_cost.json', 'w').write(json.dumps(anchor2loc2cost, indent=2))
 
-  open('anchor_connection_of_the_pair.json', 'w').write(json.dumps(anchor_connections, indent=2))
-
   logging.info('finish dumping anchor_to_bin_to_cost')
 
 
@@ -621,7 +619,8 @@ if __name__ == '__main__':
   elif option == 'RUN':
     pair_name = sys.argv[5]
     common_anchor_connections = collectAllConnectionsOfTargetAnchors(pair_name)
-    
+    open('anchor_connection_of_the_pair.json', 'w').write(json.dumps(common_anchor_connections, indent=2))
+
     slot1_name, slot2_name = pair_name.split('_AND_')
 
     if isPairSLRCrossing(slot1_name, slot2_name):
