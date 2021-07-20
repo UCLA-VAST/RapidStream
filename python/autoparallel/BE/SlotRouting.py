@@ -87,7 +87,7 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
     # add hold uncertainty
     # since we find a trick to keep a consistent tap for row buffers, we don't need this
-    script.append(f'set_clock_uncertainty -hold 0.1 [get_clocks ap_clk]')
+    script.append(f'set_clock_uncertainty -hold 0.03 [get_clocks ap_clk]')
 
     # include all anchors to ensure the tap of row buffers are properly set
     # script += addAllAnchors()
