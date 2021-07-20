@@ -32,6 +32,9 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   if hub['InSlotPipelineStyle'] == 'LUT':
     script += removeLUTPlaceholders()
 
+  # to help analysis of the anchor placement quality
+  script.append(f'write_checkpoint -force {slot_name}_before_placed_opt.dcp')
+
   # report timing to check the quality of anchor placement
   script += getAnchorTimingReportScript(report_prefix='ILP_anchor_placement_iter0')
 
