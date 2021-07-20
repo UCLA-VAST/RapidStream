@@ -34,7 +34,7 @@ def getSlotAnchorRoutingScript(anchor_initialization_scripts):
   script += [f'set clock_route [get_property ROUTE [get_nets ap_clk]]']
 
   script += [f'set file [ open "set_anchor_clock_route.tcl" "w" ]']
-  script += [ 'puts $file "set_property ROUTE ${clock_route} \[ get_nets ap_clk \]" ']
+  script += [ 'puts $file "set_property FIXED_ROUTE ${clock_route} \[ get_nets ap_clk \]" ']
   script += [f'close $file']
 
   return script

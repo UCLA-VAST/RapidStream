@@ -33,26 +33,6 @@ close $file
   return script
 
 
-def pruneAnchors(hub):
-  """
-  after we mark the checkpoint as non-ooc, use write_checkpoint -cell
-  to remove the anchored wrapper
-  Note that the route of VCC/GND nets will be lost during write_checkpoint -cell
-  And 2020.1 has a bug that cannot route them back in preserve mode
-  To work around the problem, we first record the route of VCC/GND nets
-  then re-apply them in the child checkpoint
-  """
-  for slot_name in hub['SlotIO'].keys():
-    slot_dir = f'{routing_dir}/{slot_name}'
-    dcp_path = f'{routing_dir}/{slot_name}/unset_dcp_ooc/phys_opt_routed_with_ooc_clock.dcp'
-    inner_module_name = f'{slot_name}_ctrl_U0'
-    output_dir = f'{routing_dir}/{slot_name}/'
-
-    script = getPruningAnchorScript(dcp_path, inner_module_name, output_dir)
-
-    open(f'{slot_dir}/prune_anchors.tcl', 'w').write('\n'.join(script))
-
-
 def addAllAnchors():
   """
   when route a slot, instantiate and place all anchors, so that the tap of row buffers are closer to the real case.
@@ -64,6 +44,7 @@ def addAllAnchors():
   script += [f'catch {{ source -notrace {get_create_anchor_script(pair_name)} }}' for pair_name in pair_name_list]
 
   return script
+
 
 def routeWithGivenClock(hub, opt_dir, routing_dir):
   """
@@ -101,12 +82,12 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
     # *** prevent gap in clock routing
     script.append(f'set_property ROUTE "" [get_nets ap_clk]')
-    script.append(f'source -notrace {clock_trunk_path}')
+    script.append(f'source -notrace {anchor_clock_routing_dir}/{slot_name}/set_anchor_clock_route.tcl')
     script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
     # add hold uncertainty
     # since we find a trick to keep a consistent tap for row buffers, we don't need this
-    # script.append(f'set_clock_uncertainty -hold 0.15 [get_clocks ap_clk]')
+    script.append(f'set_clock_uncertainty -hold 0.1 [get_clocks ap_clk]')
 
     # include all anchors to ensure the tap of row buffers are properly set
     # script += addAllAnchors()
@@ -124,6 +105,7 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
     open(f'{routing_dir}/{slot_name}/route_with_ooc_clock.tcl', "w").write('\n'.join(script))
 
+
 def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name):
   # generate the gnu parallel tasks
   all_tasks = []
@@ -131,22 +113,14 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
     vivado = 'VIV_VER=2020.2 vivado -mode batch -source route_with_ooc_clock.tcl'
     dir = f'{routing_dir}/{slot_name}/'
     
-    # hack the generated checkpoint to unmark it as ooc
-    unset_ooc = f'{unset_ooc_script} phys_opt_routed_with_ooc_clock.dcp'
-
-    # remove the anchors
-    prune = f'VIV_VER=2020.2 vivado -mode batch -source prune_anchors.tcl'
-
-    # unset the HD.RECONFIGURABLE property of the checkpoint
-    unset_reconfig = f'{unset_hd_reconfigurable_script} {slot_name}_ctrl_U0.dcp'
-
     transfer = f'rsync -azh --delete -r {dir} {user_name}@{main_server_name}:{dir}'
-    all_tasks.append(f'cd {dir} && {vivado} && {unset_ooc} && {prune} && {unset_reconfig} && {transfer}')
+    all_tasks.append(f'cd {dir} && {vivado} && {transfer}')
     
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
     open(f'{routing_dir}/parallel-route-with-ooc-clock-{server}.txt', 'w').write('\n'.join(local_tasks))
+
 
 if __name__ == '__main__':
   assert len(sys.argv) == 3, 'input (1) the path to the front end result file; (2) the target directory; (3) which action'
@@ -154,13 +128,7 @@ if __name__ == '__main__':
   base_dir = sys.argv[2]
   opt_dir = f'{base_dir}/opt_placement_iter0'
   routing_dir = f'{base_dir}/slot_routing'
-
-  current_path = os.path.dirname(os.path.realpath(__file__))
-  unset_ooc_script = f'{current_path}/../../../bash/unset_ooc.sh'
-  unset_hd_reconfigurable_script = f'{current_path}/../../../bash/unset_hd_reconfigurable.sh'
-
-  # clock trunk, including tap level for row buffers
-  clock_trunk_path = f'{current_path}/Clock/set_clock_stem_from_FF_chain_over_all_CR_design.tcl'
+  anchor_clock_routing_dir = f'{base_dir}/slot_anchor_clock_routing'
 
   user_name = 'einsx7'
   # server_list=['u5','u17','u18','u15']
@@ -170,5 +138,4 @@ if __name__ == '__main__':
 
   hub = json.loads(open(hub_path, 'r').read())
   routeWithGivenClock(hub, opt_dir, routing_dir)
-  pruneAnchors(hub)
   getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
