@@ -499,7 +499,7 @@ def writePlacementResults(anchor_2_loc):
   f.close()
 
 
-def collectAllConnectionsOfTargetAnchors(pair_name) -> Dict[str, Dict[str, List[str]]]:
+def collectAllConnectionsOfTargetAnchors(pair_name) -> Dict[str, List[Dict[str, str]]]:
   """
   for a pair of anchors, collect all connections of the anchors in between the two slots
   return: anchor name -> normalized coordinate of site -> connected cells in this site
