@@ -622,10 +622,13 @@ if __name__ == '__main__':
     pair_name = sys.argv[5]
     common_anchor_connections = collectAllConnectionsOfTargetAnchors(pair_name)
     
-    anchor_2_slice_xy = runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
-
     slot1_name, slot2_name = pair_name.split('_AND_')
-    anchor_2_loc = moveAnchorsOntoLagunaSites(hub, anchor_2_slice_xy, slot1_name, slot2_name)
+
+    if isPairSLRCrossing(slot1_name, slot2_name):
+      anchor_2_loc = placeLagunaAnchors(hub, pair_name, common_anchor_connections)
+    else:
+      anchor_2_slice_xy = runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
+      anchor_2_loc = {anchor : f'SLICE_X{xy[0]}Y{xy[1]}' for anchor, xy in anchor_2_slice_xy.items() }
 
     writePlacementResults(anchor_2_loc)
     
