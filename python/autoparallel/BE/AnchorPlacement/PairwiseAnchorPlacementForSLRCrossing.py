@@ -1,6 +1,10 @@
-from collections import defaultdict
 import itertools
+import logging
+import json
+import operator
 import time
+
+from collections import defaultdict
 from typing import List, Tuple, Dict
 from mip import Model, minimize, CONTINUOUS, xsum
 
@@ -34,6 +38,12 @@ class SLLChannel:
 
   def __hash__(self):
     return hash((self.bottom_coor_x, self.bottom_coor_y))
+
+  def __str__(self):
+    return self.getString()
+
+  def getString(self):
+    return f'X{self.bottom_coor_x}Y{self.bottom_coor_y} <-> X{self.top_coor_x}Y{self.top_coor_y}'  
 
   def _initRXList(self, i_th_column, bottom_coor_y):
     """
@@ -276,6 +286,44 @@ def placeAnchorToSLLChannel(anchor_to_sll_to_cost) -> Dict[str, SLLChannel]:
   return anchor_to_sll
 
 
+def _analyzeILPResults(anchor_to_sll_to_cost, anchor_to_selected_bin):
+  """
+  get how optimal is the final position for each anchor
+  """
+  anchor_to_sll_string_to_cost = {}
+  for anchor, sll_to_cost in anchor_to_sll_to_cost.items():
+    anchor_to_sll_string_to_cost[anchor] = {sll.getString() : cost for sll, cost in sll_to_cost.items()}
+  open('debug_anchor_to_bin_to_cost.json', 'w').write(json.dumps(anchor_to_sll_string_to_cost, indent=2))
+
+  ilp_report = {}
+
+  for anchor, chosen_bin in anchor_to_selected_bin.items():
+    ilp_report[anchor] = {}
+
+    bin2cost = anchor_to_sll_to_cost[anchor]
+    all_cost_list = [[cost, bin] for bin, cost in bin2cost.items()]
+    all_cost_list = sorted(all_cost_list, key=operator.itemgetter(0))
+    cost_value_list = [x[0] for x in all_cost_list]
+
+    ilp_report[anchor]['curr_cost'] = bin2cost[chosen_bin]
+    ilp_report[anchor]['min_cost'] = all_cost_list[0][0]
+    ilp_report[anchor]['max_cost'] = all_cost_list[-1][0]
+    ilp_report[anchor]['rank_of_chosen_bin'] = cost_value_list.index(bin2cost[chosen_bin])
+    ilp_report[anchor]['total_bin_num'] = len(all_cost_list)
+    ilp_report[anchor]['bin_location'] = chosen_bin.getString()
+    optimal_bin = all_cost_list[0][1]
+    ilp_report[anchor]['optimal_location'] = optimal_bin.getString()
+    
+  ranks = [anchor_info['rank_of_chosen_bin'] for anchor_info in ilp_report.values()]
+  if len(ranks):
+    logging.info(f'average rank of the final placed bins: {sum(ranks) / len(ranks)}')
+    logging.info(f'worst rank of the final placed bins: {max(ranks)}')
+  else:
+    logging.warning(f'no anchors between the pair')
+
+  open('ilp_quality_report.json', 'w').write(json.dumps(ilp_report, indent=2))
+
+
 def placeLagunaAnchors(hub, pair_name: str, anchor_connections: Dict[str, List[Dict[str, str]]]) -> Dict[str, str]:
   """
   separally handle the anchor placement for SLR crossing pairs
@@ -300,6 +348,7 @@ def placeLagunaAnchors(hub, pair_name: str, anchor_connections: Dict[str, List[D
 
   anchor_to_sll = placeAnchorToSLLChannel(anchor_to_sll_to_cost)
 
+  _analyzeILPResults(anchor_to_sll_to_cost, anchor_to_sll)
 
   anchor_to_laguna_reg = {}
   for anchor, sll in anchor_to_sll.items():
