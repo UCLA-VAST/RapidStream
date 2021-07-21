@@ -109,12 +109,16 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name):
   # generate the gnu parallel tasks
   all_tasks = []
+
+  parse_timing_report_1 = 'python3.6 -m autoparallel.BE.TimingReportParser ILP_anchor_placement_iter1'
+  parse_timing_report_2 = 'python3.6 -m autoparallel.BE.TimingReportParser slot_routing_iter0'
+
   for slot_name in hub['SlotIO'].keys():
     vivado = 'VIV_VER=2020.2 vivado -mode batch -source route_with_ooc_clock.tcl'
     dir = f'{routing_dir}/{slot_name}/'
     
     transfer = f'rsync -azh --delete -r {dir} {user_name}@{main_server_name}:{dir}'
-    all_tasks.append(f'cd {dir} && {vivado} && {transfer}')
+    all_tasks.append(f'cd {dir} && {vivado} && {transfer} && {parse_timing_report_1} && {parse_timing_report_2}')
     
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
