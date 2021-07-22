@@ -151,7 +151,7 @@ if __name__ == '__main__':
   parallelSlotRun(hub, parallel_run_dir, user_name=user_name, server_list=server_list)
 
   # pairwise anchor placement
-  pairwise_placement_dir = f'{backend_run_dir}/parallel_stitch'
+  pairwise_placement_dir = f'{backend_run_dir}/baseline_vivado_anchor_placement'
   os.mkdir(pairwise_placement_dir)
   parallelAnchorPlacement(hub, parallel_run_dir, pairwise_placement_dir,
                           user_name=user_name,server_list=server_list)

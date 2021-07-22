@@ -10,10 +10,10 @@ def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
   create a script for vivado to print the information into a json file
   """
   tcl = []
-  tcl.append(f'set fileId [open {slot_name}_anchor_placement.json "w"]')
-  tcl.append('puts $fileId "{"')
+  tcl.append(f'set fileId [open {slot_name}_anchor_placement.tcl "w"]')
+  tcl.append('puts $fileId "place_cell { \\"')
 
-  print_cmd = r'catch {{ puts $fileId [format "  \"%s\" : \"%s/%s\"," {reg_name} [get_property LOC [get_cells {reg_name}]] [lindex [split [get_property BEL [get_cells {reg_name}]] "."] 1] ] }}'
+  print_cmd = r'catch {{ puts $fileId [format "  \"%s\" \"%s/%s\" \\" {reg_name} [get_property LOC [get_cells {reg_name}]] [lindex [split [get_property BEL [get_cells {reg_name}]] "."] 1] ] }}'
 
   # note that top-level ports will not have anchor registers.
   # the exception will be handled by the 'catch' in the command
@@ -27,13 +27,11 @@ def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
     else:
       assert False
 
-  # tcl.append(r'puts $fileId "  \"dummy\" : \"dummy\" "')
-  tcl[-1] = tcl[-1].replace(',', '')
   tcl.append('puts $fileId "}"')
   tcl.append(f'close $fileId')
 
   # create a done flag
-  tcl.append(f'set fileId [open {slot_name}_anchor_placement.json.done.flag "w"]')
+  tcl.append(f'set fileId [open {slot_name}_anchor_placement.tcl.done.flag "w"]')
   tcl.append('puts $fileId "done"')
   tcl.append(f'close $fileId')
 
