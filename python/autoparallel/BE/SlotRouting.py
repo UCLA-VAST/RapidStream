@@ -33,7 +33,7 @@ close $file
   return script
 
 
-def addAllAnchors():
+def addAllAnchors(slot_name):
   """
   when route a slot, instantiate and place all anchors, so that the tap of row buffers are closer to the real case.
   """
@@ -41,8 +41,18 @@ def addAllAnchors():
   get_create_anchor_script = lambda pair_name : f'{base_dir}/ILP_anchor_placement_iter0/{pair_name}/create_and_place_anchors_for_clock_routing.tcl'
 
   script = ['set_property DONT_TOUCH 0 [get_nets ap_clk]']
-  script += [f'catch {{ source -notrace {get_create_anchor_script(pair_name)} }}' for pair_name in pair_name_list]
+  script += [f'catch {{ source -notrace {get_create_anchor_script(pair_name)} }}' \
+    for pair_name in pair_name_list if slot_name not in pair_name]
 
+  return script
+
+
+def removePlaceholderAnchors():
+  script = []
+  script.append('set placeholder_FF [get_cells  -filter { DONT_TOUCH == "FALSE" && NAME =~ "*q0_reg*" } ]')
+  script.append('set placeholder_FF_clock_pin [get_pins -filter { NAME =~ "*C" } -of_objects $placeholder_FF ]')
+  script.append('disconnect_net -net [get_nets ap_clk] -objects $placeholder_FF_clock_pin')
+  script.append('remove_cell $placeholder_FF')
   return script
 
 
@@ -87,12 +97,20 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
     # add hold uncertainty
     # since we find a trick to keep a consistent tap for row buffers, we don't need this
-    script.append(f'set_clock_uncertainty -hold 0.03 [get_clocks ap_clk]')
+    script.append(f'set_clock_uncertainty -hold 0.05 [get_clocks ap_clk]')
 
     # include all anchors to ensure the tap of row buffers are properly set
-    # script += addAllAnchors()
+    script += addAllAnchors(slot_name)
 
     script.append(f'route_design')
+    script.append(f'puts [get_property ROUTE [get_nets ap_clk]]') # to check the row buffer tap
+
+    # remove the placeholder anchors
+    script += removePlaceholderAnchors()
+
+    # restore the hold uncertainty
+    script.append(f'set_clock_uncertainty -hold 0 [get_clocks ap_clk]')
+
     # sometimes phys_opt_design make things worse, probably because of the fixed clock
     script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/routed_with_ooc_clock.dcp')
     script.append(f'phys_opt_design')
