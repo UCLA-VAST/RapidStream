@@ -11,10 +11,17 @@
  */
 package com.xilinx.rapidwright.examples;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.Set;
 
 import com.xilinx.rapidwright.design.Design;
@@ -89,7 +96,6 @@ public class MergeDCP {
                 if(!cellTypesToSkip.contains(duplicateName)) {
                     duplicates.add(inst.getName());
                 }
-                
             } else {
                 design0Top.addCellInst(inst);
                 if(inst.getCellType().getName().equals("FDRE")) {
@@ -179,25 +185,56 @@ public class MergeDCP {
             design0.getNetlist().addEncryptedCells(encryptedCells);
         }          
 
+        design0.getNetlist().removeUnusedCellsFromAllWorkLibraries();
         return design0;
     }
     
-    public static void main(String[] args) {
-        if(args.length != 3) {
-            System.out.println("Usage: <input DCP 0 filename> <input DCP 1 filename> <merged output DCP filename>");
+    public static Design mergeDCP(Design...designs) {
+        Design result = null;
+        for(Design design : designs) {
+            if(result == null) {
+                result = design;
+            }else {
+                result = mergeDCP(result, design);
+            }
+        }
+        return result;
+    }
+    
+    public static void main(String[] args) throws InterruptedException {
+        if(args.length != 2 && args.length != 3) {
+            System.out.println("Usage: <dir with DCPs> <merged output DCP filename> [dcp regex]");
             return;
         }
+        String dcpRegex = args.length == 3 ? args[2] : ".*\\.dcp"; //"^.*CR_X2Y[0-9]+_To_CR_X[0-9]+Y[0-9]+/.*_unique.dcp$"
         CodePerfTracker t = new CodePerfTracker("Merge DCP");
-        t.start("Read DCP 0");
-        Design design0 = Design.readCheckpoint(args[0], CodePerfTracker.SILENT);
-        t.stop().start("Read DCP 1");
-        Design design1 = Design.readCheckpoint(args[1], CodePerfTracker.SILENT);
-        t.stop().start("Merge Design");
+  
+        Path start = Paths.get(args[0]);
+        List<File> dcps = null;
+        try (Stream<Path> stream = Files.walk(start, Integer.MAX_VALUE)) {
+            dcps = stream
+                    .map(p -> p.toFile())
+                    .filter(p -> p.isFile() && p.getAbsolutePath().matches(dcpRegex))
+                    .collect(Collectors.toList());
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
+        System.out.println("Merging DCPs:");
+        for(File f : dcps) {
+            System.out.println("  " + f.getAbsolutePath());
+        }
         
-        Design output = mergeDCP(design0, design1);
+        Design[] designs = new Design[dcps.size()];
+        for(int i=0; i < designs.length; i++) {
+            t.start("Read DCP " + i);
+            designs[i] = Design.readCheckpoint(dcps.get(i).toPath(), CodePerfTracker.SILENT);
+            t.stop();
+        }
         
+        t.start("Merge DCPs");
+        Design merged = mergeDCP(designs);
         t.stop().start("Write DCP");
-        output.writeCheckpoint(args[2], CodePerfTracker.SILENT);
+        merged.writeCheckpoint(args[1], CodePerfTracker.SILENT);
         t.stop().printSummary();
     }
 }
