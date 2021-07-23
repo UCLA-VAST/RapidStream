@@ -56,6 +56,19 @@ def removePlaceholderAnchors():
   return script
 
 
+def unrouteNonLagunaAnchorDPinQPinNets(slot_name):
+  script = []
+  
+  script.append('set non_laguna_anchors [get_cells  -filter { NAME =~  "*q0_reg*" && LOC !~  "*LAGUNA*" } ]')
+  script.append('set non_laguna_anchor_nets [ get_nets -of_objects $non_laguna_anchors -filter {NAME != "ap_clk" && NAME != "<const0>" && NAME != "<const1>"} ]')
+  script.append('route_design -unroute -nets $non_laguna_anchor_nets')
+
+  script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted.dcp')
+  script.append(f'write_edif -force {routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted.edf')
+
+  return script
+
+
 def routeWithGivenClock(hub, opt_dir, routing_dir):
   """
   Run the final routing of each slot with the given clock network
@@ -120,6 +133,9 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
     # record the route of laguna nets
     script += extractLagunaAnchorRoutes(slot_name)
+
+    # unroute non-laguna anchor D pin /Q pin nets
+    script += unrouteNonLagunaAnchorDPinQPinNets(slot_name)
 
     open(f'{routing_dir}/{slot_name}/route_with_ooc_clock.tcl', "w").write('\n'.join(script))
 
