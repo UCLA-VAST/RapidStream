@@ -2,6 +2,7 @@ import sys
 import json
 import os
 import math
+from typing import List
 from autoparallel.BE.Device import U250
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autoparallel.BE.Utilities import getPruningAnchorScript, getAnchorTimingReportScript
@@ -33,7 +34,7 @@ close $file
   return script
 
 
-def addAllAnchors(slot_name):
+def addAllAnchors(slot_name_list: List[str]):
   """
   when route a slot, instantiate and place all anchors, so that the tap of row buffers are closer to the real case.
   """
@@ -42,7 +43,8 @@ def addAllAnchors(slot_name):
 
   script = ['set_property DONT_TOUCH 0 [get_nets ap_clk]']
   script += [f'catch {{ source -notrace {get_create_anchor_script(pair_name)} }}' \
-    for pair_name in pair_name_list if slot_name not in pair_name]
+    for pair_name in pair_name_list \
+      if all(slot_name not in pair_name for slot_name in slot_name_list)]
 
   return script
 
@@ -113,7 +115,7 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script.append(f'set_clock_uncertainty -hold 0.05 [get_clocks ap_clk]')
 
     # include all anchors to ensure the tap of row buffers are properly set
-    script += addAllAnchors(slot_name)
+    script += addAllAnchors([slot_name])
 
     script.append(f'route_design')
     script.append(f'puts [get_property ROUTE [get_nets ap_clk]]') # to check the row buffer tap
