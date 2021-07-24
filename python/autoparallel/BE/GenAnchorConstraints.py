@@ -142,7 +142,7 @@ def __constraintBoundary(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y):
   SLICE_buffer_pblock = ''
   return __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
 
-def createPBlockScript(hub, slot_name, output_path='.'):
+def getSlotInitPlacementPblock(hub, slot_name):
   """
   Need to separately constrain the slot itself and the peripheral anchor registers
   To facilitate routing, the pblock for the slot is smaller in placement
@@ -157,7 +157,4 @@ def createPBlockScript(hub, slot_name, output_path='.'):
 
   constrain_slot_free_run = __constrainSlotWires(hub, slot_name)
 
-  with open(f'{output_path}/{slot_name}_floorplan_placement_free_run.tcl', 'w') as fp1:
-    fp1.write('\n'.join(
-      common + constraint_body_place + constrain_slot_free_run))
-    fp1.close()
+  return common + constraint_body_place + constrain_slot_free_run
