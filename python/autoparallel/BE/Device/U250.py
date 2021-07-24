@@ -549,7 +549,7 @@ def generateAnchorInclusivePblock():
     print(f"horizontal_segment[3][{i*2}] = ' '")
 
 
-def constrainAnchorNets(slot_name, pblock_def):
+def constrainAnchorNetsAndSlot(slot_name, pblock_def):
   """
   add 2nd level pblock for anchors
   since anchors are outside of the slot, anchor nets are not constrained.
@@ -564,6 +564,7 @@ def constrainAnchorNets(slot_name, pblock_def):
   script.append(f'resize_pblock [get_pblocks anchor_pblock] -add {{ {getLagunaAnchorInclusivePblock(slot_name)} }}') 
 
   script.append(f'add_cells_to_pblock [get_pblocks anchor_pblock] [get_cells *q0_reg*]') # constrain all anchors
+  script.append(f'add_cells_to_pblock [get_pblocks anchor_pblock] [get_cells {slot_name}_ctrl_U0]') # constrain all anchors
   script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks anchor_pblock]')
 
   return script
