@@ -53,7 +53,7 @@ def generateParallelScript(hub, user_name, server_list):
   parse_timing_report = 'python3.6 -m autoparallel.BE.TimingReportParser init_placement'
 
   for slot_name in hub['SlotIO'].keys():
-    guard = f'until [[ -f {slot_name}_synth.dcp.done.flag ]] ; do sleep 10; done'
+    guard = f'until [[ -f {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag ]] ; do sleep 10; done'
     cd = f'cd {init_place_dir}/{slot_name}/'
 
     # broadcast the results to all servers
