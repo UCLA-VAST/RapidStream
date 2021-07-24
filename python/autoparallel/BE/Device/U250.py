@@ -486,13 +486,13 @@ horizontal_segment[3][8] = ' '
 def getAnchorPblock(slot: Slot):
   pblock = f'CLOCKREGION_X{slot.down_left_x}Y{slot.down_left_y}:CLOCKREGION_X{slot.up_right_x}Y{slot.up_right_y} '
 
-  pblock += vertical_segment[int((slot.down_left_x) / 2)][int(slot.down_left_y / 2)]
+  pblock += ' ' + vertical_segment[int((slot.down_left_x) / 2)][int(slot.down_left_y / 2)]
   
-  pblock += vertical_segment[int((slot.up_right_x) / 2 + 1)][int(slot.down_left_y / 2)]
+  pblock += ' ' + vertical_segment[int((slot.up_right_x) / 2 + 1)][int(slot.down_left_y / 2)]
 
-  pblock += horizontal_segment[int((slot.down_left_x) / 2)][int((slot.down_left_y) / 2)]
+  pblock += ' ' + horizontal_segment[int((slot.down_left_x) / 2)][int((slot.down_left_y) / 2)]
 
-  pblock += horizontal_segment[int((slot.down_left_x) / 2)][int((slot.up_right_y) / 2 + 1)]
+  pblock += ' ' + horizontal_segment[int((slot.down_left_x) / 2)][int((slot.up_right_y) / 2 + 1)]
 
   return pblock
 
