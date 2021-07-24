@@ -1,7 +1,6 @@
 import sys
 import json
 import os
-import re
 from autoparallel.BE.SlotRouting import addAllAnchors, unrouteNonLagunaAnchorDPinQPinNets
 
 
@@ -16,9 +15,6 @@ def getVivadoScriptForSlotPair(pair_name):
   script.append(f'puts [get_property ROUTE [get_nets ap_clk]]')
   script.append(f'report_timing_summary')
 
-  # add back the placeholder FFs
-  script += addAllAnchors(hub, base_dir, pair_name.split('_AND_'))
-
   # unroute non-laguna anchor nets
   script += unrouteNonLagunaAnchorDPinQPinNets()
 
@@ -29,11 +25,14 @@ def getVivadoScriptForSlotPair(pair_name):
   script.append(f'create_clock -name ap_clk -period 3 [get_pins test_bufg/O]')
   script.append(f'set_clock_uncertainty -hold 0 [get_clocks ap_clk]')
 
-  script.append(f'write_checkpoint -force {pair_name}_before_routed.dcp')
+  script.append(f'write_checkpoint {pair_name}_before_routed.dcp')
+
+  # add back the placeholder FFs
+  script += addAllAnchors(hub, base_dir, pair_name.split('_AND_'))
 
   script.append(f'route_design -preserve')
 
-  script.append(f'write_checkpoint -force {pair_name}_routed.dcp')
+  script.append(f'write_checkpoint {pair_name}_routed.dcp')
 
   return script
 
@@ -49,7 +48,7 @@ def getParallelTasks():
     all_dcp_regexps = f'{get_dcp_regexp(pair[0])}|{get_dcp_regexp(pair[1])}'
     rw = f'java com.xilinx.rapidwright.examples.MergeDCP {slot_routing_dir} {pair_name}.dcp "{all_dcp_regexps}"'
 
-    vivado = f'VIV_VER=2021.1 vivado -mode batch -source {pair_dir}/route_pair.tcl'
+    vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source {test_dir}/{pair_name}/route_pair.tcl'
 
     stitch = f'{cd} && {rw_source} && {rw} && {vivado}  '
 
@@ -65,6 +64,8 @@ if __name__ == '__main__':
   slot_routing_dir = f'{base_dir}/unique_slots_add_anchor_reroute'
   os.mkdir(test_dir)
 
+  VIV_VER = '2021.1'
+  
   hub = json.loads(open(hub_path, 'r').read())
   pair_list = hub["AllSlotPairs"]
 
