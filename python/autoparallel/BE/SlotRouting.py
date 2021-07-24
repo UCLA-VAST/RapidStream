@@ -42,7 +42,7 @@ def addAllAnchors(hub, base_dir, slot_name_list: List[str]):
   get_create_anchor_script = lambda pair_name : f'{base_dir}/ILP_anchor_placement_iter0/{pair_name}/create_and_place_anchors_for_clock_routing.tcl'
 
   script = ['set_property DONT_TOUCH 0 [get_nets ap_clk]']
-  script += [f'catch {{ source -notrace {get_create_anchor_script(pair_name)} }}' \
+  script += [f'source -notrace {get_create_anchor_script(pair_name)}' \
     for pair_name in pair_name_list \
       if all(slot_name not in pair_name for slot_name in slot_name_list)]
 
@@ -89,9 +89,15 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     # relax placement pblocks
     # do this before updating the clock to prevent vivado crash
     script.append(f'delete_pblock [get_pblocks *]')
-    script.append(f'create_pblock {slot_name}')
+
     pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
-    script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_ctrl_U0]')
+
+    # first create outer pblock that includes both the slot and the anchors
+    # script += U250.constrainAnchorNetsAndSlot(slot_name, pblock_def)
+
+    # next create the inner pblock that only includes the slot
+    script.append(f'startgroup')
+    script.append(f'create_pblock {slot_name}')
     script.append(f'resize_pblock [get_pblocks {slot_name}] -add {pblock_def}')
 
     # previously we set the pblock as the entire clock regions. 
@@ -103,7 +109,12 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
     slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num)
     script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_at_boundary} }}')
+    list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {" ".join(list_of_anchor_region_dsp_and_bram)} }}')
+
     script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
+    script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_ctrl_U0]')
+    script.append(f'endgroup')
 
     # *** prevent gap in clock routing
     script.append(f'set_property ROUTE "" [get_nets ap_clk]')
@@ -153,7 +164,7 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
   parse_timing_report_2 = 'python3.6 -m autoparallel.BE.TimingReportParser slot_routing_iter0'
 
   for slot_name in hub['SlotIO'].keys():
-    vivado = 'VIV_VER=2020.2 vivado -mode batch -source route_with_ooc_clock.tcl'
+    vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source route_with_ooc_clock.tcl'
     dir = f'{routing_dir}/{slot_name}/'
     
     transfer = f'rsync -azh --delete -r {dir} {user_name}@{main_server_name}:{dir}'
@@ -172,6 +183,7 @@ if __name__ == '__main__':
   opt_dir = f'{base_dir}/opt_placement_iter0'
   routing_dir = f'{base_dir}/slot_routing'
   anchor_clock_routing_dir = f'{base_dir}/slot_anchor_clock_routing'
+  VIV_VER='2021.1'
 
   user_name = 'einsx7'
   # server_list=['u5','u17','u18','u15']
