@@ -561,10 +561,13 @@ def constrainAnchorNetsAndSlot(slot_name, pblock_def):
   script.append(f'create_pblock anchor_pblock')
   script.append(f'resize_pblock [get_pblocks anchor_pblock] -add {{ {pblock_def} }}') # the clock regions for the slot
 
-  script.append(f'resize_pblock [get_pblocks anchor_pblock] -add {{ {getLagunaAnchorInclusivePblock(slot_name)} }}') 
+  slot = Slot(U250_inst, slot_name)
+  script.append(f'resize_pblock [get_pblocks anchor_pblock] -add {{ {getAnchorPblock(slot)} }}') 
 
-  script.append(f'add_cells_to_pblock [get_pblocks anchor_pblock] [get_cells *q0_reg*]') # constrain all anchors
+  # constrain non-laguna anchors. No need to worry about the routing of laguna anchors
+  script.append(f'add_cells_to_pblock [get_pblocks anchor_pblock] [get_cells *q0_reg* -filter {{LOC !~ *LAGUNA* }}]') 
   script.append(f'add_cells_to_pblock [get_pblocks anchor_pblock] [get_cells {slot_name}_ctrl_U0]') # constrain all anchors
   script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks anchor_pblock]')
+  script.append(f'set_property SNAPPING_MODE ROUTING [get_pblocks anchor_pblock]')
 
   return script
