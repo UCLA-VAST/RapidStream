@@ -186,8 +186,7 @@ if __name__ == '__main__':
   VIV_VER='2021.1'
 
   user_name = 'einsx7'
-  # server_list=['u5','u17','u18','u15']
-  server_list=['u5']
+  server_list=['u5','u17','u18','u15']
   main_server_name = 'u5'
   print(f'WARNING: the server list is: {server_list}' )
 
