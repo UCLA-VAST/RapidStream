@@ -5,6 +5,9 @@ import os
 import math
 from autoparallel.BE.Utilities import getAnchorTimingReportScript
 
+VIV_VER = '2021.1'
+
+
 def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts):
   """ phys_opt_design the slot based on the dictated anchor locations """
   script = []
@@ -77,7 +80,7 @@ def generateParallelScript(hub, user_name, server_list):
     get_guard = lambda flag : f'until [[ -f {flag} ]] ; do sleep 5; done'
     guards =  ' && '.join([get_guard(flag) for flag in flags])
 
-    vivado = f'VIV_VER=2020.1 vivado -mode batch -source {slot_name}_phys_opt_placement.tcl'
+    vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source {slot_name}_phys_opt_placement.tcl'
     
     # broadcast the results
     for server in server_list:
@@ -124,7 +127,7 @@ if __name__ == '__main__':
   print(f'WARNING: the server list is: {server_list}' )
 
   # path of the checkpoint in the last iteration
-  get_dcp_path = lambda slot_name: f'{base_dir}/init_slot_placement/{slot_name}/{slot_name}_placed_free_run/{slot_name}_placed_free_run.dcp'
+  get_dcp_path = lambda slot_name: f'{base_dir}/init_slot_placement/{slot_name}/{slot_name}_placed.dcp'
   get_anchor_placement_script = lambda pair_name : f'{base_dir}/ILP_anchor_placement_iter0/{pair_name}/place_anchors.tcl'
   get_anchor_placement_flag = lambda pair_name : get_anchor_placement_script(pair_name) + '.done.flag'
 
