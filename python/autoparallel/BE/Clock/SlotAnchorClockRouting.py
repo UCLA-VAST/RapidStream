@@ -3,8 +3,6 @@ import sys
 import os
 import json
 
-VIV_VER = '2021.1'
-
 
 def getSlotAnchorRoutingScript(anchor_initialization_scripts):
   """
@@ -67,11 +65,12 @@ def getParallelScript():
     script_name = f'{slot_anchor_clock_routing_dir}/{slot_name}/{slot_name}_anchor_clock_routing.tcl'
     vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source {script_name}'
     
-    transfer = ''
+    transfer = []
     for server in server_list:
       transfer.append(f'rsync -azh --delete -r {slot_anchor_clock_routing_dir}/{slot_name}/ {user_name}@{server}:{slot_anchor_clock_routing_dir}/{slot_name}/')
+    transfer_str = ' && '.join(transfer)
 
-    parallel.append(f'{cd} && {vivado} && {transfer}')
+    parallel.append(f'{cd} && {vivado} && {transfer_str}')
 
   open(f'{slot_anchor_clock_routing_dir}/parallel-run-slot-clock-routing.txt', 'w').write('\n'.join(parallel))
 
@@ -79,9 +78,11 @@ def getParallelScript():
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
-  assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
+  assert len(sys.argv) == 4, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
+  VIV_VER=sys.argv[3]
+
   hub = json.loads(open(hub_path, 'r').read())
   pair_list = hub["AllSlotPairs"]
   pair_name_list = ['_AND_'.join(pair) for pair in pair_list]

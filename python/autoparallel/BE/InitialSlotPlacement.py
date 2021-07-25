@@ -7,12 +7,6 @@ import os
 from autoparallel.BE.Utilities import getAnchorTimingReportScript
 from autoparallel.BE.GenAnchorConstraints import getSlotInitPlacementPblock
 
-# depends on whether we use the uniquified synth checkpoints
-# get_synth_dcp = lambda slot_name : f'{synth_dir}/{slot_name}/{slot_name}_synth.dcp'
-get_synth_dcp = lambda slot_name : f'{base_dir}/unique_slot_synth/{slot_name}_synth_unique_2020.1.dcp'
-# get_guard = lambda slot_name : f'until [[ -f {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag ]] ; do sleep 10; done'
-get_guard = lambda slot_name : 'sleep 1' # use a harmless placeholder command
-
 
 def getPlacementScript(slot_name):
   script = []
@@ -83,16 +77,25 @@ def generateParallelScript(hub, user_name, server_list):
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
-  assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
+  assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
+  VIV_VER=sys.argv[3]
+  USE_UNIQUE_SYNTH_DCP=int(sys.argv[4])
+
+  # depends on whether we use the uniquified synth checkpoints
+  if USE_UNIQUE_SYNTH_DCP:
+    get_synth_dcp = lambda slot_name : f'{base_dir}/unique_slot_synth/{slot_name}_synth_unique_2020.1.dcp'
+    get_guard = lambda slot_name : 'sleep 1' # use a harmless placeholder command
+  else:
+    get_synth_dcp = lambda slot_name : f'{synth_dir}/{slot_name}/{slot_name}_synth.dcp'
+    get_guard = lambda slot_name : f'until [[ -f {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag ]] ; do sleep 10; done'
+
   hub = json.loads(open(hub_path, 'r').read())
 
   synth_dir = f'{base_dir}/slot_synth'
   init_place_dir = f'{base_dir}/init_slot_placement'
   os.mkdir(init_place_dir)
-
-  VIV_VER='2021.1'
 
   user_name = 'einsx7'
   server_list=['u5','u17','u18','u15']
