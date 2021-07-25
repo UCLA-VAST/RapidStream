@@ -57,14 +57,14 @@ def getParallelTasks():
   open(f'{test_dir}/parallel-route-pairs.txt', 'w').write('\n'.join(all_tasks))
 
 if __name__ == '__main__':
-  assert len(sys.argv) >= 3, 'input (1) the path to the front end result file; (2) the target directory'
+  assert len(sys.argv) == 4, 'input (1) the path to the front end result file; (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
+  VIV_VER=sys.argv[3]
+
   test_dir = f'{base_dir}/test_pairwise_route_stitching'
   slot_routing_dir = f'{base_dir}/unique_slots_add_anchor_reroute'
   os.mkdir(test_dir)
-
-  VIV_VER = '2021.1'
   
   hub = json.loads(open(hub_path, 'r').read())
   pair_list = hub["AllSlotPairs"]

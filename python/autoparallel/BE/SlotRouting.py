@@ -177,13 +177,13 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
 
 
 if __name__ == '__main__':
-  assert len(sys.argv) == 3, 'input (1) the path to the front end result file; (2) the target directory; (3) which action'
+  assert len(sys.argv) == 4, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
+  VIV_VER=sys.argv[3]
   opt_dir = f'{base_dir}/opt_placement_iter0'
   routing_dir = f'{base_dir}/slot_routing'
   anchor_clock_routing_dir = f'{base_dir}/slot_anchor_clock_routing'
-  VIV_VER='2021.1'
 
   user_name = 'einsx7'
   server_list=['u5','u17','u18','u15']

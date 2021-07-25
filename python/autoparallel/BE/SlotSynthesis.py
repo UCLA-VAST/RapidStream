@@ -128,15 +128,16 @@ def generateParallelScript(hub, user_name, server_list):
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
-  assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
+  assert len(sys.argv) == 4, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
+  VIV_VER=sys.argv[3]
+
   hub = json.loads(open(hub_path, 'r').read())
 
   synth_dir = f'{base_dir}/slot_synth'
   os.mkdir(synth_dir)
 
-  VIV_VER='2021.1'
 
   user_name = 'einsx7'
   server_list=['u5','u17','u18','u15']

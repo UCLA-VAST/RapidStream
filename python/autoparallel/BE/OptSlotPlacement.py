@@ -5,8 +5,6 @@ import os
 import math
 from autoparallel.BE.Utilities import getAnchorTimingReportScript
 
-VIV_VER = '2021.1'
-
 
 def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts):
   """ phys_opt_design the slot based on the dictated anchor locations """
@@ -111,9 +109,11 @@ def generateOptScript(hub):
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
-  assert len(sys.argv) == 3, 'input (1) the path to the front end result file and (2) the target directory'
+  assert len(sys.argv) == 4, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
+  VIV_VER=sys.argv[3]
+
   hub = json.loads(open(hub_path, 'r').read())
   pair_list = hub["AllSlotPairs"]
   pair_name_list = ['_AND_'.join(pair) for pair in pair_list]
