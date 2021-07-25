@@ -1,4 +1,6 @@
+import logging
 import re
+import sys
 from typing import List
 
 from autobridge.Opt.Slot import Slot
@@ -112,3 +114,18 @@ def getDirectionOfSlotname(slot_name1: str, slot_name2: str) -> str:
   else:
     assert False
 
+
+def loggingSetup(log_name):
+  root = logging.getLogger()
+  root.setLevel(logging.DEBUG)
+  formatter = logging.Formatter("[%(levelname)s: %(funcName)25s() ] %(message)s")
+  
+  info_file_handler = logging.FileHandler(filename=log_name, mode='w')
+  info_file_handler.setLevel(logging.INFO)
+  stdout_handler = logging.StreamHandler(sys.stdout)
+  stdout_handler.setLevel(logging.INFO)
+
+  handlers = [info_file_handler, stdout_handler]
+  for handler in handlers:
+    handler.setFormatter(formatter)
+    root.addHandler(handler)

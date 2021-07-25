@@ -10,7 +10,7 @@ from typing import List, Dict
 from collections import defaultdict
 from mip import Model, minimize, CONTINUOUS, xsum
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
-from autoparallel.BE.BEManager import loggingSetup
+from autoparallel.BE.Utilities import loggingSetup
 from autoparallel.BE.Device import U250
 from autoparallel.BE.Utilities import isPairSLRCrossing, getDirectionOfSlotname
 from autoparallel.BE.AnchorPlacement.PairwiseAnchorPlacementForSLRCrossing import placeLagunaAnchors
@@ -601,7 +601,7 @@ if __name__ == '__main__':
   iter = int(sys.argv[4])
   hub = json.loads(open(hub_path, 'r').read())
 
-  loggingSetup()
+  loggingSetup('ILP-placement.log')
 
   if iter == 0:
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/init_slot_placement/{slot_name}/init_placement_anchor_connections.json'

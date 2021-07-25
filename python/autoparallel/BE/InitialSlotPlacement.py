@@ -7,11 +7,18 @@ import os
 from autoparallel.BE.Utilities import getAnchorTimingReportScript
 from autoparallel.BE.GenAnchorConstraints import getSlotInitPlacementPblock
 
+# depends on whether we use the uniquified synth checkpoints
+# get_synth_dcp = lambda slot_name : f'{synth_dir}/{slot_name}/{slot_name}_synth.dcp'
+get_synth_dcp = lambda slot_name : f'{base_dir}/unique_slot_synth/{slot_name}_synth_unique_2020.1.dcp'
+# get_guard = lambda slot_name : f'until [[ -f {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag ]] ; do sleep 10; done'
+get_guard = lambda slot_name : 'sleep 1' # use a harmless placeholder command
+
 
 def getPlacementScript(slot_name):
   script = []
 
-  script.append(f'open_checkpoint {synth_dir}/{slot_name}/{slot_name}_synth.dcp')
+  dcp_path = get_synth_dcp(slot_name)
+  script.append(f'open_checkpoint {dcp_path}')
   
   # add floorplanning constraints
   script += getSlotInitPlacementPblock(hub, slot_name)
@@ -53,9 +60,10 @@ def generateParallelScript(hub, user_name, server_list):
   parse_timing_report = 'python3.6 -m autoparallel.BE.TimingReportParser init_placement'
 
   for slot_name in hub['SlotIO'].keys():
-    guard = f'until [[ -f {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag ]] ; do sleep 10; done'
     cd = f'cd {init_place_dir}/{slot_name}/'
 
+    guard = get_guard(slot_name)
+    
     # broadcast the results to all servers
     transfer = []
     for server in server_list:
