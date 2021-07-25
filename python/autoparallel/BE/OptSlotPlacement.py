@@ -122,8 +122,7 @@ if __name__ == '__main__':
   os.mkdir(opt_dir)  
 
   user_name = 'einsx7'
-  # server_list=['u5','u17','u18','u15']
-  server_list=['u5']
+  server_list=['u5','u17','u18','u15']
   print(f'WARNING: the server list is: {server_list}' )
 
   # path of the checkpoint in the last iteration
