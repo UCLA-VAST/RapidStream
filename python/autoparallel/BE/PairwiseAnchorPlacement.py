@@ -1,4 +1,5 @@
 import json
+import math
 import re
 import sys
 import os
@@ -560,9 +561,19 @@ def setupAnchorPlacement(hub):
 
     touch_flag = f'touch {anchor_placement_dir}/{pair_name}/place_anchors.tcl.done.flag'
 
-    tasks.append(f'cd {anchor_placement_dir}/{pair_name} && {guard1} && {guard2} && {ilp_placement} && {touch_flag}')
+    transfer = []
+    for server in server_list:
+      transfer.append(f'rsync -azh --delete -r {anchor_placement_dir}/{pair_name}/ {user_name}@{server}:{anchor_placement_dir}/{pair_name}/')
+    transfer_str = "&&".join(transfer)
+
+    tasks.append(f'cd {anchor_placement_dir}/{pair_name} && {guard1} && {guard2} && {ilp_placement} && {touch_flag} && {transfer_str}')
 
   open(f'{anchor_placement_dir}/parallel-ilp-placement-iter{iter}.txt', 'w').write('\n'.join(tasks))
+
+  num_job_server = math.ceil(len(tasks) / len(server_list) ) 
+  for i, server in enumerate(server_list):
+    local_tasks = tasks[i * num_job_server: (i+1) * num_job_server]
+    open(f'{anchor_placement_dir}/parallel-ilp-placement-iter{iter}-{server}.txt', 'w').write('\n'.join(local_tasks))
 
 
 def setupSlotClockRouting(anchor_2_loc):
@@ -601,6 +612,9 @@ if __name__ == '__main__':
   iter = int(sys.argv[4])
   hub = json.loads(open(hub_path, 'r').read())
 
+  user_name = 'einsx7'
+  server_list = ['u5','u17','u18','u15']
+  
   loggingSetup('ILP-placement.log')
 
   if iter == 0:
