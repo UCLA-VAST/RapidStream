@@ -71,29 +71,18 @@ def unrouteNonLagunaAnchorDPinQPinNets() -> List[str]:
   return script
 
 
-def routeWithGivenClock(hub, opt_dir, routing_dir):
-  """
-  Run the final routing of each slot with the given clock network
-  """
-  os.mkdir(routing_dir)
-
-  for slot_name in hub['SlotIO'].keys():
-    os.mkdir(f'{routing_dir}/{slot_name}')
-
+def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     script = []
-    script.append(f'open_checkpoint {opt_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp')
 
-    # report timing to check the quality of the final anchor placement
-    script += getAnchorTimingReportScript(report_prefix='ILP_anchor_placement_iter1')
+    pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
 
     # relax placement pblocks
     # do this before updating the clock to prevent vivado crash
     script.append(f'delete_pblock [get_pblocks *]')
 
-    pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
-
     # first create outer pblock that includes both the slot and the anchors
-    # script += U250.constrainAnchorNetsAndSlot(slot_name, pblock_def)
+    if enable_anchor_pblock:
+      script += U250.constrainAnchorNetsAndSlot(slot_name, pblock_def)
 
     # next create the inner pblock that only includes the slot
     script.append(f'startgroup')
@@ -114,7 +103,31 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
     script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
     script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_ctrl_U0]')
+    script.append(f'set_property SNAPPING_MODE ROUTING [get_pblocks {slot_name}]')
     script.append(f'endgroup')
+
+    if enable_anchor_pblock:
+      script.append(f'set_property PARENT anchor_pblock [get_pblocks {slot_name}]')
+
+    return script
+
+
+def routeWithGivenClock(hub, opt_dir, routing_dir):
+  """
+  Run the final routing of each slot with the given clock network
+  """
+  os.mkdir(routing_dir)
+
+  for slot_name in hub['SlotIO'].keys():
+    os.mkdir(f'{routing_dir}/{slot_name}')
+
+    script = []
+    script.append(f'open_checkpoint {opt_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp')
+
+    # report timing to check the quality of the final anchor placement
+    script += getAnchorTimingReportScript(report_prefix='ILP_anchor_placement_iter1')
+
+    script += addRoutingPblock(slot_name, enable_anchor_pblock=True)
 
     # *** prevent gap in clock routing
     script.append(f'set_property ROUTE "" [get_nets ap_clk]')
