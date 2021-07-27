@@ -142,6 +142,7 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script += addAllAnchors(hub, base_dir, [slot_name])
 
     script.append(f'route_design')
+    script.append(f'phys_opt_design')
     script.append(f'puts [get_property ROUTE [get_nets ap_clk]]') # to check the row buffer tap
 
     # remove the placeholder anchors
@@ -151,9 +152,8 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script.append(f'set_clock_uncertainty -hold 0 [get_clocks ap_clk]')
 
     # sometimes phys_opt_design make things worse, probably because of the fixed clock
-    script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/routed_with_ooc_clock.dcp')
-    script.append(f'phys_opt_design')
     script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/phys_opt_routed_with_ooc_clock.dcp')
+    script.append(f'write_edif -force {routing_dir}/{slot_name}/phys_opt_routed_with_ooc_clock.edf')
 
     script += getAnchorTimingReportScript(report_prefix='slot_routing_iter0')
 
@@ -164,7 +164,6 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script += unrouteNonLagunaAnchorDPinQPinNets()
 
     script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted.dcp')
-    script.append(f'write_edif -force {routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted.edf')
 
     open(f'{routing_dir}/{slot_name}/route_with_ooc_clock.tcl', "w").write('\n'.join(script))
 
