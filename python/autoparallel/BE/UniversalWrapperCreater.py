@@ -160,7 +160,7 @@ def getWrapperOfSlots(wrapper_name, slot_name_2_io_name_2_dir_and_width, pipelin
   return wrapper, external_io_name_2_dir_and_width, inner_io_name_2_dir_and_width
 
 
-def addAnchorToNonTopIOs(hub, inner_module_name, io_list):
+def addAnchorToNonTopIOs(hub, inner_module_name, io_list, clock_edge):
   """
   abstract the part to be reused for adding anchors to other wrappers
   """
@@ -210,7 +210,7 @@ def addAnchorToNonTopIOs(hub, inner_module_name, io_list):
       assert False
 
   # connect anchors
-  wrapper.append('  ' + 'always @ (posedge ap_clk) begin')
+  wrapper.append('  ' + f'always @ ({clock_edge} ap_clk) begin')
   for io in anchor_io_list:
     wrapper.append('    ' + f'{io[-1]}_q0 <= {io[-1]}_out;')
   wrapper.append('  ' + 'end')

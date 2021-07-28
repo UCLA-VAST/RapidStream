@@ -16,7 +16,12 @@ def getAnchorWrapperOfSlot(hub, slot_name):
   slot_to_rtl = hub['SlotWrapperRTL']
   io_list = slot_to_io[slot_name]
 
-  wrapper = addAnchorToNonTopIOs(hub, f'{slot_name}_ctrl', io_list)
+  if INVERT_ANCHOR_CLOCK:
+    clock_edge = 'negedge'
+  else:
+    clock_edge = 'posedge'
+
+  wrapper = addAnchorToNonTopIOs(hub, f'{slot_name}_ctrl', io_list, clock_edge)
 
   # add the rtl for the inner module (the slot wrapper)
   # discard the first line (time scale)
@@ -128,10 +133,14 @@ def generateParallelScript(hub, user_name, server_list):
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
-  assert len(sys.argv) == 4, 'input (1) the path to the front end result file and (2) the target directory'
+  assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   VIV_VER=sys.argv[3]
+  INVERT_ANCHOR_CLOCK=int(sys.argv[4])
+
+  if INVERT_ANCHOR_CLOCK:
+    logging.warning('invert clock mode is on!')
 
   hub = json.loads(open(hub_path, 'r').read())
 

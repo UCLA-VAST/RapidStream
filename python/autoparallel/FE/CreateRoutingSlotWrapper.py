@@ -178,6 +178,14 @@ class CreateRoutingSlotWrapper:
               stmt.append(f'  (* dont_touch = "yes" *) reg {wire_width} {wire_name}_q0_double_pipeline;')
               stmt.append(f'  always @ (posedge ap_clk) {wire_name}_q0_double_pipeline <= {wire_name}_pass_{src_idx};')
               stmt.append(f'  wire {wire_width} {wire_name}_q0 = {wire_name}_q0_double_pipeline;')
+            elif style == 'INVERT_CLOCK':
+              # experiment: use reg both inside and out
+              # remember also to change the latency calculation in global routing
+              stmt.append(f'  (* dont_touch = "yes" *) reg {wire_width} {wire_name}_q0_double_pipeline_1;')
+              stmt.append(f'  (* dont_touch = "yes" *) reg {wire_width} {wire_name}_q0_double_pipeline_2;')
+              stmt.append(f'  always @ (posedge ap_clk) {wire_name}_q0_double_pipeline_1 <= {wire_name}_pass_{src_idx};')
+              stmt.append(f'  always @ (posedge ap_clk) {wire_name}_q0_double_pipeline_2 <= {wire_name}_q0_double_pipeline_1;')
+              stmt.append(f'  wire {wire_width} {wire_name}_q0 = {wire_name}_q0_double_pipeline_2;')
             else:
               assert False
 
