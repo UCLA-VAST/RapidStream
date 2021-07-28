@@ -177,7 +177,9 @@ class GlobalRouting:
       pipeline_level = int(dist / 2)
     elif self.in_slot_pipeline_style == 'DOUBLE_REG':
       pipeline_level = dist 
-
+    elif self.in_slot_pipeline_style == 'INVERT_CLOCK':
+      pipeline_level = dist
+      
     # anchor_plan will take effect when connecting to the inner slot
     # for a long connection, anchor_plan of 3 will add one additonal register between the source inner-most wrapper 
     # and the first anchor register; and add another register between the last anchor register and the 

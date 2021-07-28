@@ -114,6 +114,8 @@ def getPipelining(slot_to_io, top_rtl_parser, global_router, in_slot_pipeline_st
         pipeline_level = 1
       elif in_slot_pipeline_style == 'DOUBLE_REG':
         pipeline_level = 1
+      elif in_slot_pipeline_style == 'INVERT_CLOCK':
+        pipeline_level = 1
       else:
         assert False
 
