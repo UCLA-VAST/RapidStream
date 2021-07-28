@@ -3,7 +3,7 @@ import json
 import re
 import os
 
-from autoparallel.BE.SlotRouting import addAllAnchors
+from autoparallel.BE.SlotRouting import addAllAnchors, removePlaceholderAnchors
 from autoparallel.BE.Utilities import getSlotsInSLRIndex
 
 SLR_NUM = 4
@@ -36,6 +36,9 @@ def getVivadoScriptForSLR(slr_index):
   script += addAllAnchors(hub, base_dir, getSlotsInSLRIndex(hub, slr_index))
 
   script.append(f'route_design -preserve')
+
+  # remove the placeholder anchors
+  script += removePlaceholderAnchors()
 
   script.append(f'write_checkpoint {slr_stitch_dir}/slr_{slr_index}/checkpoint/slr_{slr_index}_routed.dcp')
   script.append(f'write_edif {slr_stitch_dir}/slr_{slr_index}/checkpoint/slr_{slr_index}_routed.edf')
