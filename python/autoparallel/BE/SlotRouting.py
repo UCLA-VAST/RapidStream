@@ -103,7 +103,7 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
 
     script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
     script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_ctrl_U0]')
-    script.append(f'set_property SNAPPING_MODE ROUTING [get_pblocks {slot_name}]')
+    script.append(f'set_property SNAPPING_MODE ON [get_pblocks {slot_name}]')
     script.append(f'endgroup')
 
     if enable_anchor_pblock:
