@@ -173,6 +173,7 @@ public class MergeDCP {
         
         for(Net net : design1.getNets()) {
             if(netsNotToCopy.contains(net.getName())) continue;
+            if(net.isStaticNet()) continue;
             design0.addNet(net);
         }
         mergeNet(design0.getNet("ap_clk"), design1.getNet("ap_clk"));
