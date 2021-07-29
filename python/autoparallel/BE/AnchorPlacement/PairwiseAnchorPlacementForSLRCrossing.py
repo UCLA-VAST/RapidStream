@@ -6,7 +6,7 @@ import time
 
 from collections import defaultdict
 from typing import List, Tuple, Dict
-from mip import Model, minimize, CONTINUOUS, xsum
+from mip import Model, minimize, CONTINUOUS, xsum, OptimizationStatus
 
 from autoparallel.BE.Utilities import isPairSLRCrossing
 from autoparallel.BE.Device.U250 import idx_of_left_side_slice_of_laguna_column
@@ -209,6 +209,7 @@ def getSLLChannelToAnchorCost(
     for anchor, cost in anchor_to_cost.items():
       anchor_to_sll_to_cost[anchor][sll] = cost
 
+  saveAnchorToSLLToCost(anchor_to_sll_to_cost)
   return sll_to_anchor_to_cost, anchor_to_sll_to_cost
 
 
@@ -220,7 +221,7 @@ def getSLLChannels(slot1_name: str, slot2_name: str) -> List[SLLChannel]:
   """
   slot1 = Slot(U250_inst, slot1_name)
   slot2 = Slot(U250_inst, slot2_name)
-  i_th_column_range = range(slot1.down_left_x * 2, slot1.up_right_x * 2)
+  i_th_column_range = range(slot1.down_left_x * 2, (slot1.up_right_x+1) * 2)
 
   pair_down_left_y = min(slot1.down_left_y, slot2.down_left_y)
   if pair_down_left_y == 2:
@@ -233,11 +234,13 @@ def getSLLChannels(slot1_name: str, slot2_name: str) -> List[SLLChannel]:
     assert False
 
   sll_channels = [SLLChannel(y, i) for y in sll_bottom_y_range for i in i_th_column_range]
+  logging.info(f'SLL channel num: {len(sll_channels)}')
+  logging.info(f'Total SLL channel capacity: {len(sll_channels) * sll_channels[0].capacity }')
 
   return sll_channels
 
 
-def placeAnchorToSLLChannel(anchor_to_sll_to_cost) -> Dict[str, SLLChannel]:
+def placeAnchorToSLLChannel(anchor_to_sll_to_cost, pair_name) -> Dict[str, SLLChannel]:
   """
   run ILP to map anchor to channels
   """
@@ -272,7 +275,10 @@ def placeAnchorToSLLChannel(anchor_to_sll_to_cost) -> Dict[str, SLLChannel]:
       var_and_cost.append((sll_to_var[sll], sll_to_cost[sll]))
   m.objective = minimize(xsum(var * cost for var, cost in var_and_cost))
 
-  m.optimize()
+  status = m.optimize()
+
+  if anchor_to_sll_to_var:
+    assert status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE, f'failed in ILP placement for {pair_name}'
 
   anchor_to_sll = {}
   for anchor, sll_to_var in anchor_to_sll_to_var.items():
@@ -286,14 +292,18 @@ def placeAnchorToSLLChannel(anchor_to_sll_to_cost) -> Dict[str, SLLChannel]:
   return anchor_to_sll
 
 
-def _analyzeILPResults(anchor_to_sll_to_cost, anchor_to_selected_bin):
-  """
-  get how optimal is the final position for each anchor
-  """
+def saveAnchorToSLLToCost(anchor_to_sll_to_cost):
   anchor_to_sll_string_to_cost = {}
   for anchor, sll_to_cost in anchor_to_sll_to_cost.items():
     anchor_to_sll_string_to_cost[anchor] = {sll.getString() : cost for sll, cost in sll_to_cost.items()}
   open('debug_anchor_to_bin_to_cost.json', 'w').write(json.dumps(anchor_to_sll_string_to_cost, indent=2))
+
+
+def _analyzeILPResults(anchor_to_sll_to_cost, anchor_to_selected_bin):
+  """
+  get how optimal is the final position for each anchor
+  """
+  saveAnchorToSLLToCost(anchor_to_sll_to_cost)
 
   ilp_report = {}
 
@@ -344,9 +354,11 @@ def placeLagunaAnchors(hub, pair_name: str, anchor_connections: Dict[str, List[D
 
   anchor_to_sll_dir = _get_anchor_2_sll_dir(hub, slot1_name, slot2_name, anchor_connections)
 
+  logging.info(f'anchor num: {len(anchor_to_sll_dir.keys())}')
+
   _, anchor_to_sll_to_cost = getSLLChannelToAnchorCost(sll_channels, anchor_connections, anchor_to_sll_dir)
 
-  anchor_to_sll = placeAnchorToSLLChannel(anchor_to_sll_to_cost)
+  anchor_to_sll = placeAnchorToSLLChannel(anchor_to_sll_to_cost, pair_name)
 
   _analyzeILPResults(anchor_to_sll_to_cost, anchor_to_sll)
 
