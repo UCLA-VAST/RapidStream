@@ -25,6 +25,7 @@ import java.util.stream.Stream;
 import java.util.Set;
 
 import com.xilinx.rapidwright.design.Design;
+import com.xilinx.rapidwright.design.DesignTools;
 import com.xilinx.rapidwright.design.Net;
 import com.xilinx.rapidwright.design.SiteInst;
 import com.xilinx.rapidwright.device.PIP;
@@ -62,19 +63,6 @@ public class MergeDCP {
         Set<PIP> pips = new HashSet<>(dest.getPIPs());
         pips.addAll(src.getPIPs());
         dest.setPIPs(pips);
-    }
-    
-    private static void removePort(EDIFCell cell, EDIFPort port) {
-        // TODO - Move to EDIFCell class
-        List<String> portObjectsToRemove = new ArrayList<>();
-        for(Entry<String,EDIFPort> p : cell.getPortMap().entrySet()) {
-            if(p.getValue() == port || p.getValue().getName().equals(port.getName())) {
-                portObjectsToRemove.add(p.getKey());
-            }
-        }
-        for(String s : portObjectsToRemove) {
-            cell.getPortMap().remove(s);
-        }
     }
     
     public static Design mergeDCP(Design design0, Design design1) {
@@ -132,7 +120,7 @@ public class MergeDCP {
             // Remove top-level port and connect to merged inst instead
             EDIFNet net = topPortInst.getNet();
             net.removePortInst(topPortInst);
-            removePort(design0Top, topPortInst.getPort());
+            design0Top.removePort(topPortInst.getPort());
             EDIFCellInst design1Anchor = design1Top.getCellInst(duplicate);
             EDIFPortInst design1AnchorQ = design1Anchor.getPortInst("Q");
             EDIFPortInst otherSlotQInput = getOtherPortInst(design1AnchorQ);
@@ -199,6 +187,9 @@ public class MergeDCP {
                 result = mergeDCP(result, design);
             }
         }
+        
+        result.getNetlist().resetParentNetMap();
+        DesignTools.makePhysNetNamesConsistent(result);
         return result;
     }
     
