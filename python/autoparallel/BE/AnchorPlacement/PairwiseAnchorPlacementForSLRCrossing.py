@@ -221,7 +221,7 @@ def getSLLChannels(slot1_name: str, slot2_name: str) -> List[SLLChannel]:
   """
   slot1 = Slot(U250_inst, slot1_name)
   slot2 = Slot(U250_inst, slot2_name)
-  i_th_column_range = range(slot1.down_left_x * 2, slot1.up_right_x * 2)
+  i_th_column_range = range(slot1.down_left_x * 2, (slot1.up_right_x+1) * 2)
 
   pair_down_left_y = min(slot1.down_left_y, slot2.down_left_y)
   if pair_down_left_y == 2:
@@ -234,7 +234,6 @@ def getSLLChannels(slot1_name: str, slot2_name: str) -> List[SLLChannel]:
     assert False
 
   sll_channels = [SLLChannel(y, i) for y in sll_bottom_y_range for i in i_th_column_range]
-  import pdb; pdb.set_trace()
   logging.info(f'SLL channel num: {len(sll_channels)}')
   logging.info(f'Total SLL channel capacity: {len(sll_channels) * sll_channels[0].capacity }')
 
