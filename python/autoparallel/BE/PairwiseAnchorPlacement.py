@@ -9,7 +9,7 @@ import itertools
 import operator
 from typing import List, Dict
 from collections import defaultdict
-from mip import Model, minimize, CONTINUOUS, xsum
+from mip import Model, minimize, CONTINUOUS, xsum, OptimizationStatus
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autoparallel.BE.Utilities import loggingSetup
 from autoparallel.BE.Device import U250
@@ -212,8 +212,12 @@ def __ILPSolving(anchor_connections, bins, allowed_usage_per_bin):
   m.objective = minimize(xsum(var * cost for var, cost in var_and_cost))
 
   logging.info(f'start the solving process... {get_time_stamp()}')
-  m.optimize()
-  logging.info(f'finish the solving process... {get_time_stamp()}')
+  status = m.optimize()
+
+  if anchor2bin2var:
+    assert status == OptimizationStatus.OPTIMAL or status == OptimizationStatus.FEASIBLE, f'failed in ILP placement for {pair_name}'
+  
+  logging.info(f'finish the solving process with status {status} {get_time_stamp()}')
 
   anchor_to_selected_bin = __getILPResults(anchor2bin2var)
 
@@ -634,6 +638,8 @@ if __name__ == '__main__':
     pair_name = sys.argv[5]
     common_anchor_connections = collectAllConnectionsOfTargetAnchors(pair_name)
     open('anchor_connection_of_the_pair.json', 'w').write(json.dumps(common_anchor_connections, indent=2))
+
+    logging.info(f'runing ILP anchor placement for pair {pair_name}')
 
     slot1_name, slot2_name = pair_name.split('_AND_')
 
