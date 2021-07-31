@@ -6,7 +6,21 @@ from autoparallel.FE.GlobalRouting import GlobalRouting
 import re
 import collections
 
-def getTopIO(top_rtl_parser):
+
+def _addClockBuffer(io_rtl):
+  """
+  explicitly add a clock buffer so that clock net could be fully routed
+  """
+  io_rtl_clk_buffer = [io.replace('ap_clk', 'ap_clk_port') for io in io_rtl]
+  io_rtl_clk_buffer.append(f'wire ap_clk; ')
+  io_rtl_clk_buffer.append(f'(* DONT_TOUCH = "yes", LOC = "BUFGCE_X0Y194" *) BUFGCE test_bufg ( ')
+  io_rtl_clk_buffer.append(f'  .I(ap_clk_port), ')
+  io_rtl_clk_buffer.append(f'  .CE(1\'b1),')
+  io_rtl_clk_buffer.append(f'  .O(ap_clk) );')
+
+  return io_rtl_clk_buffer
+
+def getTopIO(top_rtl_parser, target):
   # get the IO section 
   top_io_list = top_rtl_parser.getDirWidthNameOfAllIO()
   assert any(re.search('ap_rst_n', io[-1]) for io in top_io_list)
@@ -17,6 +31,10 @@ def getTopIO(top_rtl_parser):
   # vitis requires the original parameters be kept
   param_to_value_str = top_rtl_parser.getParamToValueStr()
   param_sec = [f'  parameter {param} = {value};' for param, value in param_to_value_str.items()]
+
+  # if not for cosim, explicity add clock buffers
+  if target == 'hw':
+    io_rtl = _addClockBuffer(io_rtl)
 
   return io_rtl + param_sec
 
@@ -162,15 +180,19 @@ def getSlotInst(slot_to_io, top_rtl_parser):
   
   return slot_insts
 
-def CreateTopRTLForCtrlWrappers(top_rtl_parser, wrapper_creater, top_module_name, global_router):
+def CreateTopRTLForCtrlWrappers(top_rtl_parser, wrapper_creater, top_module_name, global_router, target):
   slot_to_io = wrapper_creater.getSlotNameToIOList()
   
   # whether the pipeline regs are in slots or between slots
   in_slot_pipeline_style = wrapper_creater.in_slot_pipeline_style
 
+  # to differentiate with the original top
+  if target == 'hw':
+    top_module_name += '_hw_test'
+
   header = ['\n\n`timescale 1 ns / 1 ps',
             f'module {top_module_name} (']
-  top_io = getTopIO(top_rtl_parser)
+  top_io = getTopIO(top_rtl_parser, target)
   wire_decl = getWireDecl(slot_to_io, top_rtl_parser)
   top_ap_signals = getTopApSignals(slot_to_io)
   pipeline = getPipelining(slot_to_io, top_rtl_parser, global_router, in_slot_pipeline_style)
