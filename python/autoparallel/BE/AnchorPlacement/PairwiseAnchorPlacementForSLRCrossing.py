@@ -171,7 +171,8 @@ def _get_anchor_2_sll_dir(hub, slot1_name, slot2_name, anchor_connections: Dict[
     name_all_io = [io[-1] for io in all_io]
     name_io_from_all_directions = [io[-1] for io in io_from_all_directions]
     diff_list = set(name_all_io) - set(name_io_from_all_directions)
-    assert all('_axi_' in d or 'clk' in d for d in diff_list)
+    # the only difference should be top-level IOs
+    assert all('_axi_' in d or 'clk' in d or 'interrupt' == d or 'ap_rst_n' == d for d in diff_list), diff_list
 
   # the output wire of the upper slot will travel DOWN the sll
   get_sll_dir = lambda in_or_out : 'DOWN' if in_or_out == 'output' else 'UP'
