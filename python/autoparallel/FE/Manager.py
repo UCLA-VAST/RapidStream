@@ -126,7 +126,7 @@ class Manager:
   def loggingSetup(self):
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("[%(levelname)s: %(funcName)25s() ] %(message)s")
+    formatter = logging.Formatter("[%(levelname)s: %(funcName)s() %(filename)s:%(lineno)d] %(message)s")
     
     debug_file_handler = logging.FileHandler(filename='autoparallel-debug.log', mode='w')
     debug_file_handler.setLevel(logging.DEBUG)
