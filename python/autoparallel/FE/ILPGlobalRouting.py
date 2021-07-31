@@ -168,6 +168,12 @@ class RoutingPath:
     """
     return len(self.vertices)
 
+  def getSlotsOfPath(self) -> List[Slot]:
+    """
+    get all the Slot objects corresponding to the path
+    """
+    return [v.slot for v in self.vertices]
+
 
 class RoutingGraph:
   def __init__(self):
@@ -238,6 +244,7 @@ class RoutingGraph:
   ) -> List[RoutingPath]:
     """
     run BFS to get all paths that satisfy the requirement
+    The path include the source and destination
     """
     src = self.slot_name_to_vertex[src_slot]
     dst = self.slot_name_to_vertex[dst_slot]
@@ -274,7 +281,7 @@ class ILPRouter:
     """
     for each edge, generate the candidate paths to select from
     """
-    bridge_to_paths = []
+    bridge_to_paths = {}
     for bridge in self.bridge_list:
       src_slot_name = self.v2s[bridge.src].getRTLModuleName()
       dst_slot_name = self.v2s[bridge.dst].getRTLModuleName()
@@ -305,7 +312,7 @@ class ILPRouter:
     create a variable to represent if this candidate path is selected
     """
     path_to_var = {}
-    for bridge, path_list in bridge_to_paths:
+    for bridge, path_list in bridge_to_paths.items():
       for path in path_list:
         assert path not in path_to_var
         # weight matching model, relax the variable to continous
@@ -352,11 +359,29 @@ class ILPRouter:
       xsum(path_to_var[path] * path.getLength() * path.data_width for path in all_paths)
     )
 
-  def ILPRouting(self):
+  def _getILPResults(
+    self,
+    bridge_to_paths,
+    path_to_var
+  ) -> Dict[str, List[Slot]]:
+    e_name_to_paths = {}
+    for bridge, paths in bridge_to_paths.items():
+      for path in paths:
+        val = path_to_var[path].x
+        assert abs(val - round(val)) < 0.0001
+        if round(val) == 1:
+          # exclude the source and destination
+          e_name_to_paths[bridge.name] = path.getSlotsOfPath()[1:-1]
+          break
+      assert bridge.name in e_name_to_paths
+
+    return e_name_to_paths
+
+  def ILPRouting(self) -> Dict[str, List[Slot]]:
     m = Model()
 
-    path_to_var = self._getPathToVar(m)
     bridge_to_paths = self._getBridgeToCandidatePaths()
+    path_to_var = self._getPathToVar(m, bridge_to_paths)
     routing_edge_to_paths = self._getRoutingEdgeToPassingPaths(bridge_to_paths)
 
     self._constrOnePathForOneBridge(m, bridge_to_paths, path_to_var)
@@ -368,6 +393,8 @@ class ILPRouter:
     status = m.optimize()
 
     assert status == OptimizationStatus.OPTIMAL
+
+    return self._getILPResults(bridge_to_paths, path_to_var)
 
 
 if __name__ == '__main__':  
