@@ -31,6 +31,12 @@ class GlobalRouting:
     all_edges = sum(self.s2e.values(), [])
     ilp_router = ILPRouter(all_edges, self.v2s)
     self.e_name2path = ilp_router.ILPRouting()
+
+    # register the passed slots as routing slots
+    for path in self.e_name2path.values():
+      for slot in path:
+        self.slot_manager.createSlotForRouting(slot.getName())
+
     self.postProcessRoutingResults()
     
   def postProcessRoutingResults(self):
