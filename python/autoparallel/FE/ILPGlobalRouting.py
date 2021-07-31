@@ -107,12 +107,12 @@ class RoutingPath:
     """
     if prev.getDownLeftX() == curr.getDownLeftX() and \
        next.getDownLeftX() == curr.getDownLeftX():
-      return True
+      return False
     elif prev.getDownLeftY() == curr.getDownLeftY() and \
          next.getDownLeftY() == curr.getDownLeftY():
-      return True
-    else:
       return False
+    else:
+      return True
 
   def getChildPaths(self) -> List['RoutingPath']:
     """
