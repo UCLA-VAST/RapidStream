@@ -47,7 +47,7 @@ class RoutingEdge:
     v2.neighbors.add(v1)
 
     v_names = [v.slot_name for v in self.vertices]
-    self._name = min(v_names) + max(v_names) # in case the order of vertices is different
+    self._name = min(v_names) + '_To_' + max(v_names) # in case the order of vertices is different
 
   def __hash__(self):
     return hash(self._name)
@@ -133,7 +133,7 @@ class RoutingPath:
     # attempt to extend one more context from the current tail
     child_paths = []
     for next in curr.neighbors:
-      if next != prev:
+      if next != prev: # disable u turn at the site
         new_bend_count = self.bend_count + int(self._isBend(prev, curr, next))
 
         # limit on bend count
@@ -158,9 +158,9 @@ class RoutingPath:
     return self.vertices[-1]
 
   def printPath(self):
-    logging.info(f'path from {self.vertices[0].slot_name} to {self.vertices[-1].slot_name} ')
+    logging.debug(f'path from {self.vertices[0].slot_name} to {self.vertices[-1].slot_name} ')
     for v in self.vertices:
-      logging.info(f' => {v.slot_name}')
+      logging.debug(f' => {v.slot_name}')
 
   def getLength(self) -> int:
     """
@@ -250,7 +250,14 @@ class RoutingGraph:
     dst = self.slot_name_to_vertex[dst_slot]
     shortest_dist = self._getShortestDist(src, dst)
 
-    init_path = RoutingPath([src], 0, shortest_dist + 4, data_width, bridge_name)
+    init_path = RoutingPath(
+      vertices = [src],
+      bend_count = 0,
+      length_limit = shortest_dist + 4,
+      data_width = data_width,
+      bridge_name = bridge_name
+    )
+
     queue = [init_path]
 
     paths = []
@@ -288,6 +295,11 @@ class ILPRouter:
       path_candidates = self.routing_graph.findAllPaths(
         src_slot_name, dst_slot_name, bridge.width, bridge.name
       )
+
+      logging.debug(f'bridge {bridge.name} has candidate paths:')
+      for path in path_candidates:
+        path.printPath()
+
       bridge_to_paths[bridge] = path_candidates
 
     return bridge_to_paths
@@ -362,7 +374,8 @@ class ILPRouter:
   def _getILPResults(
     self,
     bridge_to_paths,
-    path_to_var
+    path_to_var,
+    routing_edge_to_paths
   ) -> Dict[str, List[Slot]]:
     e_name_to_paths = {}
     for bridge, paths in bridge_to_paths.items():
@@ -372,8 +385,25 @@ class ILPRouter:
         if round(val) == 1:
           # exclude the source and destination
           e_name_to_paths[bridge.name] = path.getSlotsOfPath()[1:-1]
+          logging.debug(f'bridge {bridge.name} is routed to: ')
+          path.printPath()
           break
       assert bridge.name in e_name_to_paths
+
+    routing_edge_to_selected_paths = defaultdict(list)
+    for routing_edge, paths in routing_edge_to_paths.items():
+      logging.debug(f'boundary {routing_edge._name} is passed by:')
+      for path in paths:
+        val = path_to_var[path].x
+        if round(val) == 1:
+          routing_edge_to_selected_paths[routing_edge].append(path)
+          logging.debug(f'  {path.bridge_name}')
+
+    for routing_edge, paths in routing_edge_to_selected_paths.items():
+      total_data_width = sum([path.data_width for path in paths])
+      logging.debug(f'boundary {routing_edge._name} is passed by {total_data_width} / {routing_edge.capacity} = {total_data_width / routing_edge.capacity} ')
+      for path in paths:
+        logging.debug(f'  {path.bridge_name}')
 
     return e_name_to_paths
 
@@ -394,13 +424,16 @@ class ILPRouter:
 
     assert status == OptimizationStatus.OPTIMAL
 
-    return self._getILPResults(bridge_to_paths, path_to_var)
+    return self._getILPResults(bridge_to_paths, path_to_var, routing_edge_to_paths)
 
 
 if __name__ == '__main__':  
   routing_graph = RoutingGraph()
 
-  paths = routing_graph.findAllPaths('CR_X2Y2_To_CR_X3Y3', 'CR_X4Y4_To_CR_X5Y5', 10, 'test_name')
+  # paths = routing_graph.findAllPaths('CR_X4Y0_To_CR_X5Y1', 'CR_X4Y8_To_CR_X5Y9', 10, 'test_name')
+  # print(len(paths))
+
+  paths = routing_graph.findAllPaths('CR_X4Y2_To_CR_X5Y3', 'CR_X4Y8_To_CR_X5Y9', 10, 'test_name')
   print(len(paths))
 
   for path in paths:
