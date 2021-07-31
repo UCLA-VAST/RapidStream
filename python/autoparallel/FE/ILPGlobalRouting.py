@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from mip import Model, minimize, CONTINUOUS, xsum, OptimizationStatus, Var
+from mip import Model, minimize, BINARY, xsum, OptimizationStatus, Var
 from typing import List, Dict
 
 from autobridge.Opt.DataflowGraph import Edge, Vertex
@@ -12,10 +12,10 @@ root = logging.getLogger()
 root.setLevel(logging.DEBUG)
 
 BEND_COUNT_LIMIT = 2
-USAGE_LIMIT = 0.8
-VERTICAL_BOUNDARY_CAPACITY = 5280 * USAGE_LIMIT
-SLR_CROSSING_BOUNDARY_CAPACITY = 5760 * USAGE_LIMIT
-NON_SLR_CROSSING_HORIZONTAL_BOUNDARY = 9440 * USAGE_LIMIT
+USAGE_LIMIT = 0.7
+VERTICAL_BOUNDARY_CAPACITY = int(5280 * USAGE_LIMIT)
+SLR_CROSSING_BOUNDARY_CAPACITY = int(5760 * USAGE_LIMIT)
+NON_SLR_CROSSING_HORIZONTAL_BOUNDARY = int(9440 * USAGE_LIMIT)
 
 
 class RoutingVertex:
@@ -128,7 +128,7 @@ class RoutingPath:
       prev = self.vertices[-2]
 
     # if a path is too long, stop generating child paths
-    if len(self.vertices) >= self.length_limit:
+    if len(self.vertices) > self.length_limit:
       return []
 
     # attempt to extend one more context from the current tail
@@ -229,12 +229,12 @@ class RoutingGraph:
 
   def _getShortestDist(self, src: RoutingVertex, dst: RoutingVertex):
     """
-    hamming distance between the two slots
-    assume all slots are 2x2
+    number of slots in the path. Include source and sink
+    assume 2x2 slots
     """
     dist_x = abs(src.getDownLeftX() - dst.getDownLeftX() ) / 2
     dist_y = abs(src.getDownLeftY() - dst.getDownLeftY() ) / 2
-    return dist_x + dist_y
+    return dist_x + dist_y + 1
 
   def findAllPaths(
       self,
@@ -329,7 +329,7 @@ class ILPRouter:
       for path in path_list:
         assert path not in path_to_var
         # weight matching model, relax the variable to continous
-        path_to_var[path] = m.add_var(var_type=CONTINUOUS, lb=0, ub=1) 
+        path_to_var[path] = m.add_var(var_type=BINARY, lb=0, ub=1) 
 
     return path_to_var
 
@@ -415,12 +415,16 @@ class ILPRouter:
     path_to_var = self._getPathToVar(m, bridge_to_paths)
     routing_edge_to_paths = self._getRoutingEdgeToPassingPaths(bridge_to_paths)
 
+    logging.info(f'there are {len(bridge_to_paths)} dataflow edges')
+    logging.info(f'there are {len(path_to_var)} potential paths to select from')
+
     self._constrOnePathForOneBridge(m, bridge_to_paths, path_to_var)
 
     self._constrRoutingEdgeCapacity(m, path_to_var, routing_edge_to_paths)
 
     self._minimizeTotalPathArea(m, bridge_to_paths, path_to_var)
 
+    m.write('global_routing.lp')
     status = m.optimize()
 
     assert status == OptimizationStatus.OPTIMAL
