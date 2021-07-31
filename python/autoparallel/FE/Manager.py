@@ -74,7 +74,7 @@ class Manager:
 
 
     logging.info(f'Creating the new top RTL file...')
-    new_top_rtl = CreateTopRTLForCtrlWrappers(top_rtl_parser, ctrl_wrapper_creater, hls_prj_manager.getTopModuleName(), global_router)
+    new_top_rtl = CreateTopRTLForCtrlWrappers(top_rtl_parser, ctrl_wrapper_creater, hls_prj_manager.getTopModuleName(), global_router, self.target)
     
     open(f'wrapper_rtl/{hls_prj_manager.getTopModuleName()}.v', 'w').write(new_top_rtl)
       
