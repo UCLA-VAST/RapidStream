@@ -1,8 +1,9 @@
 #! /usr/bin/python3.6
 import logging
-import json
 from collections import defaultdict 
+
 from autobridge.Opt.DataflowGraph import Vertex, Edge
+
 
 class GlobalRouting:
   def __init__(self, floorplan, top_rtl_parser, slot_manager, pipeline_style, anchor_plan: int):
@@ -218,9 +219,3 @@ class GlobalRouting:
 
   def isPureRoutingSlot(self, slot):
     return self.slot_manager.isPureRoutingSlot(slot)
-
-if __name__ == '__main__':
-  json_path = './BE_pass1_anchored.json'
-  json_hub = json.loads(open(json_path, 'r').read())
-
-
