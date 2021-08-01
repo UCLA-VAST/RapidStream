@@ -2,7 +2,7 @@
 *.lp
 *.v
 parse*
-__*
+__py*
 *temp*
 *trash*
 /python/autoparallel.egg-info
@@ -15,3 +15,9 @@ front_end_result.json
 **/kernel0/
 **/wrapper_rtl/
 **/bucket_sort/
+**/pattern_mining/
+*.jou
+*.str
+*.vscode
+*.dot
+**/hd_visual
