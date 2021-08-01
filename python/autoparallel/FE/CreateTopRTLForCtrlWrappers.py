@@ -147,7 +147,11 @@ def getPipelining(slot_to_io, top_rtl_parser, global_router, in_slot_pipeline_st
           pipeline.append(f'  (* dont_touch = "yes" *) reg {width} {io[-1]}_q{i};')
       
         # connect the head and tail
-        pipeline.append(f'  always @ (posedge ap_clk) begin')
+        if in_slot_pipeline_style == 'INVERT_CLOCK':
+          pipeline.append(f'  always @ (negedge ap_clk) begin')
+        else:
+          pipeline.append(f'  always @ (posedge ap_clk) begin')
+
         pipeline.append(f'    {io[-1]}_q0 <= {io[-1]}_out;')
         for i in range(1, pipeline_level):
           pipeline.append(f'    {io[-1]}_q{i} <= {io[-1]}_q{i-1};')
