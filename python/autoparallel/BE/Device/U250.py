@@ -568,6 +568,6 @@ def constrainAnchorNetsAndSlot(slot_name, pblock_def):
   script.append(f'add_cells_to_pblock [get_pblocks anchor_pblock] [get_cells *q0_reg* -filter {{LOC !~ *LAGUNA* }}]') 
   script.append(f'add_cells_to_pblock [get_pblocks anchor_pblock] [get_cells {slot_name}_ctrl_U0]') # constrain all anchors
   script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks anchor_pblock]')
-  script.append(f'set_property SNAPPING_MODE ROUTING [get_pblocks anchor_pblock]')
+  script.append(f'set_property SNAPPING_MODE ON [get_pblocks anchor_pblock]')
 
   return script
