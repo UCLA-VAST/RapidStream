@@ -24,5 +24,7 @@
     ]
   },
 
-  "LoggingLevel" : "DEBUG"
+  "LoggingLevel" : "DEBUG",
+  "Target" : "hw_emu"
+
 }
