@@ -175,6 +175,17 @@ class RoutingPath:
     """
     return [v.slot for v in self.vertices]
 
+  def getTheoreticalShortestLength(self):
+    """
+    get the manhatten distance beween the source and destination slots
+    the distance is the number of slots
+    """
+    src = self.vertices[0]
+    dst = self.vertices[-1]
+    dist_x = abs(src.getDownLeftX() - dst.getDownLeftX() ) / 2
+    dist_y = abs(src.getDownLeftY() - dst.getDownLeftY() ) / 2
+    return dist_x + dist_y + 1
+
 
 class RoutingGraph:
   def __init__(self):
@@ -388,6 +399,10 @@ class ILPRouter:
           e_name_to_paths[bridge.name] = path.getSlotsOfPath()[1:-1]
           logging.debug(f'bridge {bridge.name} is routed to: ')
           path.printPath()
+
+          if path.getLength() > path.getTheoreticalShortestLength():
+            logging.warning(f'{bridge.name} is not routed with the shortest paths')
+
           break
       assert bridge.name in e_name_to_paths
 
