@@ -293,6 +293,9 @@ def getAllLagunaBufferRegions(add_empty_space):
   """ 
   one column of SLICE to the right of all laguna columns 
   FIXME: this function must sync with __getSliceAroundLagunaSides()
+  The laguna columns have similar effect as a boundary
+  Thus we should leave some gap around the laguna columns in the placement stage
+  This can help routing
   """
   slice_besides_laguna = []
   for x in idx_of_left_side_slice_of_laguna_column:
@@ -300,19 +303,20 @@ def getAllLagunaBufferRegions(add_empty_space):
       
       # slightly enlarge the buffer region. This can help create additional empty space to help routing
       if add_empty_space:
-        y_beg -= 1
-        y_end += 1
+        y_beg -= 2
+        y_end += 2
 
       # ******* sync with __getSliceAroundLagunaSides() ********
+      x_slice_on_the_left = x
       x_hidden_slice = x + 1
       x_slice_on_the_right = x + 2
-      slice_besides_laguna.append(f' SLICE_X{x_hidden_slice}Y{y_beg}:SLICE_X{x_slice_on_the_right}Y{y_end} ')
+      slice_besides_laguna.append(f' SLICE_X{x_slice_on_the_left}Y{y_beg}:SLICE_X{x_slice_on_the_right}Y{y_end} ')
       # ********************************************************
 
   return '\n'.join(slice_besides_laguna)
 
 
-def getAllBoundaryBufferRegions(col_width, row_width):
+def getAllBoundaryBufferRegions(col_width, row_width, is_for_placement: bool):
   """
   create a buffer region among 2x2 slots
   use the concise clockregion-based pblock subtract this buffer region
@@ -343,9 +347,16 @@ def getAllBoundaryBufferRegions(col_width, row_width):
   # manually selected to avoid spliting switch boxes. 
   # Sync with getBufferRegionBetweenSlotPair() 
   col_buffer_region_pblock = []
-  col_buffer_region_pblock.append(f'SLICE_X56Y0:SLICE_X58Y959')
-  col_buffer_region_pblock.append(f'SLICE_X115Y0:SLICE_X117Y959')
-  col_buffer_region_pblock.append(f'SLICE_X175Y0:SLICE_X177Y959')
+
+  # during placement, we should leave some gap between the slot and the anchor region
+  if not is_for_placement: # for routing, the exact buffer region
+    col_buffer_region_pblock.append(f'SLICE_X56Y0:SLICE_X58Y959')
+    col_buffer_region_pblock.append(f'SLICE_X115Y0:SLICE_X117Y959')
+    col_buffer_region_pblock.append(f'SLICE_X175Y0:SLICE_X177Y959')
+  else: # for placement, expand the buffer region
+    col_buffer_region_pblock.append(f'SLICE_X55Y0:SLICE_X59Y959')
+    col_buffer_region_pblock.append(f'SLICE_X114Y0:SLICE_X118Y959')
+    col_buffer_region_pblock.append(f'SLICE_X174Y0:SLICE_X178Y959')    
 
   # the horizontal rows of the buffer region
   # exclude the region for the up and down device boundaries & die boundaries
@@ -393,97 +404,9 @@ def getAllDSPAndBRAMInBoundaryBufferRegions(col_width, row_width):
   return RAMB_items + DSP_items 
 
 
-# vertical_segment = [[] for i in range(8)]
-# vertical_segment[0][0] = 'DSP48E2_X7Y0:DSP48E2_X7Y47 SLICE_X56Y0:SLICE_X58Y119'
-# vertical_segment[0][1] = 'SLICE_X115Y0:SLICE_X117Y119'
-# vertical_segment[0][2] = 'DSP48E2_X24Y0:DSP48E2_X24Y47 SLICE_X175Y0:SLICE_X177Y119'
-
-# horizontal_segment = [[] for i in range(4)]
-# horizontal_segment[0][0] = 'RAMB36_X0Y23:RAMB36_X3Y24 RAMB18_X0Y46:RAMB18_X3Y49 DSP48E2_X0Y46:DSP48E2_X7Y49 SLICE_X0Y115:SLICE_X58Y124'
-# horizontal_segment[0][1] = 'RAMB36_X4Y23:RAMB36_X7Y24 RAMB18_X4Y46:RAMB18_X7Y49 DSP48E2_X7Y46:DSP48E2_X15Y49 SLICE_X56Y115:SLICE_X117Y124'
-# horizontal_segment[0][2] = 'RAMB36_X8Y23:RAMB36_X10Y24 RAMB18_X8Y46:RAMB18_X10Y49 DSP48E2_X16Y46:DSP48E2_X24Y49 SLICE_X115Y115:SLICE_X177Y124'
-# horizontal_segment[0][3] = 'RAMB36_X11Y23:RAMB36_X13Y24 RAMB18_X11Y46:RAMB18_X13Y49 DSP48E2_X24Y46:DSP48E2_X31Y49 SLICE_X175Y115:SLICE_X232Y124'
-vertical_segment = [['' for j in range(8)] for i in range(5)]
-horizontal_segment = [['' for j in range(9)] for i in range(4)]
-
-vertical_segment[0][0] = ' '
-vertical_segment[0][1] = ' '
-vertical_segment[0][2] = ' '
-vertical_segment[0][3] = ' '
-vertical_segment[0][4] = ' '
-vertical_segment[0][5] = ' '
-vertical_segment[0][6] = ' '
-vertical_segment[0][7] = ' '
-vertical_segment[1][0] = 'DSP48E2_X7Y0:DSP48E2_X7Y47 SLICE_X56Y0:SLICE_X58Y119'
-vertical_segment[1][1] = 'DSP48E2_X7Y48:DSP48E2_X7Y95 SLICE_X56Y120:SLICE_X58Y239'
-vertical_segment[1][2] = 'DSP48E2_X7Y96:DSP48E2_X7Y143 SLICE_X56Y240:SLICE_X58Y359'
-vertical_segment[1][3] = 'DSP48E2_X7Y144:DSP48E2_X7Y191 SLICE_X56Y360:SLICE_X58Y479'
-vertical_segment[1][4] = 'DSP48E2_X7Y192:DSP48E2_X7Y239 SLICE_X56Y480:SLICE_X58Y599'
-vertical_segment[1][5] = 'DSP48E2_X7Y240:DSP48E2_X7Y287 SLICE_X56Y600:SLICE_X58Y719'
-vertical_segment[1][6] = 'DSP48E2_X7Y288:DSP48E2_X7Y335 SLICE_X56Y720:SLICE_X58Y839'
-vertical_segment[1][7] = 'DSP48E2_X7Y336:DSP48E2_X7Y383 SLICE_X56Y840:SLICE_X58Y959'
-vertical_segment[2][0] = 'SLICE_X115Y0:SLICE_X117Y119'
-vertical_segment[2][1] = 'SLICE_X115Y120:SLICE_X117Y239'
-vertical_segment[2][2] = 'SLICE_X115Y240:SLICE_X117Y359'
-vertical_segment[2][3] = 'SLICE_X115Y360:SLICE_X117Y479'
-vertical_segment[2][4] = 'SLICE_X115Y480:SLICE_X117Y599'
-vertical_segment[2][5] = 'SLICE_X115Y600:SLICE_X117Y719'
-vertical_segment[2][6] = 'SLICE_X115Y720:SLICE_X117Y839'
-vertical_segment[2][7] = 'SLICE_X115Y840:SLICE_X117Y959'
-vertical_segment[3][0] = 'DSP48E2_X24Y0:DSP48E2_X24Y47 SLICE_X175Y0:SLICE_X177Y119'
-vertical_segment[3][1] = 'DSP48E2_X24Y48:DSP48E2_X24Y95 SLICE_X175Y120:SLICE_X177Y239'
-vertical_segment[3][2] = 'DSP48E2_X24Y96:DSP48E2_X24Y143 SLICE_X175Y240:SLICE_X177Y359'
-vertical_segment[3][3] = 'DSP48E2_X24Y144:DSP48E2_X24Y191 SLICE_X175Y360:SLICE_X177Y479'
-vertical_segment[3][4] = 'DSP48E2_X24Y192:DSP48E2_X24Y239 SLICE_X175Y480:SLICE_X177Y599'
-vertical_segment[3][5] = 'DSP48E2_X24Y240:DSP48E2_X24Y287 SLICE_X175Y600:SLICE_X177Y719'
-vertical_segment[3][6] = 'DSP48E2_X24Y288:DSP48E2_X24Y335 SLICE_X175Y720:SLICE_X177Y839'
-vertical_segment[3][7] = 'DSP48E2_X24Y336:DSP48E2_X24Y383 SLICE_X175Y840:SLICE_X177Y959'
-vertical_segment[4][0] = ' '
-vertical_segment[4][1] = ' '
-vertical_segment[4][2] = ' '
-vertical_segment[4][3] = ' '
-vertical_segment[4][4] = ' '
-vertical_segment[4][5] = ' '
-vertical_segment[4][6] = ' '
-vertical_segment[4][7] = ' '
-horizontal_segment[0][1] = 'RAMB36_X0Y23:RAMB36_X3Y24 RAMB18_X0Y46:RAMB18_X3Y49 DSP48E2_X0Y46:DSP48E2_X7Y49 SLICE_X0Y115:SLICE_X58Y124'
-horizontal_segment[0][3] = 'RAMB36_X0Y71:RAMB36_X3Y72 RAMB18_X0Y142:RAMB18_X3Y145 DSP48E2_X0Y142:DSP48E2_X7Y145 SLICE_X0Y355:SLICE_X58Y364'
-horizontal_segment[0][5] = 'RAMB36_X0Y119:RAMB36_X3Y120 RAMB18_X0Y238:RAMB18_X3Y241 DSP48E2_X0Y238:DSP48E2_X7Y241 SLICE_X0Y595:SLICE_X58Y604'
-horizontal_segment[0][7] = 'RAMB36_X0Y167:RAMB36_X3Y168 RAMB18_X0Y334:RAMB18_X3Y337 DSP48E2_X0Y334:DSP48E2_X7Y337 SLICE_X0Y835:SLICE_X58Y844'
-horizontal_segment[1][1] = 'RAMB36_X4Y23:RAMB36_X7Y24 RAMB18_X4Y46:RAMB18_X7Y49 DSP48E2_X7Y46:DSP48E2_X15Y49 SLICE_X56Y115:SLICE_X117Y124'
-horizontal_segment[1][3] = 'RAMB36_X4Y71:RAMB36_X7Y72 RAMB18_X4Y142:RAMB18_X7Y145 DSP48E2_X7Y142:DSP48E2_X15Y145 SLICE_X56Y355:SLICE_X117Y364'
-horizontal_segment[1][5] = 'RAMB36_X4Y119:RAMB36_X7Y120 RAMB18_X4Y238:RAMB18_X7Y241 DSP48E2_X7Y238:DSP48E2_X15Y241 SLICE_X56Y595:SLICE_X117Y604'
-horizontal_segment[1][7] = 'RAMB36_X4Y167:RAMB36_X7Y168 RAMB18_X4Y334:RAMB18_X7Y337 DSP48E2_X7Y334:DSP48E2_X15Y337 SLICE_X56Y835:SLICE_X117Y844'
-horizontal_segment[2][1] = 'RAMB36_X8Y23:RAMB36_X10Y24 RAMB18_X8Y46:RAMB18_X10Y49 DSP48E2_X16Y46:DSP48E2_X24Y49 SLICE_X115Y115:SLICE_X177Y124'
-horizontal_segment[2][3] = 'RAMB36_X8Y71:RAMB36_X10Y72 RAMB18_X8Y142:RAMB18_X10Y145 DSP48E2_X16Y142:DSP48E2_X24Y145 SLICE_X115Y355:SLICE_X177Y364'
-horizontal_segment[2][5] = 'RAMB36_X8Y119:RAMB36_X10Y120 RAMB18_X8Y238:RAMB18_X10Y241 DSP48E2_X16Y238:DSP48E2_X24Y241 SLICE_X115Y595:SLICE_X177Y604'
-horizontal_segment[2][7] = 'RAMB36_X8Y167:RAMB36_X10Y168 RAMB18_X8Y334:RAMB18_X10Y337 DSP48E2_X16Y334:DSP48E2_X24Y337 SLICE_X115Y835:SLICE_X177Y844'
-horizontal_segment[3][1] = 'RAMB36_X11Y23:RAMB36_X13Y24 RAMB18_X11Y46:RAMB18_X13Y49 DSP48E2_X24Y46:DSP48E2_X31Y49 SLICE_X175Y115:SLICE_X232Y124'
-horizontal_segment[3][3] = 'RAMB36_X11Y71:RAMB36_X13Y72 RAMB18_X11Y142:RAMB18_X13Y145 DSP48E2_X24Y142:DSP48E2_X31Y145 SLICE_X175Y355:SLICE_X232Y364'
-horizontal_segment[3][5] = 'RAMB36_X11Y119:RAMB36_X13Y120 RAMB18_X11Y238:RAMB18_X13Y241 DSP48E2_X24Y238:DSP48E2_X31Y241 SLICE_X175Y595:SLICE_X232Y604'
-horizontal_segment[3][7] = 'RAMB36_X11Y167:RAMB36_X13Y168 RAMB18_X11Y334:RAMB18_X13Y337 DSP48E2_X24Y334:DSP48E2_X31Y337 SLICE_X175Y835:SLICE_X232Y844'
-horizontal_segment[0][0] = ' '
-horizontal_segment[1][0] = ' '
-horizontal_segment[2][0] = ' '
-horizontal_segment[3][0] = ' '
-horizontal_segment[0][2] = ' '
-horizontal_segment[1][2] = ' '
-horizontal_segment[2][2] = ' '
-horizontal_segment[3][2] = ' '
-horizontal_segment[0][4] = ' '
-horizontal_segment[1][4] = ' '
-horizontal_segment[2][4] = ' '
-horizontal_segment[3][4] = ' '
-horizontal_segment[0][6] = ' '
-horizontal_segment[1][6] = ' '
-horizontal_segment[2][6] = ' '
-horizontal_segment[3][6] = ' '
-horizontal_segment[0][8] = ' '
-horizontal_segment[1][8] = ' '
-horizontal_segment[2][8] = ' '
-horizontal_segment[3][8] = ' '
-
 def getAnchorPblock(slot: Slot):
+  vertical_segment, horizontal_segment = generateAnchorInclusivePblock()
+
   pblock = f'CLOCKREGION_X{slot.down_left_x}Y{slot.down_left_y}:CLOCKREGION_X{slot.up_right_x}Y{slot.up_right_y} '
 
   pblock += ' ' + vertical_segment[int((slot.down_left_x) / 2)][int(slot.down_left_y / 2)]
@@ -513,40 +436,52 @@ def getLagunaAnchorInclusivePblock(slot_name):
 
 
 def generateAnchorInclusivePblock():
-  for i in range(8):
-    print(f"vertical_segment[0][{i}] = ' '")
+  """
+  expand the buffer region a little to allow more routing space for anchor nets
+  """
+  
+  vertical_segment = [['' for j in range(8)] for i in range(5)]
+  horizontal_segment = [['' for j in range(9)] for i in range(4)]
 
   for i in range(8):
-    print(f"vertical_segment[1][{i}] = 'DSP48E2_X7Y{48*i}:DSP48E2_X7Y{48*i+47} SLICE_X56Y{120*i}:SLICE_X58Y{120*i+119}'")
+    vertical_segment[0][i] = ' '
 
   for i in range(8):
-    print(f"vertical_segment[2][{i}] = 'SLICE_X115Y{120*i}:SLICE_X117Y{120*i+119}'")
+    # vertical_segment[1][i] = f'DSP48E2_X7Y{48*i}:DSP48E2_X7Y{48*i+47} SLICE_X56Y{120*i}:SLICE_X58Y{120*i+119}'
+    vertical_segment[1][i] = f'DSP48E2_X7Y{48*i}:DSP48E2_X7Y{48*i+47} SLICE_X55Y{120*i}:SLICE_X59Y{120*i+119}'
 
   for i in range(8):
-    print(f"vertical_segment[3][{i}] = 'DSP48E2_X24Y{48*i}:DSP48E2_X24Y{48*i+47} SLICE_X175Y{120*i}:SLICE_X177Y{120*i+119}'")
+    # vertical_segment[2][i] = f'SLICE_X115Y{120*i}:SLICE_X117Y{120*i+119}'
+    vertical_segment[2][i] = f'SLICE_X114Y{120*i}:SLICE_X118Y{120*i+119}'
 
   for i in range(8):
-    print(f"vertical_segment[4][{i}] = ' '")
+    # vertical_segment[3][i] = f'DSP48E2_X24Y{48*i}:DSP48E2_X24Y{48*i+47} SLICE_X175Y{120*i}:SLICE_X177Y{120*i+119}'
+    vertical_segment[3][i] = f'DSP48E2_X24Y{48*i}:DSP48E2_X24Y{48*i+47} SLICE_X174Y{120*i}:SLICE_X178Y{120*i+119}'
 
+  for i in range(8):
+    vertical_segment[4][i] = ' '
 
+  gap = 1
 
   for i in range(4):
-    print(f"horizontal_segment[0][{i*2+1}] = 'RAMB36_X0Y{23+48*i}:RAMB36_X3Y{24+48*i} RAMB18_X0Y{46+96*i}:RAMB18_X3Y{49+96*i} DSP48E2_X0Y{46+96*i}:DSP48E2_X7Y{49+96*i} SLICE_X0Y{115+240*i}:SLICE_X58Y{124+240*i}'")
+    horizontal_segment[0][i*2+1] = f'RAMB36_X0Y{23+48*i}:RAMB36_X3Y{24+48*i} RAMB18_X0Y{46+96*i}:RAMB18_X3Y{49+96*i} DSP48E2_X0Y{46+96*i}:DSP48E2_X7Y{49+96*i} SLICE_X0Y{115+240*i-gap}:SLICE_X58Y{124+240*i+gap}'
 
   for i in range(4):
-    print(f"horizontal_segment[1][{i*2+1}] = 'RAMB36_X4Y{23+48*i}:RAMB36_X7Y{24+48*i} RAMB18_X4Y{46+96*i}:RAMB18_X7Y{49+96*i} DSP48E2_X7Y{46+96*i}:DSP48E2_X15Y{49+96*i} SLICE_X56Y{115+240*i}:SLICE_X117Y{124+240*i}'")
+    horizontal_segment[1][i*2+1] = f'RAMB36_X4Y{23+48*i}:RAMB36_X7Y{24+48*i} RAMB18_X4Y{46+96*i}:RAMB18_X7Y{49+96*i} DSP48E2_X7Y{46+96*i}:DSP48E2_X15Y{49+96*i} SLICE_X56Y{115+240*i-gap}:SLICE_X117Y{124+240*i+gap}'
 
   for i in range(4):
-    print(f"horizontal_segment[2][{i*2+1}] = 'RAMB36_X8Y{23+48*i}:RAMB36_X10Y{24+48*i} RAMB18_X8Y{46+96*i}:RAMB18_X10Y{49+96*i} DSP48E2_X16Y{46+96*i}:DSP48E2_X24Y{49+96*i} SLICE_X115Y{115+240*i}:SLICE_X177Y{124+240*i}'") 
+    horizontal_segment[2][i*2+1] = f'RAMB36_X8Y{23+48*i}:RAMB36_X10Y{24+48*i} RAMB18_X8Y{46+96*i}:RAMB18_X10Y{49+96*i} DSP48E2_X16Y{46+96*i}:DSP48E2_X24Y{49+96*i} SLICE_X115Y{115+240*i-gap}:SLICE_X177Y{124+240*i+gap}' 
 
   for i in range(4):
-    print(f"horizontal_segment[3][{i*2+1}] = 'RAMB36_X11Y{23+48*i}:RAMB36_X13Y{24+48*i} RAMB18_X11Y{46+96*i}:RAMB18_X13Y{49+96*i} DSP48E2_X24Y{46+96*i}:DSP48E2_X31Y{49+96*i} SLICE_X175Y{115+240*i}:SLICE_X232Y{124+240*i}'")   
+    horizontal_segment[3][i*2+1] = f'RAMB36_X11Y{23+48*i}:RAMB36_X13Y{24+48*i} RAMB18_X11Y{46+96*i}:RAMB18_X13Y{49+96*i} DSP48E2_X24Y{46+96*i}:DSP48E2_X31Y{49+96*i} SLICE_X175Y{115+240*i-gap}:SLICE_X232Y{124+240*i+gap}'   
 
   for i in range(5):
-    print(f"horizontal_segment[0][{i*2}] = ' '")
-    print(f"horizontal_segment[1][{i*2}] = ' '")
-    print(f"horizontal_segment[2][{i*2}] = ' '")
-    print(f"horizontal_segment[3][{i*2}] = ' '")
+    horizontal_segment[0][i*2] = ' '
+    horizontal_segment[1][i*2] = ' '
+    horizontal_segment[2][i*2] = ' '
+    horizontal_segment[3][i*2] = ' '
+
+  return vertical_segment, horizontal_segment
 
 
 def constrainAnchorNetsAndSlot(slot_name, pblock_def):

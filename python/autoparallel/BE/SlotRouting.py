@@ -96,7 +96,7 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     # The prerequisite is that the placement pblock is even smaller than the routing pblock.
     # we need at least 1 row/col of empty space at the boundary to make the boundary nets routable.
     buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
-    slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+    slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num, is_for_placement=False)
     script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_at_boundary} }}')
     list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
     script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {" ".join(list_of_anchor_region_dsp_and_bram)} }}')
