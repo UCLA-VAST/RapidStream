@@ -1,6 +1,9 @@
-#! /usr/bin/python3.6
+import json
+import logging
+import os
 import sys
 from collections import defaultdict
+
 from autobridge.HLSParser.vivado_hls.HLSProjectManager import HLSProjectManager
 from autobridge.Device.DeviceManager import DeviceManager
 from autobridge.Opt.DataflowGraph import DataflowGraph
@@ -15,13 +18,7 @@ from autoparallel.FE.CreateRoutingSlotWrapper import CreateRoutingSlotWrapper
 from autoparallel.FE.CreateCtrlSlotWrapper import CreateCtrlSlotWrapper
 from autoparallel.FE.CreateResultJson import CreateResultJson
 from autoparallel.FE.CreateTopRTLForCtrlWrappers import CreateTopRTLForCtrlWrappers
-from autoparallel.FE.PatternOpt import getPatternBasedGrouping
-from autoparallel.FE.UnifyVertexType import unifyModuleTypesInTopRTL
 
-import logging
-import json
-import re
-import os
 
 class Manager:
 
