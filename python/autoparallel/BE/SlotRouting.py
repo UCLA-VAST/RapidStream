@@ -75,6 +75,8 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     script = []
 
     pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
+    
+    detailed_pblock_def = U250.getDetailedRangeOfClockRegion(slot_name)
 
     # relax placement pblocks
     # do this before updating the clock to prevent vivado crash
@@ -87,7 +89,7 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     # next create the inner pblock that only includes the slot
     script.append(f'startgroup')
     script.append(f'create_pblock {slot_name}')
-    script.append(f'resize_pblock [get_pblocks {slot_name}] -add {pblock_def}')
+    script.append(f'resize_pblock [get_pblocks {slot_name}] -add {detailed_pblock_def}')
 
     # previously we set the pblock as the entire clock regions. 
     # However, the intra-slot nets may use the anchor regions. 
