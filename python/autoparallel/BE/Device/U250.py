@@ -401,7 +401,14 @@ def getAllDSPAndBRAMInBoundaryBufferRegions(col_width, row_width):
     'DSP48E2_X0Y46:DSP48E2_X31Y49'
   ]
 
-  return RAMB_items + DSP_items 
+  URAM_items = [
+    'URAM288_X0Y220:URAM288_X4Y227',
+    'URAM288_X0Y156:URAM288_X4Y163',
+    'URAM288_X0Y92:URAM288_X4Y99',
+    'URAM288_X0Y28:URAM288_X4Y35'
+  ]
+
+  return RAMB_items + DSP_items + URAM_items
 
 
 def getAnchorPblock(slot: Slot):
