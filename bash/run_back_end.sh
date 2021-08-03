@@ -20,17 +20,17 @@ while [[ $# -gt 0 ]]; do
 
   case $key in
     --base-dir)
-      BASE_DIR="$2"
+      BASE_DIR=$(readlink -f "$2")
       shift # past argument
       shift # past value
       ;;
     --front-end-result)
-      HUB="$2"
+      HUB=$(readlink -f "$2")
       shift # past argument
       shift # past value
       ;;
     --unique-synth-dcp-path)
-      UNIQUE_SLOT_SYNTH_PATH="$2"
+      UNIQUE_SLOT_SYNTH_PATH=$(readlink -f "$2")
       USE_UNIQUE_SYNTH_DCP=1
       shift # past argument
       shift # past value
@@ -72,8 +72,8 @@ if [[ -n $1 ]]; then
     tail -1 "$1"
 fi
 
-echo "Waiting for 10s, please check..."
-sleep 10
+echo "Waiting for 15s, please check..."
+sleep 15
 
 # set up Gurobi
 echo "Set up Gurobi env variables"
