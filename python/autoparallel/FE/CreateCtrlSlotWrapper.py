@@ -223,36 +223,48 @@ class CreateCtrlSlotWrapper:
     connect.append(f'wire ap_continue = 1;')
 
     # ap_start
-    connect.append(f'(* keep = "true" *) reg ap_start_{in_boundary_name}_q;')
-    connect.append(f'always @ (posedge ap_clk) ap_start_{in_boundary_name}_q <= ap_start_{in_boundary_name};')
+    connect.append(f'(* dont_touch = "yes" *) reg ap_start_{in_boundary_name}_pipeline_reg1;')
+    connect.append(f'                         reg ap_start_{in_boundary_name}_pipeline_reg2;')
+    connect.append(f'always @ (posedge ap_clk) ap_start_{in_boundary_name}_pipeline_reg1 <= ap_start_{in_boundary_name};')
+    connect.append(f'always @ (posedge ap_clk) ap_start_{in_boundary_name}_pipeline_reg2 <= ap_start_{in_boundary_name}_pipeline_reg1;')
     for dir in ctrl_fanout_dir:
       fanout_boundary_name = slot.getBoundarySegmentName(dir)
-      connect.append(f'assign ap_start_{fanout_boundary_name} = ap_start_{in_boundary_name}_q;')
-    connect.append(f'assign ap_start = ap_start_{in_boundary_name}_q;') # for the inner wrapper
+      connect.append(f'(* dont_touch = "yes" *) reg ap_start_{in_boundary_name}_copy_{fanout_boundary_name}_pipeline_reg3;')
+      connect.append(f'always @ (posedge ap_clk) ap_start_{in_boundary_name}_copy_{fanout_boundary_name}_pipeline_reg3 <= ap_start_{in_boundary_name}_pipeline_reg2;')
+      connect.append(f'assign ap_start_{fanout_boundary_name} = ap_start_{in_boundary_name}_copy_{fanout_boundary_name}_pipeline_reg3;')
+    connect.append(f'assign ap_start = ap_start_{in_boundary_name}_pipeline_reg2;') # for the inner wrapper
 
     # ap_rst_n
-    connect.append(f'(* keep = "true" *) reg ap_rst_n_{in_boundary_name}_q;')
-    connect.append(f'always @ (posedge ap_clk) ap_rst_n_{in_boundary_name}_q <= ap_rst_n_{in_boundary_name};')
+    connect.append(f'(* dont_touch = "yes" *) reg ap_rst_n_{in_boundary_name}_pipeline_reg1;')
+    connect.append(f'                         reg ap_rst_n_{in_boundary_name}_pipeline_reg2;')
+    connect.append(f'always @ (posedge ap_clk) ap_rst_n_{in_boundary_name}_pipeline_reg1 <= ap_rst_n_{in_boundary_name};')
+    connect.append(f'always @ (posedge ap_clk) ap_rst_n_{in_boundary_name}_pipeline_reg2 <= ap_rst_n_{in_boundary_name}_pipeline_reg1;')
     for dir in ctrl_fanout_dir:
       fanout_boundary_name = slot.getBoundarySegmentName(dir)
-      connect.append(f'assign ap_rst_n_{fanout_boundary_name} = ap_rst_n_{in_boundary_name}_q;')
-    connect.append(f'assign ap_rst_n = ap_rst_n_{in_boundary_name}_q;')
+      connect.append(f'(* dont_touch = "yes" *) reg ap_rst_n_{in_boundary_name}_copy_{fanout_boundary_name}_pipeline_reg3;')
+      connect.append(f'always @ (posedge ap_clk) ap_rst_n_{in_boundary_name}_copy_{fanout_boundary_name}_pipeline_reg3 <= ap_rst_n_{in_boundary_name}_pipeline_reg2;')
+      connect.append(f'assign ap_rst_n_{fanout_boundary_name} = ap_rst_n_{in_boundary_name}_copy_{fanout_boundary_name}_pipeline_reg3;')
+    connect.append(f'assign ap_rst_n = ap_rst_n_{in_boundary_name}_pipeline_reg2;')
 
     # ap_done, in reverse direction
     out_bound_ap_done_reg = []
     for dir in ctrl_fanout_dir:
       fanout_boundary_name = slot.getBoundarySegmentName(dir)
       ap_done_name = f'ap_done_{fanout_boundary_name}'
-      connect.append(f'(* keep = "true" *) reg {ap_done_name}_q;')
+      connect.append(f'(* dont_touch = "yes" *) reg {ap_done_name}_pipeline_reg1;')
+      connect.append(f'                         reg {ap_done_name}_pipeline_reg2;')
+      connect.append(f'always @ (posedge ap_clk) {ap_done_name}_pipeline_reg1 <= {ap_done_name};')
       connect.append(f'always @ (posedge ap_clk) begin')
-      connect.append(f'  if (!ap_rst_n) {ap_done_name}_q <= 0;')
-      connect.append(f'  else {ap_done_name}_q <= {ap_done_name}_q | {ap_done_name};')
+      connect.append(f'  if (!ap_rst_n) {ap_done_name}_pipeline_reg2 <= 0;')
+      connect.append(f'  else {ap_done_name}_pipeline_reg2 <= {ap_done_name}_pipeline_reg2 | {ap_done_name}_pipeline_reg1;')
       connect.append(f'end')
 
-      out_bound_ap_done_reg.append(f'{ap_done_name}_q')
+      out_bound_ap_done_reg.append(f'{ap_done_name}_pipeline_reg2')
 
     out_bound_ap_done_reg.append('ap_done') # collect the ap_done of the current slot
-    connect.append(f'assign ap_done_{in_boundary_name} = ' + ' & '.join(out_bound_ap_done_reg) + ';')
+    connect.append(f'(* dont_touch = "yes" *) reg ap_done_{in_boundary_name}_pipeline_reg3;')
+    connect.append(f'always @ (posedge ap_clk) ap_done_{in_boundary_name}_pipeline_reg3 <= ' + ' & '.join(out_bound_ap_done_reg) + ';')
+    connect.append(f'assign ap_done_{in_boundary_name} = ap_done_{in_boundary_name}_pipeline_reg3;')
 
     return connect
 
