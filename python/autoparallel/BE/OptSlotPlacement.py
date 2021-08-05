@@ -26,7 +26,7 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   # apply the placement of anchor registers
   # script.append(f'source place_anchors_of_slot.tcl')
   for anchor_placement in anchor_placement_scripts:
-    script.append(f'source {anchor_placement}')
+    script.append(f'source -notrace {anchor_placement}')
 
   # get rid of the place holder LUTs
   # currently keep the LUTs to alleviate hold violations
@@ -41,7 +41,7 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
 
   # optimize the slot based on the given anchor placement
   # do placement only so that we could track the change from the log
-  script.append(f'phys_opt_design -verbose')
+  script.append(f'phys_opt_design -directive Explore')
   script.append(f'write_checkpoint -force {slot_name}_post_placed_opt.dcp')
 
   # report timing to check the timing improvement of slot phys_opt_design
