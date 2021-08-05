@@ -8,6 +8,12 @@ from autobridge.Device.DeviceManager import DeviceU250
 U250_inst = DeviceU250()
 
 
+LAGUNA_REG_Y_RANGE = [
+  (120, 359),
+  (360, 599),
+  (600, 839)
+]
+
 def getSlotsInSLRIndex(hub, slr_index):
   """
   get all slots within a given SLR
@@ -74,6 +80,33 @@ def isPairSLRCrossing(slot1_name: str, slot2_name: str) -> bool:
       return False
     else:
       return True
+
+
+def getPairingLagunaTXOfRX(rx_reg: str) -> str:
+  """
+  Laguna registers are pair by pair. Given an RX, find the corresponding TX
+  """
+  match = re.search(r'LAGUNA_X(\d+)Y(\d+)/RX_REG(\d)', rx_reg)
+  assert match, f'wrong laguna location: {rx_reg}'
+
+  x = int(match.group(1))
+  y = int(match.group(2))
+  reg = int(match.group(3))
+
+  def get_ith_slr_boundary(laguna_y):
+    for i in range(len(LAGUNA_REG_Y_RANGE)):
+      curr_range = LAGUNA_REG_Y_RANGE[i]
+      if curr_range[0] <= laguna_y <= curr_range[1]:
+        return i
+
+    return None
+
+  if get_ith_slr_boundary(y) == get_ith_slr_boundary(y+120):
+    return f'LAGUNA_X{x}Y{y+120}/TX_REG{reg}'
+  elif get_ith_slr_boundary(y) == get_ith_slr_boundary(y-120):
+    return f'LAGUNA_X{x}Y{y-120}/TX_REG{reg}'
+  else:
+    assert False
 
 
 def getNeighborSlots(hub, slot_name: str) -> List[str]:
