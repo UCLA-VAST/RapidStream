@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -------------------------------------------
-VIV_VER="2020.2"
+VIV_VER="2021.1"
 
 # test not using the RW-unlocked dcps
 USE_UNIQUE_SYNTH_DCP=0
