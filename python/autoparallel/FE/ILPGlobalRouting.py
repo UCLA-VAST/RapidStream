@@ -1,4 +1,5 @@
 import logging
+from bisect import bisect
 from collections import defaultdict
 from mip import Model, minimize, BINARY, xsum, OptimizationStatus, Var
 from typing import List, Dict
@@ -69,6 +70,7 @@ class RoutingPath:
       length_limit: int, 
       data_width: int,
       bridge_name: str,
+      util: Dict[Slot, Dict[str, float]]
   ) -> None:
     """
     a bridge is an edge in the dataflow graph. To differentiate it 
@@ -80,6 +82,7 @@ class RoutingPath:
     self.length_limit = length_limit
     self.data_width = data_width
     self.bridge_name = bridge_name
+    self.util = util
     self.edges = []
 
     # use bridge name to make the path name unique
@@ -147,7 +150,8 @@ class RoutingPath:
             new_bend_count, 
             self.length_limit, 
             self.data_width,
-            self.bridge_name
+            self.bridge_name,
+            self.util
           )
         )
     return child_paths
@@ -186,11 +190,25 @@ class RoutingPath:
     dist_y = abs(src.getDownLeftY() - dst.getDownLeftY() ) / 2
     return dist_x + dist_y + 1
 
+  def getCost(self) -> float:
+    """
+    calculate a cost if this slot is selected. 
+    We want to pass through less utilized slots as much as possible
+    use the sum of DSP and BRAM percentage of each slot * wire_length
+    """
+    dsp_cost = sum(self.util[v.slot]['DSP'] for v in self.vertices)
+    bram_cost = sum(self.util[v.slot]['BRAM'] for v in self.vertices)
+    lut_cost = sum(self.util[v.slot]['LUT'] for v in self.vertices)
+    cost = (dsp_cost + bram_cost + 0.7 * lut_cost) * self.data_width
+
+    return cost
+
 
 class RoutingGraph:
-  def __init__(self):
+  def __init__(self, util: Dict[Slot, Dict[str, float]]):
     self.slot_name_to_vertex = {}
     self.edges = []
+    self.util = util  # resource usage of each slot
     self._getRoutingGraphForU250()
 
   def _getRoutingGraphForU250(self):
@@ -267,7 +285,8 @@ class RoutingGraph:
       bend_count = 0,
       length_limit = shortest_dist + 4,
       data_width = data_width,
-      bridge_name = bridge_name
+      bridge_name = bridge_name,
+      util = self.util
     )
 
     queue = [init_path]
@@ -287,14 +306,14 @@ class RoutingGraph:
 
 
 class ILPRouter:
-  def __init__(self, bridge_list: List[Edge], v2s: Dict[Vertex, Slot]) -> None:
+  def __init__(self, bridge_list: List[Edge], v2s: Dict[Vertex, Slot], util: Dict[Slot, Dict[str, float]]) -> None:
     """
     to avoid confusion, here we call the data transfer path betwee two slots a "bridge"
     we need to map each bridge to a set of routing edges in the routing graph
     """
     self.bridge_list = bridge_list
     self.v2s = v2s
-    self.routing_graph = RoutingGraph()
+    self.routing_graph = RoutingGraph(util)
 
   def _getBridgeToCandidatePaths(self) -> Dict[Edge, List[RoutingPath]]:
     """
@@ -380,8 +399,33 @@ class ILPRouter:
     # concatenate to get all paths
     all_paths: List[RoutingPath] = sum(bridge_to_paths.values(), [])
     m.objective = minimize(
-      xsum(path_to_var[path] * path.getLength() * path.data_width for path in all_paths)
+      xsum(path_to_var[path] * path.getCost() for path in all_paths)
     )
+
+  def _analyzeILPResults(
+    self,
+    bridge_to_paths,
+    bridge_to_selected_path,
+    routing_edge_to_selected_paths
+  ) -> None:
+    # log the quality of the selected path
+    for bridge, paths in bridge_to_paths.items():
+      if len(paths) > 1:
+        all_costs = [p.getCost() for p in paths]
+        all_costs.sort()
+        selected_path = bridge_to_selected_path[bridge]
+        rank = bisect(all_costs, selected_path.getCost())
+
+        rank_info = f'{bridge.name} is routed with the rank {rank} / {len(all_costs)} path. '
+        overall_info = f'Path cost: {selected_path.getCost()}. Min cost: {all_costs[0]}. Max cost: {all_costs[-1]}'
+        logging.info(rank_info + overall_info)
+          
+    # log the utilization ratio of each boundary
+    for routing_edge, paths in routing_edge_to_selected_paths.items():
+      total_data_width = sum([path.data_width for path in paths])
+      logging.debug(f'boundary {routing_edge._name} is passed by {total_data_width} / {routing_edge.capacity} = {total_data_width / routing_edge.capacity} ')
+      for path in paths:
+        logging.debug(f'  {path.bridge_name}')
 
   def _getILPResults(
     self,
@@ -389,23 +433,24 @@ class ILPRouter:
     path_to_var,
     routing_edge_to_paths
   ) -> Dict[str, List[Slot]]:
-    e_name_to_paths = {}
+
+    # get the selected paths
+    bridge_to_selected_path = {}
     for bridge, paths in bridge_to_paths.items():
       for path in paths:
         val = path_to_var[path].x
         assert abs(val - round(val)) < 0.0001
         if round(val) == 1:
-          # exclude the source and destination
-          e_name_to_paths[bridge.name] = path.getSlotsOfPath()[1:-1]
+          bridge_to_selected_path[bridge] = path
           logging.debug(f'bridge {bridge.name} is routed to: ')
           path.printPath()
-
           if path.getLength() > path.getTheoreticalShortestLength():
             logging.warning(f'{bridge.name} is not routed with the shortest paths')
 
           break
-      assert bridge.name in e_name_to_paths
+      assert bridge in bridge_to_selected_path
 
+    # get which paths will pass through a boundary
     routing_edge_to_selected_paths = defaultdict(list)
     for routing_edge, paths in routing_edge_to_paths.items():
       logging.debug(f'boundary {routing_edge._name} is passed by:')
@@ -415,11 +460,13 @@ class ILPRouter:
           routing_edge_to_selected_paths[routing_edge].append(path)
           logging.debug(f'  {path.bridge_name}')
 
-    for routing_edge, paths in routing_edge_to_selected_paths.items():
-      total_data_width = sum([path.data_width for path in paths])
-      logging.debug(f'boundary {routing_edge._name} is passed by {total_data_width} / {routing_edge.capacity} = {total_data_width / routing_edge.capacity} ')
-      for path in paths:
-        logging.debug(f'  {path.bridge_name}')
+    return bridge_to_selected_path, routing_edge_to_selected_paths
+
+  def _getENameToPathsExcludeSrcAndDst(self, bridge_to_selected_path):
+    e_name_to_paths = {}
+    # exclude the source and destination to feed back to the outside world   
+    for bridge, selected_path in bridge_to_selected_path.items():
+      e_name_to_paths[bridge.name] = selected_path.getSlotsOfPath()[1:-1]
 
     return e_name_to_paths
 
@@ -439,12 +486,20 @@ class ILPRouter:
 
     self._minimizeTotalPathArea(m, bridge_to_paths, path_to_var)
 
-    m.write('global_routing.lp')
     status = m.optimize()
-
     assert status == OptimizationStatus.OPTIMAL
 
-    return self._getILPResults(bridge_to_paths, path_to_var, routing_edge_to_paths)
+    # extract results
+    bridge_to_selected_path, routing_edge_to_selected_paths = \
+      self._getILPResults(bridge_to_paths, path_to_var, routing_edge_to_paths)
+
+    # logging and analysis
+    self._analyzeILPResults(bridge_to_paths, bridge_to_selected_path, routing_edge_to_selected_paths)
+
+    # convert the data format of the path
+    e_name_to_paths_without_src_and_dst =  self._getENameToPathsExcludeSrcAndDst(bridge_to_selected_path)
+
+    return e_name_to_paths_without_src_and_dst
 
 
 if __name__ == '__main__':  
