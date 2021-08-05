@@ -7,11 +7,11 @@ import logging
 import time
 import itertools
 import operator
-from typing import List, Dict
+from typing import List, Dict, Any
 from collections import defaultdict
 from mip import Model, minimize, CONTINUOUS, xsum, OptimizationStatus
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
-from autoparallel.BE.Utilities import loggingSetup
+from autoparallel.BE.Utilities import loggingSetup, getPairingLagunaTXOfRX
 from autoparallel.BE.Device import U250
 from autoparallel.BE.Utilities import isPairSLRCrossing, getDirectionOfSlotname
 from autoparallel.BE.AnchorPlacement.PairwiseAnchorPlacementForSLRCrossing import placeLagunaAnchors
@@ -489,17 +489,54 @@ def moveTXLagunaAnchorsToRX(anchor_2_loc):
 
 ##################### helper #####################################
 
+def _getAnchorToSourceCell(
+    common_anchor_connections: Dict[str, List[Dict[str, Any]]]
+) -> Dict[str, str]:
+  anchor_to_source_cell = {}
+  for anchor, end_cell_attr_list in common_anchor_connections.items():
+    for end_cell_attr in end_cell_attr_list:
+      if end_cell_attr['src_or_sink'] == 'source':
+        anchor_to_source_cell[anchor] = end_cell_attr['end_cell_name']
+        break
+  
+  return anchor_to_source_cell
 
-def writePlacementResults(anchor_2_loc):
+
+def writePlacementResults(
+  anchor_2_loc, 
+  common_anchor_connections: Dict[str, List[Dict[str, Any]]],
+  is_slr_crossing_pair: bool
+):
   """
   write out the results as a tcl file to place the anchors into the calculated positions
   """
-  f = open('place_anchors.tcl', 'w')
-  f.write('place_cell { \\\n')
+  script = []
+
+  # place the anchors
+  script.append('place_cell { \\')
   for anchor, loc in anchor_2_loc.items():
-    f.write(f'  {anchor} {loc} \\\n') # note that spaces are not allowed after \
-  f.write('}\n')
-  f.close()
+    script.append(f'  {anchor} {loc} \\') # note that spaces are not allowed after \
+  script.append('}')
+
+  # place the source of the anchors to the corresponding TX laguna reg
+  if is_slr_crossing_pair:
+    if pipeline_style == 'INVERT_CLOCK':
+      anchor_to_source_cell = _getAnchorToSourceCell(common_anchor_connections)
+      source_cell_to_loc = {}
+      for anchor, loc in anchor_2_loc.items():
+        assert 'LAGUNA' in loc and 'RX_REG' in loc
+        source_cell = anchor_to_source_cell[anchor]
+        
+        # if two anchor registers are connected
+        if 'q0_reg' in source_cell:
+          assert False, source_cell
+        
+        target_tx = getPairingLagunaTXOfRX(loc)
+        source_cell_to_loc[source_cell] = target_tx
+        
+      script += [f'catch {{ place_cell {source_cell} {loc} }}' for source_cell, loc in source_cell_to_loc.items()]
+
+  open('place_anchors.tcl', 'w').write('\n'.join(script))
 
 
 def collectAllConnectionsOfTargetAnchors(pair_name) -> Dict[str, List[Dict[str, str]]]:
@@ -616,6 +653,8 @@ if __name__ == '__main__':
   iter = int(sys.argv[4])
   hub = json.loads(open(hub_path, 'r').read())
 
+  pipeline_style = hub["InSlotPipelineStyle"]
+
   user_name = 'einsx7'
   server_list = ['u5','u17','u18','u15']
   
@@ -643,13 +682,14 @@ if __name__ == '__main__':
 
     slot1_name, slot2_name = pair_name.split('_AND_')
 
-    if isPairSLRCrossing(slot1_name, slot2_name):
+    is_slr_crossing_pair = isPairSLRCrossing(slot1_name, slot2_name)
+    if is_slr_crossing_pair:
       anchor_2_loc = placeLagunaAnchors(hub, pair_name, common_anchor_connections)
     else:
       anchor_2_slice_xy = runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
       anchor_2_loc = {anchor : f'SLICE_X{xy[0]}Y{xy[1]}' for anchor, xy in anchor_2_slice_xy.items() }
 
-    writePlacementResults(anchor_2_loc)
+    writePlacementResults(anchor_2_loc, common_anchor_connections, is_slr_crossing_pair)
     
     setupSlotClockRouting(anchor_2_loc)
     
