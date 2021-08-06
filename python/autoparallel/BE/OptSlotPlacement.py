@@ -42,6 +42,7 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   # optimize the slot based on the given anchor placement
   # do placement only so that we could track the change from the log
   script.append(f'phys_opt_design -directive Explore')
+  script.append(f'phys_opt_design -directive Explore')  # found that run it two times may work
   script.append(f'write_checkpoint -force {slot_name}_post_placed_opt.dcp')
 
   # report timing to check the timing improvement of slot phys_opt_design
