@@ -75,6 +75,8 @@ fi
 echo "Waiting for 15s, please check..."
 sleep 15
 
+echo $(date +"%T")
+
 # set up Gurobi
 echo "Set up Gurobi env variables"
 export GUROBI_HOME="/home/einsx7/pr/solver/gurobi902/linux64"
@@ -132,6 +134,7 @@ for server in ${SERVER_LIST[*]} ; do
 done
 
 wait
+echo $(date +"%T")
 
 echo "Post-placement opt finished"
 echo "Start routing anchor clocks..."
@@ -145,4 +148,4 @@ for server in ${SERVER_LIST[*]} ; do
 done
 
 wait
-
+echo $(date +"%T")
