@@ -170,22 +170,25 @@ class GlobalRouting:
     # UPDATE: note that we always add pipelining near the source of the edge.
     # thus the pipeline level is equal to the distance
 
-    if self.in_slot_pipeline_style == 'REG':
-      pipeline_level = int(dist / 2)
-    elif self.in_slot_pipeline_style == 'LUT':
-      pipeline_level = int(dist / 2)
-    elif self.in_slot_pipeline_style == 'WIRE':
-      pipeline_level = int(dist / 2)
-    elif self.in_slot_pipeline_style == 'DOUBLE_REG':
-      pipeline_level = dist 
-    elif self.in_slot_pipeline_style == 'INVERT_CLOCK':
+    if self.in_slot_pipeline_style == 'INVERT_CLOCK':
+      assert self.anchor_plan == 3
       pipeline_level = dist
       
-    # anchor_plan will take effect when connecting to the inner slot
-    # for a long connection, anchor_plan of 3 will add one additonal register between the source inner-most wrapper 
-    # and the first anchor register; and add another register between the last anchor register and the 
-    # destination inner-most wrapper
-    pipeline_level += (self.anchor_plan - 1)
+    else:
+      if self.in_slot_pipeline_style == 'REG':
+        pipeline_level = int(dist / 2)
+      elif self.in_slot_pipeline_style == 'LUT':
+        pipeline_level = int(dist / 2)
+      elif self.in_slot_pipeline_style == 'WIRE':
+        pipeline_level = int(dist / 2)
+      elif self.in_slot_pipeline_style == 'DOUBLE_REG':
+        pipeline_level = dist
+        
+      # anchor_plan will take effect when connecting to the inner slot
+      # for a long connection, anchor_plan of 3 will add one additonal register between the source inner-most wrapper 
+      # and the first anchor register; and add another register between the last anchor register and the 
+      # destination inner-most wrapper
+      pipeline_level += (self.anchor_plan - 1)
     
     return pipeline_level
 
