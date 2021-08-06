@@ -144,8 +144,12 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script += addAllAnchors(hub, base_dir, [slot_name])
 
     script.append(f'route_design')
+    script.append(f'write_checkpoint routed.dcp')
+    script.append(f'set fp [open "clock_route.txt" "w" ]') # to check the row buffer tap
+    script.append(f'puts $fp [get_property ROUTE [get_nets ap_clk]]')
+    script.append(f'close $fp')
+
     script.append(f'phys_opt_design')
-    script.append(f'puts [get_property ROUTE [get_nets ap_clk]]') # to check the row buffer tap
 
     # remove the placeholder anchors
     script += removePlaceholderAnchors()
