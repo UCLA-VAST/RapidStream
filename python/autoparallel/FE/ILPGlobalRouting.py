@@ -196,12 +196,19 @@ class RoutingPath:
     We want to pass through less utilized slots as much as possible
     use the sum of DSP and BRAM percentage of each slot * wire_length
     """
-    dsp_cost = sum(self.util[v.slot]['DSP'] for v in self.vertices)
-    bram_cost = sum(self.util[v.slot]['BRAM'] for v in self.vertices)
-    lut_cost = sum(self.util[v.slot]['LUT'] for v in self.vertices)
-    cost = (dsp_cost + bram_cost + 0.7 * lut_cost) * self.data_width
+    dsp_costs = [self.util[v.slot]['DSP'] for v in self.vertices]
+    bram_costs = [self.util[v.slot]['BRAM'] for v in self.vertices]
+    lut_costs = [self.util[v.slot]['LUT'] for v in self.vertices]
 
-    return cost
+    cost = (sum(dsp_costs) + sum(bram_costs) + 0.7 * sum(lut_costs)) * self.data_width
+
+    return round(cost, 4)
+
+  def getSrcSlotName(self) -> str:
+    return self.vertices[0].slot_name
+
+  def getDstSlotName(self) -> str:
+    return self.vertices[-1].slot_name
 
 
 class RoutingGraph:
@@ -416,8 +423,8 @@ class ILPRouter:
         selected_path = bridge_to_selected_path[bridge]
         rank = bisect(all_costs, selected_path.getCost())
 
-        rank_info = f'{bridge.name} is routed with the rank {rank} / {len(all_costs)} path. '
-        overall_info = f'Path cost: {selected_path.getCost()}. Min cost: {all_costs[0]}. Max cost: {all_costs[-1]}'
+        rank_info = f'{bridge.name} from {selected_path.getSrcSlotName()} to {selected_path.getDstSlotName()} is routed with the rank {rank} / {len(all_costs)} path. '
+        overall_info = f'Path cost: {selected_path.getCost()}. All costs: {all_costs}'
         logging.info(rank_info + overall_info)
           
     # log the utilization ratio of each boundary
