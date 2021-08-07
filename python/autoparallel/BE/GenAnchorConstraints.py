@@ -100,8 +100,11 @@ def __constrainSlotBody(hub, slot_name):
   list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
   SLICE_buffer_pblock = slice_buffer_at_boundary + '\n' + slice_buffer_besides_laguna + '\n' + '\n'.join(list_of_anchor_region_dsp_and_bram)
 
-  return __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
+  script = __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
+  script.append(f'report_utilization -pblock [get_pblocks {pblock_name}]')
 
+  return script
+  
 def __constrainSlotWires(hub, slot_name):
   assert re.search(r'CR_X\d+Y\d+_To_CR_X\d+Y\d+', slot_name), f'unexpected format of the slot name {slot_name}'
   DL_x, DL_y, UR_x, UR_y = [int(val) for val in re.findall(r'[XY](\d+)', slot_name)] # DownLeft & UpRight
