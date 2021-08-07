@@ -49,6 +49,7 @@ class Manager:
     floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager, 
                                       grouping_hints=pattern_insts, 
                                       grouping_constraints=grouping_constraints)
+    open('floorplan_results.json', 'w').write(json.dumps({"FloorplanVertex":floorplan.getSlotNameToVertexNames()}, indent=2))
 
     # grid routing of edges 
     logging.info(f'Pipeline style is: {self.pipeline_style}')
