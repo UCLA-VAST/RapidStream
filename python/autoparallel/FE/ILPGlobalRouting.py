@@ -196,9 +196,14 @@ class RoutingPath:
     We want to pass through less utilized slots as much as possible
     use the sum of DSP and BRAM percentage of each slot * wire_length
     """
-    dsp_costs = [self.util[v.slot]['DSP'] for v in self.vertices]
-    bram_costs = [self.util[v.slot]['BRAM'] for v in self.vertices]
-    lut_costs = [self.util[v.slot]['LUT'] for v in self.vertices]
+    try:
+      dsp_costs = [self.util[v.slot]['DSP'] if v.slot in self.util else 0 for v in self.vertices]
+      bram_costs = [self.util[v.slot]['BRAM'] if v.slot in self.util else 0  for v in self.vertices]
+      lut_costs = [self.util[v.slot]['LUT'] if v.slot in self.util else 0  for v in self.vertices]
+    except:
+      [v.slot.getRTLModuleName() if v.slot not in self.util else '' for v in self.vertices]
+      import pdb; pdb.set_trace()
+
 
     cost = (sum(dsp_costs) + sum(bram_costs) + 0.7 * sum(lut_costs)) * self.data_width
 
