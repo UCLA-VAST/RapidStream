@@ -133,7 +133,59 @@ for server in ${SERVER_LIST[*]} ; do
     ssh ${server} "cd ${BASE_DIR}/opt_placement_iter0/ && parallel < parallel-opt-placement-${server}.txt" >> ${BASE_DIR}/backend_slot_opt.log 2>&1   &
 done
 
-wait
+while :
+do
+    done_num=$(find ${BASE_DIR}/slot_synth -maxdepth 2 -type f -name *.dcp.done.flag | wc -w)
+    total_num=$(find ${BASE_DIR}/slot_synth -maxdepth 1 -type d -name CR* | wc -l)
+    echo "[$(date +"%T")] Synthesis: ${done_num}/${total_num} finished"
+
+    if (( ${done_num} == ${total_num} )); then
+        break
+    fi
+
+    sleep 30
+done
+
+while :
+do
+    done_num=$(find ${BASE_DIR}/init_slot_placement -maxdepth 2 -type f -name *.dcp.done.flag | wc -w)
+    total_num=$(find ${BASE_DIR}/init_slot_placement -maxdepth 1 -type d -name CR* | wc -l)
+    echo "[$(date +"%T")] Slot Placement: ${done_num}/${total_num} finished"
+    
+    if (( ${done_num} == ${total_num} )); then
+        break
+    fi
+
+    sleep 30
+done
+
+while :
+do
+    done_num=$(find ${BASE_DIR}/ILP_anchor_placement_iter0 -maxdepth 2 -type f -name *.done.flag | wc -w)
+    total_num=$(find ${BASE_DIR}/ILP_anchor_placement_iter0 -maxdepth 1 -type d -name CR* | wc -l)
+    echo "[$(date +"%T")] Anchor Placement: ${done_num}/${total_num} finished"
+    
+    if (( ${done_num} == ${total_num} )); then
+        break
+    fi
+
+    sleep 30
+done
+
+while :
+do
+    done_num=$(find ${BASE_DIR}/opt_placement_iter0 -maxdepth 2 -type f -name *post_placed_opt.dcp | wc -w)
+    total_num=$(find ${BASE_DIR}/opt_placement_iter0 -maxdepth 1 -type d -name CR* | wc -l)
+    echo "[$(date +"%T")] Slot Placement Opt: ${done_num}/${total_num} finished"
+    
+    if (( ${done_num} == ${total_num} )); then
+        break
+    fi
+
+    sleep 30
+done
+
+
 echo $(date +"%T")
 
 echo "Post-placement opt finished"
@@ -147,5 +199,18 @@ for server in ${SERVER_LIST[*]} ; do
     ssh ${server} "cd ${BASE_DIR}/slot_routing/ && parallel < parallel-route-with-ooc-clock-${server}.txt" >> ${BASE_DIR}/backend_slot_routing.log 2>&1   &
 done
 
-wait
+while :
+do
+    done_num=$(find ${BASE_DIR}/slot_routing -maxdepth 2 -type f -name phys_opt_routed_with_ooc_clock.dcp | wc -w)
+    total_num=$(find ${BASE_DIR}/slot_routing -maxdepth 1 -type d -name CR* | wc -l)
+    echo "[$(date +"%T")] Slot Routing: ${done_num}/${total_num} finished"
+    
+    if (( ${done_num} == ${total_num} )); then
+        break
+    fi
+
+    sleep 30
+done
+
+echo "Finished"
 echo $(date +"%T")
