@@ -13,10 +13,9 @@ root = logging.getLogger()
 root.setLevel(logging.DEBUG)
 
 BEND_COUNT_LIMIT = 2
-USAGE_LIMIT = 0.7
-VERTICAL_BOUNDARY_CAPACITY = int(5280 * USAGE_LIMIT)
-SLR_CROSSING_BOUNDARY_CAPACITY = int(5760 * USAGE_LIMIT)
-NON_SLR_CROSSING_HORIZONTAL_BOUNDARY = int(9440 * USAGE_LIMIT)
+VERTICAL_BOUNDARY_CAPACITY = 5280
+SLR_CROSSING_BOUNDARY_CAPACITY = 5760
+NON_SLR_CROSSING_HORIZONTAL_BOUNDARY = 9440
 
 
 class RoutingVertex:
@@ -217,10 +216,17 @@ class RoutingPath:
 
 
 class RoutingGraph:
-  def __init__(self, util: Dict[Slot, Dict[str, float]]):
+  def __init__(
+      self, 
+      util: Dict[Slot, Dict[str, float]], 
+      routing_usage_limit: int,
+      detour_path_limit: int,
+  ) -> None:
     self.slot_name_to_vertex = {}
     self.edges = []
     self.util = util  # resource usage of each slot
+    self.routing_usage_limit = routing_usage_limit
+    self.detour_path_limit = detour_path_limit
     self._getRoutingGraphForU250()
 
   def _getRoutingGraphForU250(self):
@@ -243,7 +249,7 @@ class RoutingGraph:
         v1 = self.slot_name_to_vertex[left_slot]
         v2 = self.slot_name_to_vertex[right_slot]
 
-        e = RoutingEdge(v1, v2, VERTICAL_BOUNDARY_CAPACITY)
+        e = RoutingEdge(v1, v2, int(VERTICAL_BOUNDARY_CAPACITY*self.routing_usage_limit))
         self.edges.append(e)
 
     # create all edges for slr crossing boundaries
@@ -254,7 +260,7 @@ class RoutingGraph:
         v_lower = self.slot_name_to_vertex[lower_slot]
         v_upper = self.slot_name_to_vertex[upper_slot]
 
-        e = RoutingEdge(v_lower, v_upper, SLR_CROSSING_BOUNDARY_CAPACITY)
+        e = RoutingEdge(v_lower, v_upper, int(SLR_CROSSING_BOUNDARY_CAPACITY*self.routing_usage_limit))
         self.edges.append(e)
 
     # create all edges for non-slr-crossing horizontal boundaries
@@ -265,7 +271,7 @@ class RoutingGraph:
         v_lower = self.slot_name_to_vertex[lower_slot]
         v_upper = self.slot_name_to_vertex[upper_slot]
 
-        e = RoutingEdge(v_lower, v_upper, NON_SLR_CROSSING_HORIZONTAL_BOUNDARY)
+        e = RoutingEdge(v_lower, v_upper, int(NON_SLR_CROSSING_HORIZONTAL_BOUNDARY*self.routing_usage_limit))
         self.edges.append(e)
 
   def _getShortestDist(self, src: RoutingVertex, dst: RoutingVertex):
@@ -295,7 +301,7 @@ class RoutingGraph:
     init_path = RoutingPath(
       vertices = [src],
       bend_count = 0,
-      length_limit = shortest_dist + 4,
+      length_limit = shortest_dist + self.detour_path_limit,
       data_width = data_width,
       bridge_name = bridge_name,
       util = self.util
@@ -318,24 +324,35 @@ class RoutingGraph:
 
 
 class ILPRouter:
-  def __init__(self, bridge_list: List[Edge], v2s: Dict[Vertex, Slot], util: Dict[Slot, Dict[str, float]]) -> None:
+  def __init__(
+      self, 
+      bridge_list: List[Edge], 
+      v2s: Dict[Vertex, Slot], 
+      util: Dict[Slot, Dict[str, float]]
+  ) -> None:
     """
     to avoid confusion, here we call the data transfer path betwee two slots a "bridge"
     we need to map each bridge to a set of routing edges in the routing graph
     """
     self.bridge_list = bridge_list
     self.v2s = v2s
-    self.routing_graph = RoutingGraph(util)
+    self.util = util
 
-  def _getBridgeToCandidatePaths(self) -> Dict[Edge, List[RoutingPath]]:
+  def _getBridgeToCandidatePaths(
+      self, 
+      routing_usage_limit: float, 
+      detour_path_limit: int
+  ) -> Dict[Edge, List[RoutingPath]]:
     """
     for each edge, generate the candidate paths to select from
     """
+    routing_graph = RoutingGraph(self.util, routing_usage_limit, detour_path_limit)
+
     bridge_to_paths = {}
     for bridge in self.bridge_list:
       src_slot_name = self.v2s[bridge.src].getRTLModuleName()
       dst_slot_name = self.v2s[bridge.dst].getRTLModuleName()
-      path_candidates = self.routing_graph.findAllPaths(
+      path_candidates = routing_graph.findAllPaths(
         src_slot_name, dst_slot_name, bridge.width, bridge.name
       )
 
@@ -482,10 +499,14 @@ class ILPRouter:
 
     return e_name_to_paths
 
-  def ILPRouting(self) -> Dict[str, List[Slot]]:
+  def ILPRouting(
+      self,
+      routing_usage_limit: float = 0.7,
+      detour_path_limit: int = 4
+  ) -> Dict[str, List[Slot]]:
     m = Model()
 
-    bridge_to_paths = self._getBridgeToCandidatePaths()
+    bridge_to_paths = self._getBridgeToCandidatePaths(routing_usage_limit, detour_path_limit)
     path_to_var = self._getPathToVar(m, bridge_to_paths)
     routing_edge_to_paths = self._getRoutingEdgeToPassingPaths(bridge_to_paths)
 
