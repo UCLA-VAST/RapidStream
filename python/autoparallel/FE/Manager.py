@@ -18,6 +18,7 @@ from autoparallel.FE.CreateRoutingSlotWrapper import CreateRoutingSlotWrapper
 from autoparallel.FE.CreateCtrlSlotWrapper import CreateCtrlSlotWrapper
 from autoparallel.FE.CreateResultJson import CreateResultJson
 from autoparallel.FE.CreateTopRTLForCtrlWrappers import CreateTopRTLForCtrlWrappers
+from autoparallel.FE.FIFOCalibration import FIFOCalibration
 
 
 class Manager:
@@ -57,6 +58,8 @@ class Manager:
 
     # latency balancing
     rebalance = LatencyBalancing(graph, floorplan, global_router)
+
+    FIFOCalibration(floorplan)
 
     logging.info(f'Creating compute wrappers...')
     compute_wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan, global_router, rebalance, self.target)
