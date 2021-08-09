@@ -412,8 +412,8 @@ class CreateSlotWrapper:
 
     self.__addIndent(decl, io_decl, v_insts, e_insts, stmt)
 
-    v_insts = self.__setKeepHier(v_insts)
-    e_insts = self.__setKeepHier(e_insts)
+    # v_insts = self.__setKeepHier(v_insts)
+    # e_insts = self.__setKeepHier(e_insts)
 
     wrapper = header + decl + io_decl + v_insts + e_insts + stmt + ending
     if self.target == 'hw':
