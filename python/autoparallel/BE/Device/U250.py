@@ -445,6 +445,7 @@ def getLagunaAnchorInclusivePblock(slot_name):
 def generateAnchorInclusivePblock():
   """
   expand the buffer region a little to allow more routing space for anchor nets
+  [UPDATE] do not expand the anchor region
   """
   
   vertical_segment = [['' for j in range(8)] for i in range(5)]
@@ -454,21 +455,21 @@ def generateAnchorInclusivePblock():
     vertical_segment[0][i] = ' '
 
   for i in range(8):
-    # vertical_segment[1][i] = f'DSP48E2_X7Y{48*i}:DSP48E2_X7Y{48*i+47} SLICE_X56Y{120*i}:SLICE_X58Y{120*i+119}'
-    vertical_segment[1][i] = f'DSP48E2_X7Y{48*i}:DSP48E2_X7Y{48*i+47} SLICE_X55Y{120*i}:SLICE_X59Y{120*i+119}'
+    vertical_segment[1][i] = f'DSP48E2_X7Y{48*i}:DSP48E2_X7Y{48*i+47} SLICE_X56Y{120*i}:SLICE_X58Y{120*i+119}'
+    # vertical_segment[1][i] = f'DSP48E2_X7Y{48*i}:DSP48E2_X7Y{48*i+47} SLICE_X55Y{120*i}:SLICE_X59Y{120*i+119}'
 
   for i in range(8):
-    # vertical_segment[2][i] = f'SLICE_X115Y{120*i}:SLICE_X117Y{120*i+119}'
-    vertical_segment[2][i] = f'SLICE_X114Y{120*i}:SLICE_X118Y{120*i+119}'
+    vertical_segment[2][i] = f'SLICE_X115Y{120*i}:SLICE_X117Y{120*i+119}'
+    # vertical_segment[2][i] = f'SLICE_X114Y{120*i}:SLICE_X118Y{120*i+119}'
 
   for i in range(8):
-    # vertical_segment[3][i] = f'DSP48E2_X24Y{48*i}:DSP48E2_X24Y{48*i+47} SLICE_X175Y{120*i}:SLICE_X177Y{120*i+119}'
-    vertical_segment[3][i] = f'DSP48E2_X24Y{48*i}:DSP48E2_X24Y{48*i+47} SLICE_X174Y{120*i}:SLICE_X178Y{120*i+119}'
+    vertical_segment[3][i] = f'DSP48E2_X24Y{48*i}:DSP48E2_X24Y{48*i+47} SLICE_X175Y{120*i}:SLICE_X177Y{120*i+119}'
+    # vertical_segment[3][i] = f'DSP48E2_X24Y{48*i}:DSP48E2_X24Y{48*i+47} SLICE_X174Y{120*i}:SLICE_X178Y{120*i+119}'
 
   for i in range(8):
     vertical_segment[4][i] = ' '
 
-  gap = 1
+  gap = 0
 
   for i in range(4):
     horizontal_segment[0][i*2+1] = f'RAMB36_X0Y{23+48*i}:RAMB36_X3Y{24+48*i} RAMB18_X0Y{46+96*i}:RAMB18_X3Y{49+96*i} DSP48E2_X0Y{46+96*i}:DSP48E2_X7Y{49+96*i} SLICE_X0Y{115+240*i-gap}:SLICE_X58Y{124+240*i+gap}'
