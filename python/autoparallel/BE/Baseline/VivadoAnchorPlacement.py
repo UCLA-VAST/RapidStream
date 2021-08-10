@@ -1,6 +1,7 @@
 #! /usr/bin/python3.6
 import logging
 import json
+import math
 import os
 import sys
 from autoparallel.BE.GenAnchorConstraints import createAnchorPlacementExtractScript, __getBufferRegionSize
@@ -158,10 +159,7 @@ def CreateWrapperForSlotPair(slot1_name, slot2_name):
 def createVivadoScriptForSlotPair(
     slot1_name,
     slot2_name,
-    wrapper_path, 
-    dcp_name2path : dict,
-    clk_xdc_path,
-    output_dir = '.'):
+    output_dir):
   pair_name = f'{slot1_name}_AND_{slot2_name}'
 
   fpga_part_name = hub["FPGA_PART_NAME"]
@@ -171,10 +169,10 @@ def createVivadoScriptForSlotPair(
   script.append(f'set_part {fpga_part_name}')
 
   # read in the original RTLs by HLS
-  script.append(f'read_verilog "{wrapper_path}"')  
+  script.append(f'read_verilog {baseline_dir}/{pair_name}/{pair_name}.v')  
 
   # clock xdc
-  script.append(f'read_xdc "{clk_xdc_path}"')
+  script.append(f'read_xdc {synth_dir}/clock.xdc')
 
   # synth
   script.append(f'synth_design -top "{pair_name}" -part {fpga_part_name} -mode out_of_context')
@@ -209,7 +207,7 @@ def createVivadoScriptForSlotPair(
   script.append(f'report_utilization -pblocks [get_pblocks anchor_region]')
 
   # place and anchors
-  # Using Quick will result in bad results...
+  script.append(f'lock_design -unlock -level placement')
   script.append(f'place_design')
 
   # extract anchor placement
@@ -219,6 +217,26 @@ def createVivadoScriptForSlotPair(
 
   open(f'{output_dir}/place.tcl', 'w').write('\n'.join(script))
 
+
+def getParallelScript():
+  task = []
+  for slot1_name, slot2_name in hub["AllSlotPairs"]:
+    pair_name = f'{slot1_name}_AND_{slot2_name}'
+
+    cd = f'cd {baseline_dir}/{pair_name}'
+    vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source place.tcl'
+
+    transfer = []
+    for server in server_list:
+      transfer.append(f'rsync -azh --delete -r {baseline_dir}/{pair_name}/ {user_name}@{server}:{baseline_dir}/{pair_name}/')
+    transfer_str = "&&".join(transfer)
+
+    task.append(f'{cd} && {vivado} && {transfer_str}')
+
+  num_job_server = math.ceil(len(task) / len(server_list) ) 
+  for i, server in enumerate(server_list):
+    local_tasks = task[i * num_job_server: (i+1) * num_job_server]
+    open(f'{baseline_dir}/parallel-vivado-anchor-place-{server}.txt', 'w').write('\n'.join(local_tasks))
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
@@ -231,6 +249,7 @@ if __name__ == '__main__':
 
   hub = json.loads(open(hub_path, 'r').read())
 
+  synth_dir = f'{base_dir}/slot_synth'
   placement_dir = f'{base_dir}/init_slot_placement'
   baseline_dir = f'{base_dir}/baseline_vivado_anchor_placement'
   os.mkdir(baseline_dir)
@@ -243,3 +262,5 @@ if __name__ == '__main__':
     os.mkdir(f'{baseline_dir}/{pair_name}')
 
     CreateWrapperForSlotPair(slot1_name, slot2_name)
+    createVivadoScriptForSlotPair(slot1_name, slot2_name, f'{baseline_dir}/{pair_name}')
+    
