@@ -49,6 +49,10 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --run-vivado-anchor-placement)
+      VIVADO_ANCHOR_PLACEMENT=1
+      shift # past argument
+      ;;
     *)    # unknown option
       POSITIONAL+=("$1") # save it in an array for later
       shift # past argument
@@ -64,6 +68,7 @@ echo "USE_UNIQUE_SYNTH_DCP    = ${USE_UNIQUE_SYNTH_DCP}"
 echo "UNIQUE_SLOT_SYNTH_PATH  = ${UNIQUE_SLOT_SYNTH_PATH}"
 echo "INVERT_ANCHOR_CLOCK     = ${INVERT_ANCHOR_CLOCK}"
 echo "TARGET_PERIOD           = ${TARGET_PERIOD}"
+echo "VIVADO_ANCHOR_PLACEMENT = ${VIVADO_ANCHOR_PLACEMENT}"
 echo "VIV_VER                 = ${VIV_VER}"
 echo "SERVER_LIST             = ${SERVER_LIST[@]}"
 
@@ -103,6 +108,7 @@ python3.6 -m autoparallel.BE.Clock.SlotAnchorClockRouting  ${HUB} ${BASE_DIR} ${
 python3.6 -m autoparallel.BE.SlotRouting ${HUB} ${BASE_DIR} ${VIV_VER}
 python3.6 -m autoparallel.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VIV_VER}
 python3.6 -m autoparallel.BE.SLRLevelStitch ${HUB} ${BASE_DIR} ${VIV_VER}
+python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${TARGET_PERIOD}
 
 echo "Distrube scripts to multiple servers..."
 for server in ${SERVER_LIST[*]} ; do
