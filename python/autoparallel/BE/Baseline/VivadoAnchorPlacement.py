@@ -264,3 +264,4 @@ if __name__ == '__main__':
     CreateWrapperForSlotPair(slot1_name, slot2_name)
     createVivadoScriptForSlotPair(slot1_name, slot2_name, f'{baseline_dir}/{pair_name}')
     
+  getParallelScript()
