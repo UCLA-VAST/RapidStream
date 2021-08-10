@@ -201,7 +201,7 @@ done
 
 while :
 do
-    done_num=$(find ${BASE_DIR}/slot_routing -maxdepth 2 -type f -name phys_opt_routed_with_ooc_clock.dcp | wc -w)
+    done_num=$(find ${BASE_DIR}/slot_routing -maxdepth 3 -type f -name phys_opt_routed_with_ooc_clock.dcp | wc -w)
     total_num=$(find ${BASE_DIR}/slot_routing -maxdepth 1 -type d -name CR* | wc -l)
     echo "[$(date +"%T")] Slot Routing: ${done_num}/${total_num} finished"
     
