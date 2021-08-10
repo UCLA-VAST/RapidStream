@@ -10,7 +10,7 @@ def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
   create a script for vivado to print the information into a json file
   """
   tcl = []
-  tcl.append(f'set fileId [open {slot_name}_anchor_placement.tcl "w"]')
+  tcl.append(f'set fileId [open place_anchors.tcl "w"]')
   tcl.append('puts $fileId "place_cell { \\"')
 
   print_cmd = r'catch {{ puts $fileId [format "  \"%s\" \"%s/%s\" \\" {reg_name} [get_property LOC [get_cells {reg_name}]] [lindex [split [get_property BEL [get_cells {reg_name}]] "."] 1] ] }}'
@@ -31,9 +31,7 @@ def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
   tcl.append(f'close $fileId')
 
   # create a done flag
-  tcl.append(f'set fileId [open {slot_name}_anchor_placement.tcl.done.flag "w"]')
-  tcl.append('puts $fileId "done"')
-  tcl.append(f'close $fileId')
+  tcl.append(f'exec touch {output_dir}/place_anchors.tcl.done.flag')
 
   open(f'{output_dir}/{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
 
