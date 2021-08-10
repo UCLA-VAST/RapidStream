@@ -66,7 +66,7 @@ def unrouteNonLagunaAnchorDPinQPinNets() -> List[str]:
   script = []
 
   script.append('set non_laguna_anchors [get_cells  -filter { NAME =~  "*q0_reg*" && LOC !~  "*LAGUNA*" } ]')
-  script.append('set non_laguna_anchor_nets [ get_nets -of_objects $non_laguna_anchors -filter { TYPE == "SIGNAL" && "ROUTE_STATUS" != "HIERPORT"} ]')
+  script.append('set non_laguna_anchor_nets [ get_nets -of_objects $non_laguna_anchors -filter { TYPE == "SIGNAL" && ROUTE_STATUS != "HIERPORT"} ]')
   script.append('route_design -unroute -nets $non_laguna_anchor_nets')
 
   return script
@@ -185,7 +185,7 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
   all_tasks = []
 
   parse_timing_report_1 = 'python3.6 -m autoparallel.BE.TimingReportParser ILP_anchor_placement_iter1'
-  parse_timing_report_2 = 'python3.6 -m autoparallel.BE.TimingReportParser slot_routing_iter0'
+  parse_timing_report_2 = 'python3.6 -m autoparallel.BE.TimingReportParser phys_opt_routed/slot_routing_iter0'
 
   for slot_name in hub['SlotIO'].keys():
     vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source route_with_ooc_clock.tcl'
