@@ -1,10 +1,11 @@
 #! /usr/bin/python3.6
 import logging
 import json
+import os
 import sys
 from autoparallel.BE.GenAnchorConstraints import createAnchorPlacementExtractScript, __getBufferRegionSize
 from autoparallel.BE.Device import U250
-from typing import List, Set, Dict, Tuple
+from typing import Set, Dict, Tuple
 
 def getHeader(slot1_name, slot2_name):
   header = ['\n\n`timescale 1 ns / 1 ps',
@@ -18,7 +19,7 @@ def getIODecl(slot1_io : dict, slot2_io : dict, wrapper_io : dict):
   
   return io_decl
 
-def getConnection(inner_connection, pipeline_level, in_slot_pipeline_style):
+def getConnection(inner_connection):
   """
   get the RTL to connect the slots
   data links will be pipelined
@@ -26,25 +27,15 @@ def getConnection(inner_connection, pipeline_level, in_slot_pipeline_style):
   @param connection: the RTL section
   @param pipeline_reg: all the pipeline registers instantiated
   """
-  assert pipeline_level == 1, f'currently only support pipeline_level of 1'
-
   connection = []
   pipeline_regs = []
+
+  pipeline_level = 1  # keep this for historical reason
+
   for io, dir_width in inner_connection.items():
     width = dir_width[1] if len(dir_width) == 2 else ''
     connection.append(f'  wire {width} {io}_in;')
     connection.append(f'  wire {width} {io}_out;')
-
-    if in_slot_pipeline_style == 'REG':
-      assert False
-      # only pipeline _pass_0 connections
-      if '_pass_0' not in io:
-        connection.append(f'  assign {io}_in = {io}_out;')
-        continue     
-    else:
-      assert  in_slot_pipeline_style == 'LUT' or \
-              in_slot_pipeline_style == 'WIRE' or \
-              in_slot_pipeline_style == 'DOUBLE_REG'
 
     # assign the input wire equals the output wire
     if pipeline_level == 0:
@@ -98,7 +89,7 @@ def getEmptyWrapper(slot_name, slot_io):
   empty_wrapper.append(f'endmodule')
   return empty_wrapper
 
-def getTopIOAndInnerConnectionOfPair(hub, slot1_name, slot2_name) -> Tuple[Set, Dict]:
+def getTopIOAndInnerConnectionOfPair(slot1_name, slot2_name) -> Tuple[Set, Dict]:
   slot1_io = hub['SlotIO'][slot1_name]
   slot2_io = hub['SlotIO'][slot2_name]
 
@@ -120,7 +111,7 @@ def getTopIOAndInnerConnectionOfPair(hub, slot1_name, slot2_name) -> Tuple[Set, 
 
   return wrapper_io, inner_connection
 
-def getPairWrapper(hub, slot1_name, slot2_name, pipeline_level, in_slot_pipeline_style):
+def getPairWrapper(slot1_name, slot2_name):
   """ 
   group together two neighbor slots 
   Wires of passing edges should not be pipelined
@@ -134,13 +125,13 @@ def getPairWrapper(hub, slot1_name, slot2_name, pipeline_level, in_slot_pipeline
   slot1_io = convert(slot1_io)
   slot2_io = convert(slot2_io)
 
-  wrapper_io, inner_connection = getTopIOAndInnerConnectionOfPair(hub, slot1_name, slot2_name)
+  wrapper_io, inner_connection = getTopIOAndInnerConnectionOfPair(slot1_name, slot2_name)
 
   header = getHeader(slot1_name, slot2_name)
   io_decl = getIODecl(slot1_io, slot2_io, wrapper_io)
 
   # pipelined connection between the two slots
-  connection, pipeline_regs = getConnection(inner_connection, pipeline_level, in_slot_pipeline_style)
+  connection, pipeline_regs = getConnection(inner_connection)
 
   slot1_inst = getInstance(slot1_name, slot1_io, wrapper_io, inner_connection)
   slot2_inst = getInstance(slot2_name, slot2_io, wrapper_io, inner_connection)
@@ -153,23 +144,26 @@ def getPairWrapper(hub, slot1_name, slot2_name, pipeline_level, in_slot_pipeline
 
   return pair_wrapper, pipeline_regs
 
-def CreateWrapperForSlotPair(hub, slot1_name, slot2_name, pipeline_level, output_dir, wrapper_name, in_slot_pipeline_style):
-  pair_wrapper, pipeline_regs = getPairWrapper(hub, slot1_name, slot2_name, pipeline_level, in_slot_pipeline_style)
+
+def CreateWrapperForSlotPair(slot1_name, slot2_name):
+  pair_name = f'{slot1_name}_AND_{slot2_name}'
+  pair_wrapper, pipeline_regs = getPairWrapper(slot1_name, slot2_name)
   
-  open(f'{output_dir}/{wrapper_name}.v', 'w').write('\n'.join(pair_wrapper))
+  open(f'{baseline_dir}/{pair_name}/{pair_name}.v', 'w').write('\n'.join(pair_wrapper))
 
   # in the meantime create the placement extraction script
-  createAnchorPlacementExtractScript(f'{slot1_name}_AND_{slot2_name}', pipeline_regs, output_dir)
+  createAnchorPlacementExtractScript(pair_name, pipeline_regs, f'{baseline_dir}/{pair_name}')
 
-  return pair_wrapper
 
 def createVivadoScriptForSlotPair(
-    hub, 
-    wrapper_name,
+    slot1_name,
+    slot2_name,
     wrapper_path, 
     dcp_name2path : dict,
     clk_xdc_path,
     output_dir = '.'):
+  pair_name = f'{slot1_name}_AND_{slot2_name}'
+
   fpga_part_name = hub["FPGA_PART_NAME"]
 
   script = []
@@ -183,7 +177,7 @@ def createVivadoScriptForSlotPair(
   script.append(f'read_xdc "{clk_xdc_path}"')
 
   # synth
-  script.append(f'synth_design -top "{wrapper_name}" -part {fpga_part_name} -mode out_of_context')
+  script.append(f'synth_design -top "{pair_name}" -part {fpga_part_name} -mode out_of_context')
   script.append(f'write_checkpoint synth.dcp')
 
   # make Vivado place the anchors on lagunas
@@ -191,74 +185,61 @@ def createVivadoScriptForSlotPair(
   script.append(f'set_property USER_SLL_REG 1 [get_cells -regexp {{ .*q0_reg.* }} ]')
 
   # read in the dcp of slots
-  for name, path in dcp_name2path.items():
-    script.append(f'read_checkpoint -cell {name}_U0 {path}')
-    # delete pblocks immediately after reading incase conflict
-    script.append(f'delete_pblock [get_pblock *]')
+  script.append(f'read_checkpoint -cell {slot1_name}_U0 {placement_dir}/{slot1_name}/{slot1_name}_placed_no_anchor.dcp')
+  script.append(f'read_checkpoint -cell {slot2_name}_U0 {placement_dir}/{slot2_name}/{slot2_name}_placed_no_anchor.dcp')
+  
+  script.append(f'delete_pblock [get_pblock *]')
+  script.append(f'lock_design -level placement')
 
   # constrain the pipeline registers. get the pblocks based on slot names
-  script.append(f'create_pblock buffer_for_anchors')
-  script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks buffer_for_anchors]')
+  script.append(f'create_pblock anchor_region')
 
   # corner case: there may be no anchors between two slots
-  script.append( 'catch {add_cells_to_pblock [get_pblocks buffer_for_anchors] [get_cells -regexp {.*q0_reg.*} ] }')
-  
-  assert len(dcp_name2path) == 2
-  names = list(dcp_name2path.keys())
+  script.append( 'catch {add_cells_to_pblock [get_pblocks anchor_region] [get_cells -regexp {.*q0_reg.*} ] }')
+
   col_width, row_width = __getBufferRegionSize(None, None) # TODO: should automatically choose a suitable buffer region size
-  buffer_between_two_slots = U250.getBufferRegionBetweenSlotPair(names[0], names[1], col_width, row_width)
+  anchor_region_def = U250.getBufferRegionBetweenSlotPair(slot1_name, slot2_name, col_width, row_width)
 
   # note that we need to include lagunas into the pblocks
   # otherwise the placer will deem no SLL could be used
   # since there are only 1 pipeline register, the registers will not be placed onto laguna sites (which require a pair)
-  script.append(f'resize_pblock [get_pblocks buffer_for_anchors] -add {{{buffer_between_two_slots}}}')
-  
-  # constrain the timing with placeholder LUTs
-  if hub['InSlotPipelineStyle'] == 'LUT':
-    script.append(setMaxDelayFromLut())
-    
+  script.append(f'resize_pblock [get_pblocks anchor_region] -add {{{anchor_region_def}}}')
+
   # report the anchor usage of the buffer region
-  script.append(f'report_utilization -pblocks [get_pblocks buffer_for_anchors]')
+  script.append(f'report_utilization -pblocks [get_pblocks anchor_region]')
 
   # place and anchors
   # Using Quick will result in bad results...
-  script.append(f'place_design -directive RuntimeOptimized')
+  script.append(f'place_design')
 
   # extract anchor placement
-  script.append(f'source {wrapper_name}_print_anchor_placement.tcl')
+  script.append(f'source {pair_name}_print_anchor_placement.tcl')
 
-  script.append(f'write_checkpoint {wrapper_name}_placed.dcp')
+  script.append(f'write_checkpoint {pair_name}_placed.dcp')
 
   open(f'{output_dir}/place.tcl', 'w').write('\n'.join(script))
 
-def setMaxDelayFromLut():
-  return '''
-set placeholder_luts [get_cells -hierarchical -filter { PRIMITIVE_TYPE == CLB.LUT.LUT1 && NAME =~  "*_lut*" } ]
-foreach lut $placeholder_luts {
-  
-  puts "--- processing ${lut} --- "
 
-  set all_nets_of_lut [get_nets -segments -of_objects [get_cells ${lut} ]]
+if __name__ == '__main__':
+  logging.basicConfig(level=logging.INFO)
 
-  set anchor_pin [get_pins -of_objects ${all_nets_of_lut}  -filter { PARENT_CELL =~  "*_q0_reg*" } ]
+  assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
+  hub_path = sys.argv[1]
+  base_dir = sys.argv[2]
+  VIV_VER=sys.argv[3]
+  CLOCK_PERIOD = sys.argv[4]
 
-  # the placeholder LUT may be of paths in different directions.
-  if { ${anchor_pin} != "" } {
-    puts $anchor_pin
+  hub = json.loads(open(hub_path, 'r').read())
 
-    set lut_pin [ get_pins  -filter { PARENT_CELL =~  "*_lut*" } -of_objects [ get_nets -of_objects [get_pins ${anchor_pin}] -segments ] ]
+  placement_dir = f'{base_dir}/init_slot_placement'
+  baseline_dir = f'{base_dir}/baseline_vivado_anchor_placement'
+  os.mkdir(baseline_dir)
 
-    puts $lut_pin
+  user_name = 'einsx7'
+  server_list=['u5','u17','u18','u15']
 
-    set dir [get_property DIRECTION [get_pins ${lut_pin} ] ]
+  for slot1_name, slot2_name in hub["AllSlotPairs"]:
+    pair_name = f'{slot1_name}_AND_{slot2_name}'
+    os.mkdir(f'{baseline_dir}/{pair_name}')
 
-    if { ${dir} == "OUT" } {
-      puts "constrain path from LUT to anchor FDRE"
-      set_max_delay 1 -datapath_only -from ${lut_pin} -to ${anchor_pin}
-    } else {
-      puts "constrain path from anchor FDRE to LUT"
-      set_max_delay 1 -datapath_only -from ${anchor_pin} -to ${lut_pin}
-    }
-  }
-}  
-  '''
+    CreateWrapperForSlotPair(slot1_name, slot2_name)
