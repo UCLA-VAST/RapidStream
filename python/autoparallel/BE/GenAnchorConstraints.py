@@ -11,7 +11,7 @@ def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
   """
   tcl = []
   tcl.append(f'set fileId [open place_anchors.tcl "w"]')
-  tcl.append('puts $fileId "place_cell { \\"')
+  tcl.append('puts $fileId "place_cell { \\ "')
 
   print_cmd = r'catch {{ puts $fileId [format "  \"%s\" \"%s/%s\" \\" {reg_name} [get_property LOC [get_cells {reg_name}]] [lindex [split [get_property BEL [get_cells {reg_name}]] "."] 1] ] }}'
 
