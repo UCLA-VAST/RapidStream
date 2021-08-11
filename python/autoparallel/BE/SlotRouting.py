@@ -134,17 +134,18 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
     script += addRoutingPblock(slot_name, enable_anchor_pblock=True)
 
-    # *** prevent gap in clock routing
-    script.append(f'set_property ROUTE "" [get_nets ap_clk]')
-    script.append(f'source -notrace {anchor_clock_routing_dir}/{slot_name}/set_anchor_clock_route.tcl')
-    script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
+    if DO_NOT_FIX_CLOCK == 0:
+      # *** prevent gap in clock routing
+      script.append(f'set_property ROUTE "" [get_nets ap_clk]')
+      script.append(f'source -notrace {anchor_clock_routing_dir}/{slot_name}/set_anchor_clock_route.tcl')
+      script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
-    # add hold uncertainty
-    # since we find a trick to keep a consistent tap for row buffers, we don't need this
-    script.append(f'set_clock_uncertainty -hold 0.05 [get_clocks ap_clk]')
+      # add hold uncertainty
+      # since we find a trick to keep a consistent tap for row buffers, we don't need this
+      script.append(f'set_clock_uncertainty -hold 0.05 [get_clocks ap_clk]')
 
-    # include all anchors to ensure the tap of row buffers are properly set
-    script += addAllAnchors(hub, base_dir, [slot_name])
+      # include all anchors to ensure the tap of row buffers are properly set
+      script += addAllAnchors(hub, base_dir, [slot_name])
 
     script.append(f'route_design')
     script.append(f'write_checkpoint routed.dcp')
@@ -207,13 +208,19 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
 
 
 if __name__ == '__main__':
-  assert len(sys.argv) == 4, 'input (1) the path to the front end result file and (2) the target directory'
+  assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   VIV_VER=sys.argv[3]
+  DO_NOT_FIX_CLOCK = int(sys.argv[4])  # for comparison purpose
+
   opt_dir = f'{base_dir}/opt_placement_iter0'
-  routing_dir = f'{base_dir}/slot_routing'
-  anchor_clock_routing_dir = f'{base_dir}/slot_anchor_clock_routing'
+
+  if DO_NOT_FIX_CLOCK == 0:
+    routing_dir = f'{base_dir}/slot_routing'
+    anchor_clock_routing_dir = f'{base_dir}/slot_anchor_clock_routing'
+  else:
+    routing_dir = f'{base_dir}/slot_routing_do_not_fix_clock'
 
   user_name = 'einsx7'
   server_list=['u5','u17','u18','u15']

@@ -207,7 +207,6 @@ def createVivadoScriptForSlotPair(
   script.append(f'report_utilization -pblocks [get_pblocks anchor_region]')
 
   # place and anchors
-  script.append(f'lock_design -unlock -level placement')
   script.append(f'place_design')
 
   # extract anchor placement
@@ -246,6 +245,9 @@ if __name__ == '__main__':
   base_dir = sys.argv[2]
   VIV_VER=sys.argv[3]
   CLOCK_PERIOD = sys.argv[4]
+
+  logging.warning('Only 2020.1 supports read_checkpoint -cell. Enforce 2020.1')
+  VIV_VER = '2020.1'
 
   hub = json.loads(open(hub_path, 'r').read())
 
