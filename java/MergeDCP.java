@@ -160,10 +160,12 @@ public class MergeDCP {
                 // Check if this is VCC or GND
                 List<EDIFPortInst> srcs = net.getSourcePortInsts(false);
                 if(srcs != null && srcs.size() >= 1) {
-                    EDIFCell cell = srcs.get(0).getCellInst().getCellType(); 
-                    if(cell.isPrimitive() && cell.getName().equals("VCC") || cell.getName().equals("GND")) {
+                    EDIFCell cell = srcs.get(0).getCellInst().getCellType();
+                    String cellName = cell.getName();
+                    if(cell.isPrimitive() && cellName.equals("VCC") || cellName.equals("GND")) {
                         EDIFNet destNet = design0Top.getNet(net.getName());
-                        for(EDIFPortInst portInst : net.getPortInsts()) {
+                        for(EDIFPortInst portInst : new ArrayList<>(net.getPortInsts())) {
+                            portInst.getNet().removePortInst(portInst);
                             destNet.addPortInst(portInst);
                         }
                     }
