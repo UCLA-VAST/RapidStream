@@ -3,6 +3,7 @@ import json
 import os
 import math
 from typing import List
+import autoparallel.BE.Constants as Constants
 from autoparallel.BE.Device import U250
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autoparallel.BE.Utilities import getAnchorTimingReportScript
@@ -65,7 +66,7 @@ def unrouteNonLagunaAnchorDPinQPinNets() -> List[str]:
   script = []
 
   script.append('set non_laguna_anchors [get_cells  -filter { NAME =~  "*q0_reg*" && LOC !~  "*LAGUNA*" } ]')
-  script.append('set non_laguna_anchor_nets [ get_nets -of_objects $non_laguna_anchors -filter {NAME != "ap_clk" && NAME != "<const0>" && NAME != "<const1>"} ]')
+  script.append('set non_laguna_anchor_nets [ get_nets -of_objects $non_laguna_anchors -filter { TYPE == "SIGNAL" && ROUTE_STATUS != "HIERPORT"} ]')
   script.append('route_design -unroute -nets $non_laguna_anchor_nets')
 
   return script
@@ -75,6 +76,8 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     script = []
 
     pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
+    
+    detailed_pblock_def = U250.getDetailedRangeOfClockRegion(slot_name)
 
     # relax placement pblocks
     # do this before updating the clock to prevent vivado crash
@@ -95,16 +98,18 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     # To get a clean anchor region, we set the routing pblock to strictly disjoint from the anchor regions
     # The prerequisite is that the placement pblock is even smaller than the routing pblock.
     # we need at least 1 row/col of empty space at the boundary to make the boundary nets routable.
-    buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
-    slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num)
-    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_at_boundary} }}')
-    list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
-    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {" ".join(list_of_anchor_region_dsp_and_bram)} }}')
+    # buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
+    # slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num, is_for_placement=False)
+    # script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_at_boundary} }}')
+    # list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+    # script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {" ".join(list_of_anchor_region_dsp_and_bram)} }}')
 
     script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
     script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_ctrl_U0]')
     script.append(f'set_property SNAPPING_MODE ON [get_pblocks {slot_name}]')
     script.append(f'endgroup')
+
+    script.append(f'report_utilization -pblock [get_pblocks {slot_name}]')
 
     if enable_anchor_pblock:
       script.append(f'set_property PARENT anchor_pblock [get_pblocks {slot_name}]')
@@ -142,8 +147,12 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script += addAllAnchors(hub, base_dir, [slot_name])
 
     script.append(f'route_design')
+    script.append(f'write_checkpoint routed.dcp')
+    script.append(f'set fp [open "clock_route.txt" "w" ]') # to check the row buffer tap
+    script.append(f'puts $fp [get_property ROUTE [get_nets ap_clk]]')
+    script.append(f'close $fp')
+
     script.append(f'phys_opt_design')
-    script.append(f'puts [get_property ROUTE [get_nets ap_clk]]') # to check the row buffer tap
 
     # remove the placeholder anchors
     script += removePlaceholderAnchors()
@@ -152,10 +161,11 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script.append(f'set_clock_uncertainty -hold 0 [get_clocks ap_clk]')
 
     # sometimes phys_opt_design make things worse, probably because of the fixed clock
-    script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/phys_opt_routed_with_ooc_clock.dcp')
-    script.append(f'write_edif -force {routing_dir}/{slot_name}/phys_opt_routed_with_ooc_clock.edf')
+    script.append(f'exec mkdir {routing_dir}/{slot_name}/phys_opt_routed')
+    script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/phys_opt_routed/phys_opt_routed_with_ooc_clock.dcp')
+    script.append(f'write_edif -force {routing_dir}/{slot_name}/phys_opt_routed/phys_opt_routed_with_ooc_clock.edf')
 
-    script += getAnchorTimingReportScript(report_prefix='slot_routing_iter0')
+    script += getAnchorTimingReportScript(report_prefix='phys_opt_routed/slot_routing_iter0')
 
     # record the route of laguna nets
     script += extractLagunaAnchorRoutes(slot_name)
@@ -163,7 +173,9 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     # unroute non-laguna anchor D pin /Q pin nets
     script += unrouteNonLagunaAnchorDPinQPinNets()
 
-    script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted.dcp')
+    script.append(f'exec mkdir {routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted')
+    script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted/non_laguna_anchor_nets_unrouted.dcp')
+    script.append(f'write_edif -force {routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted/non_laguna_anchor_nets_unrouted.edf')
 
     open(f'{routing_dir}/{slot_name}/route_with_ooc_clock.tcl', "w").write('\n'.join(script))
 
@@ -173,14 +185,20 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
   all_tasks = []
 
   parse_timing_report_1 = 'python3.6 -m autoparallel.BE.TimingReportParser ILP_anchor_placement_iter1'
-  parse_timing_report_2 = 'python3.6 -m autoparallel.BE.TimingReportParser slot_routing_iter0'
+  parse_timing_report_2 = 'python3.6 -m autoparallel.BE.TimingReportParser phys_opt_routed/slot_routing_iter0'
 
   for slot_name in hub['SlotIO'].keys():
     vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source route_with_ooc_clock.tcl'
     dir = f'{routing_dir}/{slot_name}/'
     
     transfer = f'rsync -azh --delete -r {dir} {user_name}@{main_server_name}:{dir}'
-    all_tasks.append(f'cd {dir} && {vivado} && {transfer} && {parse_timing_report_1} && {parse_timing_report_2}')
+
+    setup_rw = f'source {Constants.RWROUTE_SETUP_PATH}'
+    target_dcp_path = f'{routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted/'
+    target_dcp = f'{target_dcp_path}/non_laguna_anchor_nets_unrouted.dcp'
+    test_rwroute = Constants.RWROUTE.format(dcp=target_dcp, target_dir=target_dcp_path)
+
+    all_tasks.append(f'cd {dir} && {vivado} && {transfer} && {parse_timing_report_1} && {parse_timing_report_2} && {setup_rw} && {test_rwroute}')
     
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):

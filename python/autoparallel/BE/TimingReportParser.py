@@ -41,6 +41,7 @@ class TimingReportParser:
       anchor_connections[anchor].append(
         {
           'src_or_sink' : self.end_cell_role,
+          'end_cell_name': self.getEndCellName(slack_section), 
           'end_cell_site': end_cell_site,
           'num_lut_on_path' : lut_count,
           'normalized_coordinate' : U250.getCalibratedCoordinatesFromSiteName(end_cell_site),
@@ -127,6 +128,19 @@ class TimingReportParser:
     
     assert False
 
+  def getEndCellName(self, slack_section: List[str]) -> str:
+    """
+    get the name of the cell that connects to the anchor FF
+    """
+    for line in slack_section:
+      if '_q0_reg' not in line:
+        if 'Source:' in line or 'Destination:' in line:
+          # the last section after "/" will be the pin name. We do not want that part
+          match = re.search(r'(Source:|Destination:)[ ]*([^ ]*)/[^/]+', line)
+          return match.group(2)
+
+    assert False
+
   def getDataTimingPathOfSlackSection(self, slack_section: List[str]) -> List[str]:
     """
     get all elements from the last/next sequential element to the anchor register
@@ -201,8 +215,8 @@ if __name__ == '__main__':
 
   from_anchor_report = f'{curr_dir}/{report_prefix}_timing_path_from_anchor.txt'
   to_anchor_report = f'{curr_dir}/{report_prefix}_timing_path_to_anchor.txt'
-  assert os.path.isfile(from_anchor_report)
-  assert os.path.isfile(to_anchor_report)
+  assert os.path.isfile(from_anchor_report), from_anchor_report
+  assert os.path.isfile(to_anchor_report), to_anchor_report
 
   parser_from_anchor = TimingReportParser('from_anchor', from_anchor_report)
   parser_to_anchor = TimingReportParser('to_anchor', to_anchor_report)

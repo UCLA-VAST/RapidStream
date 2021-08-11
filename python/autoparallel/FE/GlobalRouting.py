@@ -1,8 +1,10 @@
 #! /usr/bin/python3.6
 import logging
-import json
 from collections import defaultdict 
+
 from autobridge.Opt.DataflowGraph import Vertex, Edge
+from autoparallel.FE.ILPGlobalRouting import ILPRouter
+
 
 class GlobalRouting:
   def __init__(self, floorplan, top_rtl_parser, slot_manager, pipeline_style, anchor_plan: int):
@@ -22,8 +24,37 @@ class GlobalRouting:
     self.anchor_plan = anchor_plan
 
     logging.critical('current latency counting depends on 4-CR slot size')
-    self.naiveGlobalRouting()
+    self.ILPRouting()
     self.__initDirectionOfPassingEdges()
+
+  def ILPRouting(self):
+    all_edges = sum(self.s2e.values(), [])
+    ilp_router = ILPRouter(all_edges, self.v2s, self.floorplan.getUtilization())
+    self.e_name2path = ilp_router.ILPRouting()
+
+    # register the passed slots as routing slots
+    for path in self.e_name2path.values():
+      for slot in path:
+        self.slot_manager.createSlotForRouting(slot.getName())
+
+    self.postProcessRoutingResults()
+    
+  def postProcessRoutingResults(self):
+
+    for e_name, slots in self.e_name2path.items():
+      for s in slots:
+        if s not in self.slot2e_names:
+          self.slot2e_names[s] = []
+        self.slot2e_names[s].append(e_name)
+
+    for slot, e_names in self.slot2e_names.items():
+        logging.info(f'{slot.getName()} will be passed by: \n\t' + '\n\t'.join(e_names))
+
+    for e_list in self.s2e.values():
+      for e in e_list:
+        # assume each slot is 2x2. The path excludes the src and dst slot
+        dist = ( len(self.e_name2path[e.name]) + 1 ) * 2 
+        self.e_name2lat[e.name] = self.__getPipelineLevelOfEdge(dist)
 
   def naiveGlobalRouting(self):
     """
@@ -31,11 +62,6 @@ class GlobalRouting:
     assume all slots are of the same size and are aligned
     the slot_path exclude the src slot and the dst slot
     """
-    def __initEdgeLatency():
-      for e_list in self.s2e.values():
-        for e in e_list:
-          self.e_name2lat[e.name] = self.__getPipelineLevelOfEdge(e) # FIXME: should be based on the global routing results
-
     for e_list in self.s2e.values():
       for e in e_list:
         slot_path = []
@@ -68,16 +94,8 @@ class GlobalRouting:
         logging.info(f'{e.name}: {self.v2s[e.src].getName()} -> {self.v2s[e.dst].getName()} : ' + ' '.join(s.getName() for s in slot_path))
         self.e_name2path[e.name] = slot_path
 
-    for e_name, slots in self.e_name2path.items():
-      for s in slots:
-        if s not in self.slot2e_names:
-          self.slot2e_names[s] = []
-        self.slot2e_names[s].append(e_name)
+    self.postProcessRoutingResults()
 
-    for slot, e_names in self.slot2e_names.items():
-        logging.info(f'{slot.getName()} will be passed by: \n\t' + '\n\t'.join(e_names))
-
-    __initEdgeLatency()
 
   def __initDirectionOfPassingEdges(self):
     """
@@ -142,24 +160,7 @@ class GlobalRouting:
       slot_to_dir_to_wires[slot] = dir_to_wires
     return slot_to_dir_to_wires
 
-  def __getPipelineLevelOfEdge(self, e : Edge) -> int:
-    src_slot = self.v2s[e.src]
-    dst_slot = self.v2s[e.dst]
-
-    src_x = src_slot.getPositionX()
-    src_y = src_slot.getPositionY()
-    dst_x = dst_slot.getPositionX()
-    dst_y = dst_slot.getPositionY()
-    dist = abs(src_x - dst_x) + abs(src_y - dst_y)
-
-    # note that the current implementation relies on 4-CR slot size
-    def check_size(s):
-      assert s.getOrigUpRightX() == s.getOrigDownLeftX() + 1
-      assert s.getOrigUpRightY() == s.getOrigDownLeftY() + 1
-
-    check_size(src_slot)
-    check_size(dst_slot)
-
+  def __getPipelineLevelOfEdge(self, dist: int) -> int:
     # add a register every 2 clock regions
     # note that the pipeline level excludes the inherent 1 cycle of latency of the FIFO 
     # the pipeline registers are put into each intermediate slots
@@ -169,24 +170,25 @@ class GlobalRouting:
     # UPDATE: note that we always add pipelining near the source of the edge.
     # thus the pipeline level is equal to the distance
 
-    if self.in_slot_pipeline_style == 'REG':
-      pipeline_level = int(dist / 2)
-    elif self.in_slot_pipeline_style == 'LUT':
-      pipeline_level = int(dist / 2)
-    elif self.in_slot_pipeline_style == 'WIRE':
-      pipeline_level = int(dist / 2)
-    elif self.in_slot_pipeline_style == 'DOUBLE_REG':
-      pipeline_level = dist 
-    elif self.in_slot_pipeline_style == 'INVERT_CLOCK':
+    if self.in_slot_pipeline_style == 'INVERT_CLOCK':
+      assert self.anchor_plan == 3
       pipeline_level = dist
       
-    # anchor_plan will take effect when connecting to the inner slot
-    # for a long connection, anchor_plan of 3 will add one additonal register between the source inner-most wrapper 
-    # and the first anchor register; and add another register between the last anchor register and the 
-    # destination inner-most wrapper
-    pipeline_level += (self.anchor_plan - 1)
-
-    logging.info(f'edge {e.name}: ({src_x}, {src_y}) -> ({dst_x}, {dst_y}); pipeline level : {pipeline_level}')
+    else:
+      if self.in_slot_pipeline_style == 'REG':
+        pipeline_level = int(dist / 2)
+      elif self.in_slot_pipeline_style == 'LUT':
+        pipeline_level = int(dist / 2)
+      elif self.in_slot_pipeline_style == 'WIRE':
+        pipeline_level = int(dist / 2)
+      elif self.in_slot_pipeline_style == 'DOUBLE_REG':
+        pipeline_level = dist
+        
+      # anchor_plan will take effect when connecting to the inner slot
+      # for a long connection, anchor_plan of 3 will add one additonal register between the source inner-most wrapper 
+      # and the first anchor register; and add another register between the last anchor register and the 
+      # destination inner-most wrapper
+      pipeline_level += (self.anchor_plan - 1)
     
     return pipeline_level
 
@@ -218,9 +220,3 @@ class GlobalRouting:
 
   def isPureRoutingSlot(self, slot):
     return self.slot_manager.isPureRoutingSlot(slot)
-
-if __name__ == '__main__':
-  json_path = './BE_pass1_anchored.json'
-  json_hub = json.loads(open(json_path, 'r').read())
-
-

@@ -10,7 +10,7 @@ def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
   create a script for vivado to print the information into a json file
   """
   tcl = []
-  tcl.append(f'set fileId [open {slot_name}_anchor_placement.tcl "w"]')
+  tcl.append(f'set fileId [open place_anchors.tcl "w"]')
   tcl.append('puts $fileId "place_cell { \\"')
 
   print_cmd = r'catch {{ puts $fileId [format "  \"%s\" \"%s/%s\" \\" {reg_name} [get_property LOC [get_cells {reg_name}]] [lindex [split [get_property BEL [get_cells {reg_name}]] "."] 1] ] }}'
@@ -31,9 +31,7 @@ def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
   tcl.append(f'close $fileId')
 
   # create a done flag
-  tcl.append(f'set fileId [open {slot_name}_anchor_placement.tcl.done.flag "w"]')
-  tcl.append('puts $fileId "done"')
-  tcl.append(f'close $fileId')
+  tcl.append(f'exec touch {output_dir}/place_anchors.tcl.done.flag')
 
   open(f'{output_dir}/{slot_name}_print_anchor_placement.tcl', 'w').write('\n'.join(tcl))
 
@@ -93,13 +91,18 @@ def __constrainSlotBody(hub, slot_name):
 
   # including vertical & horizontal buffer region, also leave a column of SLICE adjacent to lagunas empty
   # UPDATE: need additional empty space to facilitate routing. Thus we have the +1 adjustment
-  slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num+1, buffer_row_num+1)
+  slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num+1, buffer_row_num+1, is_for_placement=True)
+  
+  # we need gaps all around laguna columns, which has similar effects as boundaries
   slice_buffer_besides_laguna = U250.getAllLagunaBufferRegions(add_empty_space=True)
   list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
   SLICE_buffer_pblock = slice_buffer_at_boundary + '\n' + slice_buffer_besides_laguna + '\n' + '\n'.join(list_of_anchor_region_dsp_and_bram)
 
-  return __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
+  script = __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
+  script.append(f'report_utilization -pblock [get_pblocks {pblock_name}]')
 
+  return script
+  
 def __constrainSlotWires(hub, slot_name):
   assert re.search(r'CR_X\d+Y\d+_To_CR_X\d+Y\d+', slot_name), f'unexpected format of the slot name {slot_name}'
   DL_x, DL_y, UR_x, UR_y = [int(val) for val in re.findall(r'[XY](\d+)', slot_name)] # DownLeft & UpRight

@@ -59,7 +59,7 @@ class CreateSlotWrapper:
       grace_period = pipeline_level * 2 # round trip latency
       grace_period += 1 # additional pipelining of the full_n
       
-      inst = self.top_rtl_parser.getFIFOInstOfNewTemplate(e.name, e.width, e.depth + balance, grace_period)
+      inst = self.top_rtl_parser.getFIFOInstOfNewTemplate(e.name, e.width, e.depth + balance, grace_period, e.fifo_type)
       edge_insts.append(inst)
     
     return edge_insts
@@ -412,8 +412,8 @@ class CreateSlotWrapper:
 
     self.__addIndent(decl, io_decl, v_insts, e_insts, stmt)
 
-    v_insts = self.__setKeepHier(v_insts)
-    e_insts = self.__setKeepHier(e_insts)
+    # v_insts = self.__setKeepHier(v_insts)
+    # e_insts = self.__setKeepHier(e_insts)
 
     wrapper = header + decl + io_decl + v_insts + e_insts + stmt + ending
     if self.target == 'hw':

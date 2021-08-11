@@ -82,7 +82,7 @@ def setupSlotSynthesis():
   orig_rtl_path = hub['ORIG_RTL_PATH']
   assert os.path.isdir(orig_rtl_path)
 
-  xdc = createClockFromBUFGXDC()
+  xdc = createClockFromBUFGXDC(CLOCK_PERIOD)
   open(f'{synth_dir}/clock.xdc', 'w').write('\n'.join(xdc))  
   
   # note that pure routing slots are also implemented separately
@@ -133,11 +133,12 @@ def generateParallelScript(hub, user_name, server_list):
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
-  assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
+  assert len(sys.argv) == 6, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   VIV_VER=sys.argv[3]
   INVERT_ANCHOR_CLOCK=int(sys.argv[4])
+  CLOCK_PERIOD = sys.argv[5]
 
   if INVERT_ANCHOR_CLOCK:
     logging.warning('invert clock mode is on!')
