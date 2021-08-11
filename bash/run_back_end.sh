@@ -109,42 +109,60 @@ python3.6 -m autoparallel.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VI
 python3.6 -m autoparallel.BE.SLRLevelStitch ${HUB} ${BASE_DIR} ${VIV_VER}
 python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${TARGET_PERIOD}
 
+declare -a steps=(
+    "slot_synth" 
+    "init_slot_placement" 
+    "ILP_anchor_placement_iter0" 
+    "opt_placement_iter0"
+    "baseline_vivado_anchor_placement"
+    "baseline_opt_placement_iter0"
+    "slot_routing"
+    "slot_routing_do_not_fix_clock"
+)
+for step in "${steps[@]}"; do
+    SCRIPT=${BASE_DIR}/${step}/distributed_run.sh
+    
+    for server in ${SERVER_LIST[*]} ; do
+        echo "ssh ${server} \"cd ${BASE_DIR}/${step}/ && parallel < parallel_${step}_${server}.txt\" >> ${BASE_DIR}/backend_${step}.log 2>&1 &" >> ${SCRIPT}
+    done
+    echo "wait" >> ${SCRIPT}
+    chmod +x ${SCRIPT}
+
+    TRANSFER_SCRIPT=${BASE_DIR}/${step}/transfer.sh
+    for server in ${SERVER_LIST[*]} ; do
+        echo "rsync -azh --delete -r ${BASE_DIR}/${step}/ einsx7@${server}:${BASE_DIR}/${step} &" >> ${TRANSFER_SCRIPT}
+    done
+    echo "wait" >> ${TRANSFER_SCRIPT}
+    chmod +x ${TRANSFER_SCRIPT}
+done
+
+KILL_SCRIPT=${BASE_DIR}/kill.sh
+for server in ${SERVER_LIST[*]} ; do
+    echo "ssh ${server} kill -f vivado" >> ${KILL_SCRIPT}
+done
+chmod +x ${KILL_SCRIPT}
+
 echo "Distrube scripts to multiple servers..."
 for server in ${SERVER_LIST[*]} ; do
     rsync -azh --delete -r ${BASE_DIR}/ einsx7@${server}:${BASE_DIR} &
 done
-
 wait
 
 echo "Start running"
-# synthesis
+
 if [[ ${USE_UNIQUE_SYNTH_DCP} -eq 0 ]]; then
-    for server in ${SERVER_LIST[*]} ; do
-        ssh ${server} "cd ${BASE_DIR}/slot_synth/ && parallel < parallel-synth-${server}.txt" >> ${BASE_DIR}/backend_synth.log 2>&1 &
-    done
+    ${BASE_DIR}/slot_synth/distributed_run.sh &
 fi
 
-# placement
-for server in ${SERVER_LIST[*]} ; do
-    ssh ${server} "cd ${BASE_DIR}/init_slot_placement/ && parallel < parallel-place-all-${server}.txt" >> ${BASE_DIR}/backend_slot_place.log 2>&1  &
-done
+${BASE_DIR}/init_slot_placement/distributed_run.sh &
 
-# fire all ILP anchor placement in one server
-for server in ${SERVER_LIST[*]} ; do
-    ssh ${server} "source /home/einsx7/.bashrc && cd ${BASE_DIR}/ILP_anchor_placement_iter0/ && parallel < parallel-ilp-placement-iter0-${server}.txt" >> ${BASE_DIR}/backend_anchor_place.log 2>&1   &
-done
+${BASE_DIR}/ILP_anchor_placement_iter0/distributed_run.sh &
 
-for server in ${SERVER_LIST[*]} ; do
-    ssh ${server} "cd ${BASE_DIR}/opt_placement_iter0/ && parallel < parallel-opt-placement-${server}.txt" >> ${BASE_DIR}/backend_slot_opt.log 2>&1   &
-done
+${BASE_DIR}/opt_placement_iter0/distributed_run.sh &
 
 if [[ ${BASELINE_ANCHOR_PLACEMENT} -eq 1 ]]; then
-    for server in ${SERVER_LIST[*]} ; do
-        ssh ${server} "cd ${BASE_DIR}/baseline_vivado_anchor_placement/ && parallel < parallel-vivado-anchor-place-u${server}.txt" >> ${BASE_DIR}/backend_slot_opt_baseline.log 2>&1 &
-    done
-    for server in ${SERVER_LIST[*]} ; do
-        ssh ${server} "cd ${BASE_DIR}/baseline_opt_placement_iter0/ && parallel < parallel-opt-placement-u${server}.txt" >> ${BASE_DIR}/backend_slot_opt_baseline.log 2>&1 &
-    done
+    ${BASE_DIR}/baseline_vivado_anchor_placement/distributed_run.sh &
+    ${BASE_DIR}/baseline_opt_placement_iter0/distributed_run.sh &
 fi
 
 while :
@@ -204,14 +222,11 @@ echo $(date +"%T")
 
 echo "Post-placement opt finished"
 echo "Start routing anchor clocks..."
-cd ${BASE_DIR}/slot_anchor_clock_routing && parallel < parallel-run-slot-clock-routing.txt >> ${BASE_DIR}/backend_slot_clock_routing.log 2>&1  
-cd -
+parallel < ${BASE_DIR}/slot_anchor_clock_routing/parallel-run-slot-clock-routing.txt >> ${BASE_DIR}/backend_slot_clock_routing.log 2>&1  
 
 # routing
 echo "Start slot routing..."
-for server in ${SERVER_LIST[*]} ; do
-    ssh ${server} "cd ${BASE_DIR}/slot_routing/ && parallel < parallel-route-with-ooc-clock-${server}.txt" >> ${BASE_DIR}/backend_slot_routing.log 2>&1   &
-done
+${BASE_DIR}/slot_routing/distributed_run.sh &
 
 while :
 do

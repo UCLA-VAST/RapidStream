@@ -614,7 +614,7 @@ def setupAnchorPlacement(hub):
   num_job_server = math.ceil(len(tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = tasks[i * num_job_server: (i+1) * num_job_server]
-    open(f'{anchor_placement_dir}/parallel-ilp-placement-iter{iter}-{server}.txt', 'w').write('\n'.join(local_tasks))
+    open(f'{anchor_placement_dir}/parallel_ILP_anchor_placement_iter{iter}_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 
 def setupSlotClockRouting(anchor_2_loc):

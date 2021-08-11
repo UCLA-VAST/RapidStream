@@ -71,7 +71,7 @@ def generateParallelScript(hub, user_name, server_list):
   num_job_server = math.ceil(len(place) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = place[i * num_job_server: (i+1) * num_job_server]
-    open(f'{init_place_dir}/parallel-place-all-{server}.txt', 'w').write('\n'.join(local_tasks))
+    open(f'{init_place_dir}/parallel_init_slot_placement_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 
 if __name__ == '__main__':
