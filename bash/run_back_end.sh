@@ -2,16 +2,12 @@
 
 # -------------------------------------------
 VIV_VER="2021.1"
-
 # test not using the RW-unlocked dcps
 USE_UNIQUE_SYNTH_DCP=0
-
 INVERT_ANCHOR_CLOCK=0
-
 TARGET_PERIOD=2.5
-
 SERVER_LIST=("u5" "u15" "u17" "u18")
-
+BASELINE_ANCHOR_PLACEMENT=0
 #----------------------------------------------
 
 POSITIONAL=()
@@ -50,7 +46,7 @@ while [[ $# -gt 0 ]]; do
       shift # past value
       ;;
     --run-vivado-anchor-placement)
-      VIVADO_ANCHOR_PLACEMENT=1
+      BASELINE_ANCHOR_PLACEMENT=1
       shift # past argument
       ;;
     *)    # unknown option
@@ -62,23 +58,24 @@ done
 
 set -- "${POSITIONAL[@]}" # restore positional parameters
 
-echo "BASE_DIR                = ${BASE_DIR}"
-echo "HUB                     = ${HUB}"
-echo "USE_UNIQUE_SYNTH_DCP    = ${USE_UNIQUE_SYNTH_DCP}"
-echo "UNIQUE_SLOT_SYNTH_PATH  = ${UNIQUE_SLOT_SYNTH_PATH}"
-echo "INVERT_ANCHOR_CLOCK     = ${INVERT_ANCHOR_CLOCK}"
-echo "TARGET_PERIOD           = ${TARGET_PERIOD}"
-echo "VIVADO_ANCHOR_PLACEMENT = ${VIVADO_ANCHOR_PLACEMENT}"
-echo "VIV_VER                 = ${VIV_VER}"
-echo "SERVER_LIST             = ${SERVER_LIST[@]}"
+echo "BASE_DIR                  = ${BASE_DIR}"
+echo "HUB                       = ${HUB}"
+echo "USE_UNIQUE_SYNTH_DCP      = ${USE_UNIQUE_SYNTH_DCP}"
+echo "UNIQUE_SLOT_SYNTH_PATH    = ${UNIQUE_SLOT_SYNTH_PATH}"
+echo "INVERT_ANCHOR_CLOCK       = ${INVERT_ANCHOR_CLOCK}"
+echo "TARGET_PERIOD             = ${TARGET_PERIOD}"
+echo "BASELINE_ANCHOR_PLACEMENT = ${BASELINE_ANCHOR_PLACEMENT}"
+echo "VIV_VER                   = ${VIV_VER}"
+echo "SERVER_LIST               = ${SERVER_LIST[@]}"
 
 if [[ -n $1 ]]; then
     echo "Last line of file specified as non-opt/last argument:"
     tail -1 "$1"
 fi
 
-echo "Waiting for 15s, please check..."
-sleep 15
+PAUSE=15
+echo "Waiting for ${PAUSE}s, please check..."
+sleep ${PAUSE}
 
 echo $(date +"%T")
 
@@ -103,7 +100,8 @@ fi
 
 python3.6 -m autoparallel.BE.InitialSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${USE_UNIQUE_SYNTH_DCP} 
 python3.6 -m autoparallel.BE.PairwiseAnchorPlacement $HUB $BASE_DIR SETUP 0
-python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER}
+python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 0
+python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 1
 python3.6 -m autoparallel.BE.Clock.SlotAnchorClockRouting  ${HUB} ${BASE_DIR} ${VIV_VER} ${INVERT_ANCHOR_CLOCK}
 python3.6 -m autoparallel.BE.SlotRouting ${HUB} ${BASE_DIR} ${VIV_VER}
 python3.6 -m autoparallel.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VIV_VER}
@@ -138,6 +136,15 @@ done
 for server in ${SERVER_LIST[*]} ; do
     ssh ${server} "cd ${BASE_DIR}/opt_placement_iter0/ && parallel < parallel-opt-placement-${server}.txt" >> ${BASE_DIR}/backend_slot_opt.log 2>&1   &
 done
+
+if [[ ${BASELINE_ANCHOR_PLACEMENT} -eq 1 ]]; then
+    for server in ${SERVER_LIST[*]} ; do
+        ssh ${server} "cd ${BASE_DIR}/baseline_vivado_anchor_placement/ && parallel < parallel-vivado-anchor-place-u${server}.txt" >> ${BASE_DIR}/backend_slot_opt_baseline.log 2>&1 &
+    done
+    for server in ${SERVER_LIST[*]} ; do
+        ssh ${server} "cd ${BASE_DIR}/baseline_opt_placement_iter0/ && parallel < parallel-opt-placement-u${server}.txt" >> ${BASE_DIR}/backend_slot_opt_baseline.log 2>&1 &
+    done
+fi
 
 while :
 do

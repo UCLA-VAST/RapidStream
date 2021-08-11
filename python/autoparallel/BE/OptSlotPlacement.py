@@ -37,7 +37,7 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   script.append(f'write_checkpoint -force {slot_name}_before_placed_opt.dcp')
 
   # report timing to check the quality of anchor placement
-  script += getAnchorTimingReportScript(report_prefix='ILP_anchor_placement_iter0')
+  script += getAnchorTimingReportScript(report_prefix=anchor_source_dir)
 
   # optimize the slot based on the given anchor placement
   # do placement only so that we could track the change from the log
@@ -69,7 +69,7 @@ def generateParallelScript(hub, user_name, server_list):
   """
   all_tasks = []
   slot_names = hub['SlotIO'].keys()
-  parse_timing_report_1 = 'python3.6 -m autoparallel.BE.TimingReportParser ILP_anchor_placement_iter0'
+  parse_timing_report_1 = f'python3.6 -m autoparallel.BE.TimingReportParser {anchor_source_dir}'
   parse_timing_report_2 = 'python3.6 -m autoparallel.BE.TimingReportParser phys_opt_design_iter0'
 
   for slot_name in slot_names:
@@ -82,10 +82,12 @@ def generateParallelScript(hub, user_name, server_list):
     vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source {slot_name}_phys_opt_placement.tcl'
     
     # broadcast the results
+    transfer_list = []
     for server in server_list:
-      vivado += f' && rsync -azh --delete -r {opt_dir}/{slot_name}/ {user_name}@{server}:{opt_dir}/{slot_name}/'
+      transfer_list.append(f'rsync -azh --delete -r {opt_dir}/{slot_name}/ {user_name}@{server}:{opt_dir}/{slot_name}/')
+    transfer = ' && '.join(transfer_list)
 
-    command = f' {guards} && cd {opt_dir}/{slot_name} && {vivado} && {parse_timing_report_1} && {parse_timing_report_2}'
+    command = f' {guards} && cd {opt_dir}/{slot_name} && {vivado} && {parse_timing_report_1} && {parse_timing_report_2} && {transfer}'
     all_tasks.append(command)
 
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
@@ -110,16 +112,23 @@ def generateOptScript(hub):
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
-  assert len(sys.argv) == 4, 'input (1) the path to the front end result file and (2) the target directory'
+  assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   VIV_VER=sys.argv[3]
+  VIVADO_BASELINE = int(sys.argv[4])
 
   hub = json.loads(open(hub_path, 'r').read())
   pair_list = hub["AllSlotPairs"]
   pair_name_list = ['_AND_'.join(pair) for pair in pair_list]
 
-  opt_dir = base_dir + '/opt_placement_iter0'
+  if VIVADO_BASELINE == 0:
+    opt_dir = f'{base_dir}/opt_placement_iter0'
+    anchor_source_dir = 'ILP_anchor_placement_iter0'
+  else:
+    opt_dir = f'{base_dir}/baseline_opt_placement_iter0'
+    anchor_source_dir = 'baseline_vivado_anchor_placement'
+
   os.mkdir(opt_dir)  
 
   user_name = 'einsx7'
@@ -128,7 +137,7 @@ if __name__ == '__main__':
 
   # path of the checkpoint in the last iteration
   get_dcp_path = lambda slot_name: f'{base_dir}/init_slot_placement/{slot_name}/{slot_name}_placed.dcp'
-  get_anchor_placement_script = lambda pair_name : f'{base_dir}/ILP_anchor_placement_iter0/{pair_name}/place_anchors.tcl'
+  get_anchor_placement_script = lambda pair_name : f'{base_dir}/{anchor_source_dir}/{pair_name}/place_anchors.tcl'
   get_anchor_placement_flag = lambda pair_name : get_anchor_placement_script(pair_name) + '.done.flag'
 
   # path of the anchor placement in the current iteration
