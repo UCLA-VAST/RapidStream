@@ -1,6 +1,9 @@
-#! /usr/bin/python3.6
+import json
+import logging
+import os
 import sys
 from collections import defaultdict
+
 from autobridge.HLSParser.vivado_hls.HLSProjectManager import HLSProjectManager
 from autobridge.Device.DeviceManager import DeviceManager
 from autobridge.Opt.DataflowGraph import DataflowGraph
@@ -15,13 +18,8 @@ from autoparallel.FE.CreateRoutingSlotWrapper import CreateRoutingSlotWrapper
 from autoparallel.FE.CreateCtrlSlotWrapper import CreateCtrlSlotWrapper
 from autoparallel.FE.CreateResultJson import CreateResultJson
 from autoparallel.FE.CreateTopRTLForCtrlWrappers import CreateTopRTLForCtrlWrappers
-from autoparallel.FE.PatternOpt import getPatternBasedGrouping
-from autoparallel.FE.UnifyVertexType import unifyModuleTypesInTopRTL
+from autoparallel.FE.FIFOCalibration import FIFOCalibration
 
-import logging
-import json
-import re
-import os
 
 class Manager:
 
@@ -52,6 +50,7 @@ class Manager:
     floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager, 
                                       grouping_hints=pattern_insts, 
                                       grouping_constraints=grouping_constraints)
+    open('floorplan_results.json', 'w').write(json.dumps({"FloorplanVertex":floorplan.getSlotNameToVertexNames()}, indent=2))
 
     # grid routing of edges 
     logging.info(f'Pipeline style is: {self.pipeline_style}')
@@ -59,6 +58,8 @@ class Manager:
 
     # latency balancing
     rebalance = LatencyBalancing(graph, floorplan, global_router)
+
+    FIFOCalibration(floorplan)
 
     logging.info(f'Creating compute wrappers...')
     compute_wrapper_creater = CreateSlotWrapper(graph, top_rtl_parser, floorplan, global_router, rebalance, self.target)
@@ -74,7 +75,7 @@ class Manager:
 
 
     logging.info(f'Creating the new top RTL file...')
-    new_top_rtl = CreateTopRTLForCtrlWrappers(top_rtl_parser, ctrl_wrapper_creater, hls_prj_manager.getTopModuleName(), global_router)
+    new_top_rtl = CreateTopRTLForCtrlWrappers(top_rtl_parser, ctrl_wrapper_creater, hls_prj_manager.getTopModuleName(), global_router, self.target)
     
     open(f'wrapper_rtl/{hls_prj_manager.getTopModuleName()}.v', 'w').write(new_top_rtl)
       
@@ -126,7 +127,7 @@ class Manager:
   def loggingSetup(self):
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("[%(levelname)s: %(funcName)25s() ] %(message)s")
+    formatter = logging.Formatter("[%(levelname)s: %(funcName)s() %(filename)s:%(lineno)d] %(message)s")
     
     debug_file_handler = logging.FileHandler(filename='autoparallel-debug.log', mode='w')
     debug_file_handler.setLevel(logging.DEBUG)

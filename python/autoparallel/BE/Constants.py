@@ -1,0 +1,2 @@
+RWROUTE_SETUP_PATH = '/home/einsx7/rapidwright/rapidwright_rwroute/rapidwright.sh'
+RWROUTE = 'java com.xilinx.rapidwright.rwroute.RWRoute {dcp} {target_dir} --partialRouting --useUTurnNodes --enlargeBoundingBox --verticalINTTiles 2 --horizontalINTTiles 1 --verbose | tee {target_dir}/rwroute.log'

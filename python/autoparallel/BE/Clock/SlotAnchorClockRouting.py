@@ -26,6 +26,10 @@ def getSlotAnchorRoutingScript(anchor_initialization_scripts):
   # add the clock stem
   script += [f'source {set_clock_stem_script}']
 
+  # invert the clock
+  if IS_INVERT_CLOCK:
+    script.append(f'set_property IS_INVERTED 1 [ get_pins -filter {{ NAME =~ "*C" }} -of_object [get_cells *q0_reg*] ]')
+
   script += [f'route_design']
   script += [f'set clock_route [get_property ROUTE [get_nets ap_clk]]']
 
@@ -78,10 +82,11 @@ def getParallelScript():
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
 
-  assert len(sys.argv) == 4, 'input (1) the path to the front end result file and (2) the target directory'
+  assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   VIV_VER=sys.argv[3]
+  IS_INVERT_CLOCK = sys.argv[4]
 
   hub = json.loads(open(hub_path, 'r').read())
   pair_list = hub["AllSlotPairs"]
