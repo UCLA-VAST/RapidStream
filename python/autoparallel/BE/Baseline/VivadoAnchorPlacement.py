@@ -235,7 +235,7 @@ def getParallelScript():
   num_job_server = math.ceil(len(task) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = task[i * num_job_server: (i+1) * num_job_server]
-    open(f'{baseline_dir}/parallel-vivado-anchor-place-{server}.txt', 'w').write('\n'.join(local_tasks))
+    open(f'{baseline_dir}/parallel_baseline_vivado_anchor_placement_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)

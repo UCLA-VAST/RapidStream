@@ -204,7 +204,13 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
-    open(f'{routing_dir}/parallel-route-with-ooc-clock-{server}.txt', 'w').write('\n'.join(local_tasks))
+
+    if DO_NOT_FIX_CLOCK == 0:
+      folder_name = 'slot_routing'
+    else:
+      folder_name = 'slot_routing_do_not_fix_clock'
+
+    open(f'{routing_dir}/parallel_{folder_name}_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 
 if __name__ == '__main__':

@@ -93,7 +93,11 @@ def generateParallelScript(hub, user_name, server_list):
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
-    open(f'{opt_dir}/parallel-opt-placement-{server}.txt', 'w').write('\n'.join(local_tasks))
+    if VIVADO_BASELINE == 0:
+      folder_name = 'opt_placement_iter0'
+    else:
+      folder_name = 'baseline_opt_placement_iter0'
+    open(f'{opt_dir}/parallel_{folder_name}_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 def generateOptScript(hub):
   """
