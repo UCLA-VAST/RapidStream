@@ -45,10 +45,14 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
-    --run-vivado-anchor-placement)
-      BASELINE_ANCHOR_PLACEMENT=1
+    --test-vivado-anchor-placement)
+      VIVADO_ANCHOR_PLACEMENT=1
       shift # past argument
       ;;
+    --test-random-anchor-placement)
+      RANDOM_ANCHOR_PLACEMENT=1
+      shift # past argument
+      ;;      
     *)    # unknown option
       POSITIONAL+=("$1") # save it in an array for later
       shift # past argument
@@ -64,7 +68,8 @@ echo "USE_UNIQUE_SYNTH_DCP      = ${USE_UNIQUE_SYNTH_DCP}"
 echo "UNIQUE_SLOT_SYNTH_PATH    = ${UNIQUE_SLOT_SYNTH_PATH}"
 echo "INVERT_ANCHOR_CLOCK       = ${INVERT_ANCHOR_CLOCK}"
 echo "TARGET_PERIOD             = ${TARGET_PERIOD}"
-echo "BASELINE_ANCHOR_PLACEMENT = ${BASELINE_ANCHOR_PLACEMENT}"
+echo "VIVADO_ANCHOR_PLACEMENT   = ${VIVADO_ANCHOR_PLACEMENT}"
+echo "RANDOM_ANCHOR_PLACEMENT   = ${RANDOM_ANCHOR_PLACEMENT}"
 echo "VIV_VER                   = ${VIV_VER}"
 echo "SERVER_LIST               = ${SERVER_LIST[@]}"
 
@@ -86,6 +91,8 @@ export PATH="${PATH}:${GUROBI_HOME}/bin"
 export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib"
 export GRB_LICENSE_FILE=/home/einsx7/gurobi.lic
 
+####################################################################
+
 echo "Set up scripts..."
 mkdir $BASE_DIR
 cp ${HUB} $BASE_DIR
@@ -99,23 +106,28 @@ else
 fi
 
 python3.6 -m autoparallel.BE.InitialSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${USE_UNIQUE_SYNTH_DCP} 
-python3.6 -m autoparallel.BE.PairwiseAnchorPlacement $HUB $BASE_DIR SETUP 0
-python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 0
-python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 1
+python3.6 -m autoparallel.BE.PairwiseAnchorPlacement $HUB $BASE_DIR SETUP 0 "place_holder" 0  # iter 0, normal flow
+python3.6 -m autoparallel.BE.PairwiseAnchorPlacement $HUB $BASE_DIR SETUP 0 "place_holder" 1  # iter 0, random anchor placement
+python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${TARGET_PERIOD}  # vivado anchor placement
+python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 0  # normal flow
+python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 1  # test vivado anchor placement
+python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 2  # test random anchor placement
 python3.6 -m autoparallel.BE.Clock.SlotAnchorClockRouting  ${HUB} ${BASE_DIR} ${VIV_VER} ${INVERT_ANCHOR_CLOCK}
 python3.6 -m autoparallel.BE.SlotRouting ${HUB} ${BASE_DIR} ${VIV_VER} 0
 python3.6 -m autoparallel.BE.SlotRouting ${HUB} ${BASE_DIR} ${VIV_VER} 1
 python3.6 -m autoparallel.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VIV_VER}
 python3.6 -m autoparallel.BE.SLRLevelStitch ${HUB} ${BASE_DIR} ${VIV_VER}
-python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${TARGET_PERIOD}
 
+# create scripts to distribute the workloads
 declare -a steps=(
     "slot_synth" 
     "init_slot_placement" 
     "ILP_anchor_placement_iter0" 
     "opt_placement_iter0"
     "baseline_vivado_anchor_placement"
-    "baseline_opt_placement_iter0"
+    "baseline_vivado_anchor_placement_opt"
+    "baseline_random_anchor_placement"
+    "baseline_random_anchor_placement_opt"
     "slot_routing"
     "slot_routing_do_not_fix_clock"
 )
@@ -138,9 +150,11 @@ done
 
 KILL_SCRIPT=${BASE_DIR}/kill.sh
 for server in ${SERVER_LIST[*]} ; do
-    echo "ssh ${server} kill -f vivado" >> ${KILL_SCRIPT}
+    echo "ssh ${server} pkill -f vivado" >> ${KILL_SCRIPT}
 done
 chmod +x ${KILL_SCRIPT}
+
+####################################################################
 
 echo "Distrube scripts to multiple servers..."
 for server in ${SERVER_LIST[*]} ; do
@@ -160,9 +174,14 @@ ${BASE_DIR}/ILP_anchor_placement_iter0/distributed_run.sh &
 
 ${BASE_DIR}/opt_placement_iter0/distributed_run.sh &
 
-if [[ ${BASELINE_ANCHOR_PLACEMENT} -eq 1 ]]; then
+if [[ ${VIVADO_ANCHOR_PLACEMENT} -eq 1 ]]; then
     ${BASE_DIR}/baseline_vivado_anchor_placement/distributed_run.sh &
-    ${BASE_DIR}/baseline_opt_placement_iter0/distributed_run.sh &
+    ${BASE_DIR}/baseline_vivado_anchor_placement_opt/distributed_run.sh &
+fi
+
+if [[ ${RANDOM_ANCHOR_PLACEMENT} -eq 1 ]]; then
+    ${BASE_DIR}/baseline_random_anchor_placement/distributed_run.sh &
+    ${BASE_DIR}/baseline_random_anchor_placement_opt/distributed_run.sh &
 fi
 
 while :

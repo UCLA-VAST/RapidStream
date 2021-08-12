@@ -8,7 +8,7 @@ def getAllLagunaRange():
   return 'LAGUNA_X0Y0:LAGUNA_X31Y839'
 
 
-def __getBufferRegionOfSLRCrossingSlotPair(slot1, slot2):
+def __getBufferRegionOfSLRCrossingSlotPair(slot1, slot2, include_laguna: bool):
   assert slot1.down_left_x == slot2.down_left_x
   assert slot1.up_right_x == slot2.up_right_x
 
@@ -44,7 +44,10 @@ def __getBufferRegionOfSLRCrossingSlotPair(slot1, slot2):
       slice_down_left_y=slice_down_left_y,
       slice_up_right_y=slice_up_right_y)
 
-  return laguna_region + '\n' + slice_around_laguna
+  if include_laguna:
+    return laguna_region + '\n' + slice_around_laguna
+  else:
+    return slice_around_laguna
 
 # X index of the SLICE column to the left of the i-th Laguna column
 idx_of_left_side_slice_of_laguna_column = (
@@ -204,7 +207,7 @@ def __getSliceAroundLagunaSides(
   return '\n'.join(SLICE_around_laguna)
 
 
-def getBufferRegionBetweenSlotPair(slot_name1, slot_name2, col_width_each_side, row_width_each_side):
+def getBufferRegionBetweenSlotPair(slot_name1, slot_name2, col_width_each_side, row_width_each_side, include_laguna: bool):
   """
   Given a pair of neighbor slots, return the tight buffer region in between
   to help constrain the anchor placement  
@@ -273,7 +276,7 @@ def getBufferRegionBetweenSlotPair(slot_name1, slot_name2, col_width_each_side, 
   elif orient == 'VERTICAL':
     # the buffer region for cross-SLR vertical pairs should only include the buffer around laguna sites
     if slot1.getSLR() != slot2.getSLR():
-      return __getBufferRegionOfSLRCrossingSlotPair(slot1, slot2)
+      return __getBufferRegionOfSLRCrossingSlotPair(slot1, slot2, include_laguna)
       
     # non-slr-crossing pair
     x_range_beg = idx_1st_col_CR_X[slot1.down_left_x]

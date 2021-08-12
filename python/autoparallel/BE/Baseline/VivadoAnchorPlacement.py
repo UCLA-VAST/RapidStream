@@ -196,7 +196,11 @@ def createVivadoScriptForSlotPair(
   script.append( 'catch {add_cells_to_pblock [get_pblocks anchor_region] [get_cells -regexp {.*q0_reg.*} ] }')
 
   col_width, row_width = __getBufferRegionSize(None, None) # TODO: should automatically choose a suitable buffer region size
-  anchor_region_def = U250.getBufferRegionBetweenSlotPair(slot1_name, slot2_name, col_width, row_width)
+  
+  # the region will be used by Vivado to place the anchors
+  # if we only include lagunas, it will fail placement DRC check
+  # thus we include the lagunas and the SLICE nearby
+  anchor_region_def = U250.getBufferRegionBetweenSlotPair(slot1_name, slot2_name, col_width, row_width, include_laguna=True)
 
   # note that we need to include lagunas into the pblocks
   # otherwise the placer will deem no SLL could be used
