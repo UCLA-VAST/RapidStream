@@ -12,7 +12,7 @@ from typing import List, Dict, Any
 from collections import defaultdict
 from mip import Model, minimize, CONTINUOUS, xsum, OptimizationStatus
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
-from autoparallel.BE.Utilities import loggingSetup, getPairingLagunaTXOfRX
+from autoparallel.BE.Utilities import loggingSetup, getPairingLagunaTXOfRX, getSLRIndexOfLaguna
 from autoparallel.BE.Device import U250
 from autoparallel.BE.Utilities import isPairSLRCrossing, getDirectionOfSlotname
 from autoparallel.BE.AnchorPlacement.PairwiseAnchorPlacementForSLRCrossing import placeLagunaAnchors
@@ -506,6 +506,39 @@ def _getAnchorToSourceCell(
   return anchor_to_source_cell
 
 
+def placeAnchorSourceToLagunaTX(
+  common_anchor_connections: Dict[str, List[Dict[str, Any]]]
+) -> List[str]:
+  """
+  The anchors are placed on the Laguna RX registers
+  We move the source cell of the anchor onto the corresponding TX registers
+  """
+  anchor_to_source_cell = _getAnchorToSourceCell(common_anchor_connections)
+  slr_to_source_cell_to_loc = defaultdict(dict)
+  for anchor, loc in anchor_2_loc.items():
+    assert 'LAGUNA' in loc and 'RX_REG' in loc
+    source_cell = anchor_to_source_cell[anchor]
+    
+    # if two anchor registers are connected
+    if 'q0_reg' in source_cell:
+      assert False, source_cell
+    
+    target_tx = getPairingLagunaTXOfRX(loc)
+    slr_index = getSLRIndexOfLaguna(target_tx)
+    slr_to_source_cell_to_loc[slr_index][source_cell] = target_tx
+    
+  script = []
+  for slr_index, source_cell_to_loc in slr_to_source_cell_to_loc.items():
+    script.append('catch { place_cell { \\')
+    for source_cell, loc in source_cell_to_loc.items():
+      script.append(f'  {source_cell} {loc} \\')
+    script.append('} }')
+    
+  open('place_laguna_anchor_source_cells.tcl', 'w').write('\n'.join(script))
+
+  return script
+
+
 def writePlacementResults(
   anchor_2_loc, 
   common_anchor_connections: Dict[str, List[Dict[str, Any]]],
@@ -523,22 +556,8 @@ def writePlacementResults(
   script.append('}')
 
   # place the source of the anchors to the corresponding TX laguna reg
-  if is_slr_crossing_pair:
-    if pipeline_style == 'INVERT_CLOCK':
-      anchor_to_source_cell = _getAnchorToSourceCell(common_anchor_connections)
-      source_cell_to_loc = {}
-      for anchor, loc in anchor_2_loc.items():
-        assert 'LAGUNA' in loc and 'RX_REG' in loc
-        source_cell = anchor_to_source_cell[anchor]
-        
-        # if two anchor registers are connected
-        if 'q0_reg' in source_cell:
-          assert False, source_cell
-        
-        target_tx = getPairingLagunaTXOfRX(loc)
-        source_cell_to_loc[source_cell] = target_tx
-        
-      script += [f'catch {{ place_cell {source_cell} {loc} }}' for source_cell, loc in source_cell_to_loc.items()]
+  if is_slr_crossing_pair and pipeline_style == 'INVERT_CLOCK':
+    script += placeAnchorSourceToLagunaTX(common_anchor_connections)
 
   open('place_anchors.tcl', 'w').write('\n'.join(script))
 
