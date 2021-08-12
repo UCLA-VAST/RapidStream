@@ -82,6 +82,27 @@ def isPairSLRCrossing(slot1_name: str, slot2_name: str) -> bool:
       return True
 
 
+def getSLRIndexOfLaguna(laguna_loc: str) -> int:
+  """
+  find which SLR this laguna is in
+  """
+  match = re.search(r'LAGUNA_X(\d+)Y(\d+)/[RT]X_REG(\d)', laguna_loc)
+  assert match, f'wrong laguna location: {laguna_loc}'
+  laguna_y = int(match.group(2))
+
+  divider = [(range[0] + range[1]) // 2 for range in LAGUNA_REG_Y_RANGE]
+  if LAGUNA_REG_Y_RANGE[0][0] <= laguna_y <= divider[0]:
+    return 0
+  elif divider[0] <= laguna_y <= divider[1]:
+    return 1
+  elif divider[1] <= laguna_y <= divider[2]:
+    return 2
+  elif divider[2] <= laguna_y <= LAGUNA_REG_Y_RANGE[-1][-1]:
+    return 3
+  else:
+    assert False, laguna_y
+
+
 def getPairingLagunaTXOfRX(rx_reg: str) -> str:
   """
   Laguna registers are pair by pair. Given an RX, find the corresponding TX

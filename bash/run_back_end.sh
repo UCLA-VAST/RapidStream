@@ -1,8 +1,9 @@
 #!/bin/bash
+{
 
 # -------------------------------------------
 VIV_VER="2021.1"
-# test not using the RW-unlocked dcps
+RW_SETUP_PATH="~/rapidwright/rapidwright_07_30/rapidwright.sh"
 USE_UNIQUE_SYNTH_DCP=0
 INVERT_ANCHOR_CLOCK=0
 TARGET_PERIOD=2.5
@@ -116,7 +117,7 @@ python3.6 -m autoparallel.BE.Clock.SlotAnchorClockRouting  ${HUB} ${BASE_DIR} ${
 python3.6 -m autoparallel.BE.SlotRouting ${HUB} ${BASE_DIR} ${VIV_VER} 0
 python3.6 -m autoparallel.BE.SlotRouting ${HUB} ${BASE_DIR} ${VIV_VER} 1
 python3.6 -m autoparallel.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VIV_VER}
-python3.6 -m autoparallel.BE.SLRLevelStitch ${HUB} ${BASE_DIR} ${VIV_VER}
+python3.6 -m autoparallel.BE.SLRLevelStitch ${HUB} ${BASE_DIR} ${VIV_VER} ${RW_SETUP_PATH}
 
 # create scripts to distribute the workloads
 declare -a steps=(
@@ -262,3 +263,6 @@ done
 
 echo "Finished"
 echo $(date +"%T")
+
+exit $?
+}
