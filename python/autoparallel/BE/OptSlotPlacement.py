@@ -93,10 +93,14 @@ def generateParallelScript(hub, user_name, server_list):
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
-    if VIVADO_BASELINE == 0:
+    if RUN_MODE == 0:
       folder_name = 'opt_placement_iter0'
+    elif RUN_MODE == 1:
+      folder_name = 'baseline_vivado_anchor_placement_opt'
+    elif RUN_MODE == 2:
+      folder_name = 'baseline_random_anchor_placement_opt'
     else:
-      folder_name = 'baseline_opt_placement_iter0'
+      assert False
     open(f'{opt_dir}/parallel_{folder_name}_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 def generateOptScript(hub):
@@ -120,18 +124,23 @@ if __name__ == '__main__':
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   VIV_VER=sys.argv[3]
-  VIVADO_BASELINE = int(sys.argv[4])
+  RUN_MODE = int(sys.argv[4])
 
   hub = json.loads(open(hub_path, 'r').read())
   pair_list = hub["AllSlotPairs"]
   pair_name_list = ['_AND_'.join(pair) for pair in pair_list]
 
-  if VIVADO_BASELINE == 0:
+  if RUN_MODE == 0:  # normal flow
     opt_dir = f'{base_dir}/opt_placement_iter0'
     anchor_source_dir = 'ILP_anchor_placement_iter0'
-  else:
-    opt_dir = f'{base_dir}/baseline_opt_placement_iter0'
+  elif RUN_MODE == 1:  # test vivado anchor placement flow
+    opt_dir = f'{base_dir}/baseline_vivado_anchor_placement_opt'
     anchor_source_dir = 'baseline_vivado_anchor_placement'
+  elif RUN_MODE == 2:  # test random anchor placement flow
+    opt_dir = f'{base_dir}/baseline_random_anchor_placement_opt'
+    anchor_source_dir = 'baseline_random_anchor_placement'
+  else:
+    assert False, RUN_MODE
 
   os.mkdir(opt_dir)  
 

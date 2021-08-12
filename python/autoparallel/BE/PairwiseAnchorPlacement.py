@@ -4,6 +4,7 @@ import re
 import sys
 import os
 import logging
+import random
 import time
 import itertools
 import operator
@@ -28,7 +29,10 @@ def __getWeightMatchingBins(slot1_name, slot2_name, bin_size_x, bin_size_y):
   quantize the buffer region into disjoint bins
   """
   col_width, row_width = __getBufferRegionSize(None, None) # TODO: should automatically choose a suitable buffer region size
-  buffer_pblock = U250.getBufferRegionBetweenSlotPair(slot1_name, slot2_name, col_width, row_width)
+
+  # this version of ILP placement could only place the anchors onto the SLICE nearby the laguna
+  # thus we must not include the lagunas to become bins
+  buffer_pblock = U250.getBufferRegionBetweenSlotPair(slot1_name, slot2_name, col_width, row_width, include_laguna=False)
 
   # convert the pblock representation of the buffer region into individul bins
   bins = []
@@ -598,7 +602,7 @@ def setupAnchorPlacement(hub):
     guard1 = f'until [ -f {get_anchor_connection_path(slot1_name)}.done.flag ]; do sleep 10; done'
     guard2 = f'until [ -f {get_anchor_connection_path(slot2_name)}.done.flag ]; do sleep 10; done'
 
-    ilp_placement = f'python3.6 -m autoparallel.BE.PairwiseAnchorPlacement {hub_path} {base_dir} RUN {iter} {pair_name}'
+    ilp_placement = f'python3.6 -m autoparallel.BE.PairwiseAnchorPlacement {hub_path} {base_dir} RUN {iter} {pair_name} {TEST_RANDOM_ANCHOR_PLACEMENT}'
 
     touch_flag = f'touch {anchor_placement_dir}/{pair_name}/place_anchors.tcl.done.flag'
 
@@ -614,7 +618,13 @@ def setupAnchorPlacement(hub):
   num_job_server = math.ceil(len(tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = tasks[i * num_job_server: (i+1) * num_job_server]
-    open(f'{anchor_placement_dir}/parallel_ILP_anchor_placement_iter{iter}_{server}.txt', 'w').write('\n'.join(local_tasks))
+
+    if TEST_RANDOM_ANCHOR_PLACEMENT == 0:
+      folder_name = f'ILP_anchor_placement_iter{iter}'
+    else:
+      folder_name = 'baseline_random_anchor_placement'
+      
+    open(f'{anchor_placement_dir}/parallel_{folder_name}_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 
 def setupSlotClockRouting(anchor_2_loc):
@@ -645,12 +655,39 @@ def setupSlotClockRouting(anchor_2_loc):
   open('create_and_place_anchors_for_clock_routing.tcl', 'w').write('\n'.join(script))
 
 
+def getRandomAnchorPlacementAndWriteScript(pair_name, common_anchor_connections):
+  # to test random anchor placement, first make all anchors on SLICE
+  # then shuffle the key: value pair of anchor_2_loc
+  anchor_2_slice_xy = runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
+  anchor_2_loc = {anchor : f'SLICE_X{xy[0]}Y{xy[1]}' for anchor, xy in anchor_2_slice_xy.items() }
+
+  keys_random = list(anchor_2_loc.keys())
+  values_random = list(anchor_2_loc.values())
+  random.shuffle(keys_random)
+  random.shuffle(values_random)
+  anchor_2_loc = {keys_random[i]: values_random[i] for i in range(len(keys_random))}
+  
+  script = []
+
+  # place the anchors
+  script.append('place_cell { \\')
+  for anchor, loc in anchor_2_loc.items():
+    script.append(f'  {anchor} {loc} \\') # note that spaces are not allowed after \
+  script.append('}')
+
+  open('place_anchors.tcl', 'w').write('\n'.join(script))
+
+  return anchor_2_loc
+
+
 if __name__ == '__main__':
-  assert len(sys.argv) >= 5, 'input (1) the path to the front end result file; (2) the target directory; (3) which action; (4) which iteration'
+  assert len(sys.argv) == 7, 'input (1) the path to the front end result file; (2) the target directory; (3) which action; (4) which iteration'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   option = sys.argv[3]
   iter = int(sys.argv[4])
+  pair_name = sys.argv[5]
+  TEST_RANDOM_ANCHOR_PLACEMENT = int(sys.argv[6])
   hub = json.loads(open(hub_path, 'r').read())
 
   pipeline_style = hub["InSlotPipelineStyle"]
@@ -665,7 +702,10 @@ if __name__ == '__main__':
   else:
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/placement_opt_iter{iter-1}/{slot_name}/phys_opt_design_iter{iter-1}_anchor_connections.json'
 
-  anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter{iter}'
+  if TEST_RANDOM_ANCHOR_PLACEMENT == 0:
+    anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter{iter}'
+  else:
+    anchor_placement_dir = f'{base_dir}/baseline_random_anchor_placement'
 
   # run this before the ILP anchor placement, setup for the later steps
   if option == 'SETUP':
@@ -674,7 +714,6 @@ if __name__ == '__main__':
 
   # run the ILP placement for the given slot pairs
   elif option == 'RUN':
-    pair_name = sys.argv[5]
     common_anchor_connections = collectAllConnectionsOfTargetAnchors(pair_name)
     open('anchor_connection_of_the_pair.json', 'w').write(json.dumps(common_anchor_connections, indent=2))
 
@@ -683,13 +722,20 @@ if __name__ == '__main__':
     slot1_name, slot2_name = pair_name.split('_AND_')
 
     is_slr_crossing_pair = isPairSLRCrossing(slot1_name, slot2_name)
-    if is_slr_crossing_pair:
-      anchor_2_loc = placeLagunaAnchors(hub, pair_name, common_anchor_connections)
-    else:
-      anchor_2_slice_xy = runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
-      anchor_2_loc = {anchor : f'SLICE_X{xy[0]}Y{xy[1]}' for anchor, xy in anchor_2_slice_xy.items() }
 
-    writePlacementResults(anchor_2_loc, common_anchor_connections, is_slr_crossing_pair)
+    # normal flow
+    if TEST_RANDOM_ANCHOR_PLACEMENT == 0:
+      if is_slr_crossing_pair:
+        anchor_2_loc = placeLagunaAnchors(hub, pair_name, common_anchor_connections)
+      else:
+        anchor_2_slice_xy = runILPWeightMatchingPlacement(pair_name, common_anchor_connections)
+        anchor_2_loc = {anchor : f'SLICE_X{xy[0]}Y{xy[1]}' for anchor, xy in anchor_2_slice_xy.items() }
+
+      writePlacementResults(anchor_2_loc, common_anchor_connections, is_slr_crossing_pair)
+
+    # baseline: random anchor placement
+    else:
+      anchor_2_loc = getRandomAnchorPlacementAndWriteScript(pair_name, common_anchor_connections)
     
     setupSlotClockRouting(anchor_2_loc)
     
