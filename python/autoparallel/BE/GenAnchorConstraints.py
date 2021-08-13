@@ -48,6 +48,7 @@ def __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets,
   
   tcl.append(f'  set_property CONTAIN_ROUTING {contain_routing} [get_pblocks {pblock_name}] ')
   tcl.append(f'  set_property EXCLUDE_PLACEMENT 1 [get_pblocks {pblock_name}] ')
+  tcl.append(f'  set_property IS_SOFT 0 [get_pblocks {pblock_name}] ')
 
   # keep anchor registers from being placed to laguna 
   if exclude_laguna:

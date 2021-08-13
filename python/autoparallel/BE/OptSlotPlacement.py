@@ -17,9 +17,7 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   script.append(f'lock_design -unlock -level placement') # seems that "-level placement" will trigger vivado bug
 
   # remove the pblocks for anchors
-  # because some anchors will be placed inside the main pblock. Avoid potential conflict
-  # script.append(f'delete_pblocks [get_pblocks -filter {{ NAME !~ "*{slot_name}*"}} ]')
-  script.append(f'set_property EXCLUDE_PLACEMENT 0 [get_pblocks {slot_name} ]')
+  script.append(f'delete_pblocks [get_pblocks -filter {{ NAME !~ "*{slot_name}*"}} ]')
 
   script.append(f'unplace_cell [get_cells -regexp .*_q0_reg.*]')
 
