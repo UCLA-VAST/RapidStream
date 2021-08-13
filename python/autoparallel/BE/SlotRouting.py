@@ -67,7 +67,7 @@ def unrouteNonLagunaAnchorDPinQPinNets() -> List[str]:
 
   script.append('set non_laguna_anchors [get_cells  -filter { NAME =~  "*q0_reg*" && LOC !~  "*LAGUNA*" } ]')
   script.append('set non_laguna_anchor_nets [ get_nets -of_objects $non_laguna_anchors -filter { TYPE == "SIGNAL" && ROUTE_STATUS != "HIERPORT"} ]')
-  script.append('route_design -unroute -nets $non_laguna_anchor_nets')
+  script.append('set_property ROUTE "" $non_laguna_anchor_nets')
 
   return script
 
