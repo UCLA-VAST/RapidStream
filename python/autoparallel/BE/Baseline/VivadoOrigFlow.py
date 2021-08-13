@@ -71,13 +71,12 @@ if __name__ == '__main__':
 
   hub = json.loads(open(hub_path, 'r').read())
 
-  baseline_dir = f'{base_dir}/baseline'
+  baseline_dir = f'{base_dir}/baseline_orig_vivado_with_pipeline'
   os.mkdir(baseline_dir)
-  os.mkdir(f'{baseline_dir}/pipelined_baseline')
 
   xdc = createClockFromBUFGXDC()
-  script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'])
+  open(f'{baseline_dir}/clock.xdc', 'w').write('\n'.join(xdc))
 
-  open(f'{baseline_dir}/pipelined_baseline/clock.xdc', 'w').write('\n'.join(xdc))
-  open(f'{baseline_dir}/pipelined_baseline/baseline.tcl', 'w').write('\n'.join(script))
+  script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'])
+  open(f'{baseline_dir}/baseline.tcl', 'w').write('\n'.join(script))
 
