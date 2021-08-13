@@ -250,7 +250,7 @@ if __name__ == '__main__':
   VIV_VER=sys.argv[3]
   CLOCK_PERIOD = sys.argv[4]
 
-  logging.warning('Only 2020.1 supports read_checkpoint -cell. Enforce 2020.1')
+  logging.warning('[baseline anchor placement] Only 2020.1 supports read_checkpoint -cell. Enforce 2020.1')
   VIV_VER = '2020.1'
 
   hub = json.loads(open(hub_path, 'r').read())
