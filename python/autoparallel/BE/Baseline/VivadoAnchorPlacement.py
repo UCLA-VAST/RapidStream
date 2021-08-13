@@ -4,9 +4,14 @@ import json
 import math
 import os
 import sys
+from typing import Set, Dict, Tuple
+
 from autoparallel.BE.GenAnchorConstraints import createAnchorPlacementExtractScript, __getBufferRegionSize
 from autoparallel.BE.Device import U250
-from typing import Set, Dict, Tuple
+from autoparallel.BE.Utilities import loggingSetup
+
+loggingSetup()
+
 
 def getHeader(slot1_name, slot2_name):
   header = ['\n\n`timescale 1 ns / 1 ps',
@@ -242,8 +247,6 @@ def getParallelScript():
     open(f'{baseline_dir}/parallel_baseline_vivado_anchor_placement_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO)
-
   assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]

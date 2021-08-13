@@ -5,6 +5,9 @@ import os
 import sys
 
 from autoparallel.BE.UniversalWrapperCreater import addAnchorToNonTopIOs
+from autoparallel.BE.Utilities import loggingSetup
+
+loggingSetup()
 
 
 def getAnchorWrapperOfSlot(hub, slot_name):
@@ -131,8 +134,6 @@ def generateParallelScript(hub, user_name, server_list):
 
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO)
-
   assert len(sys.argv) == 6, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]

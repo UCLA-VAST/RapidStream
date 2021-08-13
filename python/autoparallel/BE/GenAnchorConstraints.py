@@ -2,7 +2,12 @@
 import logging
 import json
 import re
+
 from autoparallel.BE.Device import U250
+from autoparallel.BE.Utilities import loggingSetup
+
+loggingSetup()
+
 
 def createAnchorPlacementExtractScript(slot_name, io_list, output_dir):
   """
