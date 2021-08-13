@@ -43,7 +43,7 @@ def getVivadoScriptForSLR(slr_index):
   script.append(f'delete_pblocks *')
 
   # unroute the laguna nets that cause conflict
-  script.append(f'route_design -unroute -nets [get_nets -hierarchical -filter {{ ROUTE_STATUS == "CONFLICTS" }}]')
+  script.append(f'set_property ROUTE "" [get_nets -hierarchical -filter {{ ROUTE_STATUS == "CONFLICTS" }}]')
 
   # relax the clock 
   script.append(f'create_clock -name ap_clk -period 3 [get_pins test_bufg/O]')
