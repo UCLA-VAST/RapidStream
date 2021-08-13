@@ -3,10 +3,13 @@ import json
 import os
 import math
 from typing import List
+
 import autoparallel.BE.Constants as Constants
 from autoparallel.BE.Device import U250
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
-from autoparallel.BE.Utilities import getAnchorTimingReportScript
+from autoparallel.BE.Utilities import getAnchorTimingReportScript, loggingSetup
+
+loggingSetup()
 
 
 def extractLagunaAnchorRoutes(slot_name):

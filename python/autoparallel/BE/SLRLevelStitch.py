@@ -4,7 +4,9 @@ import re
 import os
 
 from autoparallel.BE.SlotRouting import addAllAnchors, removePlaceholderAnchors
-from autoparallel.BE.Utilities import getSlotsInSLRIndex
+from autoparallel.BE.Utilities import getSlotsInSLRIndex, loggingSetup
+
+loggingSetup()
 
 SLR_NUM = 4
 

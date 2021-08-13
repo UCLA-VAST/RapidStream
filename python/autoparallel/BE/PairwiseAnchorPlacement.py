@@ -10,16 +10,19 @@ import itertools
 import operator
 from typing import List, Dict, Any
 from collections import defaultdict
+
 from mip import Model, minimize, CONTINUOUS, xsum, OptimizationStatus
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
 from autoparallel.BE.Utilities import loggingSetup, getPairingLagunaTXOfRX, getSLRIndexOfLaguna
 from autoparallel.BE.Device import U250
-from autoparallel.BE.Utilities import isPairSLRCrossing, getDirectionOfSlotname
+from autoparallel.BE.Utilities import isPairSLRCrossing, getDirectionOfSlotname, loggingSetup
 from autoparallel.BE.AnchorPlacement.PairwiseAnchorPlacementForSLRCrossing import placeLagunaAnchors
 from autobridge.Device.DeviceManager import DeviceU250
 from autobridge.Opt.Slot import Slot
 
 U250_inst = DeviceU250()
+
+loggingSetup('ILP-placement.log')
 
 
 ######################### ILP placement ############################################
@@ -713,8 +716,6 @@ if __name__ == '__main__':
 
   user_name = 'einsx7'
   server_list = ['u5','u17','u18','u15']
-  
-  loggingSetup('ILP-placement.log')
 
   if iter == 0:
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/init_slot_placement/{slot_name}/init_placement_anchor_connections.json'
