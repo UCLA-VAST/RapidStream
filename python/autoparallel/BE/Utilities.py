@@ -180,7 +180,9 @@ def loggingSetup(log_name = ""):
   stdout_handler = logging.StreamHandler(sys.stdout)
   stdout_handler.setLevel(logging.INFO)
 
-  handlers = [info_file_handler, stdout_handler]
+  handlers = [stdout_handler]
+  if log_name:
+    handlers.append(info_file_handler)
   for handler in handlers:
     handler.setFormatter(formatter)
     root.addHandler(handler)
