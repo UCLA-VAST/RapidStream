@@ -4,7 +4,6 @@
 # -------------------------------------------
 VIV_VER="2021.1"
 RW_SETUP_PATH="~/rapidwright/rapidwright_07_30/rapidwright.sh"
-USE_UNIQUE_SYNTH_DCP=0
 INVERT_ANCHOR_CLOCK=0
 TARGET_PERIOD=2.5
 SERVER_LIST=("u5" "u15" "u17" "u18")
@@ -26,9 +25,8 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
-    --unique-synth-dcp-path)
-      UNIQUE_SLOT_SYNTH_PATH=$(readlink -f "$2")
-      USE_UNIQUE_SYNTH_DCP=1
+    --unique-synth-dcp-dir)
+      UNIQUE_SYNTH_DCP_DIR=$(readlink -f "$2")
       shift # past argument
       shift # past value
       ;;
@@ -65,8 +63,7 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 
 echo "BASE_DIR                  = ${BASE_DIR}"
 echo "HUB                       = ${HUB}"
-echo "USE_UNIQUE_SYNTH_DCP      = ${USE_UNIQUE_SYNTH_DCP}"
-echo "UNIQUE_SLOT_SYNTH_PATH    = ${UNIQUE_SLOT_SYNTH_PATH}"
+echo "UNIQUE_SYNTH_DCP_DIR      = ${UNIQUE_SYNTH_DCP_DIR}"
 echo "INVERT_ANCHOR_CLOCK       = ${INVERT_ANCHOR_CLOCK}"
 echo "TARGET_PERIOD             = ${TARGET_PERIOD}"
 echo "VIVADO_ANCHOR_PLACEMENT   = ${VIVADO_ANCHOR_PLACEMENT}"
@@ -99,14 +96,11 @@ mkdir $BASE_DIR
 cp ${HUB} $BASE_DIR
 chmod -w $BASE_DIR/front_end_result.json
 
-if [[ ${USE_UNIQUE_SYNTH_DCP} -eq 1 ]]; then
-    echo "Copy unique synth.dcp to base directory..."
-    cp -r ${UNIQUE_SLOT_SYNTH_PATH} $BASE_DIR/
-else
+if [ -z "${UNIQUE_SYNTH_DCP_DIR}" ]; then
     python3.6 -m autoparallel.BE.SlotSynthesis ${HUB} ${BASE_DIR} ${VIV_VER} ${INVERT_ANCHOR_CLOCK} ${TARGET_PERIOD}
 fi
 
-python3.6 -m autoparallel.BE.InitialSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${USE_UNIQUE_SYNTH_DCP} 
+python3.6 -m autoparallel.BE.InitialSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${UNIQUE_SYNTH_DCP_DIR} 
 python3.6 -m autoparallel.BE.PairwiseAnchorPlacement $HUB $BASE_DIR SETUP 0 "place_holder" 0  # iter 0, normal flow
 python3.6 -m autoparallel.BE.PairwiseAnchorPlacement $HUB $BASE_DIR SETUP 0 "place_holder" 1  # iter 0, random anchor placement
 python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${TARGET_PERIOD}  # vivado anchor placement
@@ -133,7 +127,7 @@ declare -a steps=(
     "slot_routing_do_not_fix_clock"
 )
 for step in "${steps[@]}"; do
-    SCRIPT=${BASE_DIR}/${step}/distributed_run.sh
+    SCRIPT=${BASE_DIR}/distributed_run_${step}.sh
     
     for server in ${SERVER_LIST[*]} ; do
         echo "ssh ${server} \"cd ${BASE_DIR}/${step}/ && parallel < parallel_${step}_${server}.txt\" >> ${BASE_DIR}/backend_${step}.log 2>&1 &" >> ${SCRIPT}
@@ -141,7 +135,7 @@ for step in "${steps[@]}"; do
     echo "wait" >> ${SCRIPT}
     chmod +x ${SCRIPT}
 
-    TRANSFER_SCRIPT=${BASE_DIR}/${step}/transfer.sh
+    TRANSFER_SCRIPT=${BASE_DIR}/transfer_${step}.sh
     for server in ${SERVER_LIST[*]} ; do
         echo "rsync -azh --delete -r ${BASE_DIR}/${step}/ einsx7@${server}:${BASE_DIR}/${step} &" >> ${TRANSFER_SCRIPT}
     done
@@ -165,24 +159,24 @@ wait
 
 echo "Start running"
 
-if [[ ${USE_UNIQUE_SYNTH_DCP} -eq 0 ]]; then
-    ${BASE_DIR}/slot_synth/distributed_run.sh &
+if [ -z "${UNIQUE_SYNTH_DCP_DIR}" ]; then
+    ${BASE_DIR}/distributed_run_slot_synth.sh &
 fi
 
-${BASE_DIR}/init_slot_placement/distributed_run.sh &
+${BASE_DIR}/distributed_run_init_slot_placement.sh &
 
-${BASE_DIR}/ILP_anchor_placement_iter0/distributed_run.sh &
+${BASE_DIR}/distributed_run_ILP_anchor_placement_iter0.sh &
 
-${BASE_DIR}/opt_placement_iter0/distributed_run.sh &
+${BASE_DIR}/distributed_run_opt_placement_iter0.sh &
 
 if [[ ${VIVADO_ANCHOR_PLACEMENT} -eq 1 ]]; then
-    ${BASE_DIR}/baseline_vivado_anchor_placement/distributed_run.sh &
-    ${BASE_DIR}/baseline_vivado_anchor_placement_opt/distributed_run.sh &
+    ${BASE_DIR}/distributed_run_baseline_vivado_anchor_placement.sh &
+    ${BASE_DIR}/distributed_run_baseline_vivado_anchor_placement_opt.sh &
 fi
 
 if [[ ${RANDOM_ANCHOR_PLACEMENT} -eq 1 ]]; then
-    ${BASE_DIR}/baseline_random_anchor_placement/distributed_run.sh &
-    ${BASE_DIR}/baseline_random_anchor_placement_opt/distributed_run.sh &
+    ${BASE_DIR}/distributed_run_baseline_random_anchor_placement.sh &
+    ${BASE_DIR}/distributed_run_baseline_random_anchor_placement_opt.sh &
 fi
 
 while :
@@ -246,7 +240,7 @@ parallel < ${BASE_DIR}/slot_anchor_clock_routing/parallel-run-slot-clock-routing
 
 # routing
 echo "Start slot routing..."
-${BASE_DIR}/slot_routing/distributed_run.sh &
+${BASE_DIR}/distributed_run_slot_routing.sh &
 
 while :
 do
