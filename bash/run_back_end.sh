@@ -2,12 +2,19 @@
 {
 
 # -------------------------------------------
+RW_BRIDGE_ROOT_DIR="/home/einsx7/auto-parallel/src"
+
 VIV_VER="2021.1"
-RW_SETUP_PATH="~/rapidwright/rapidwright_07_30/rapidwright.sh"
+RW_SETUP_PATH="/home/einsx7/rapidwright/rapidwright_07_30/rapidwright.sh"
 INVERT_ANCHOR_CLOCK=0
 TARGET_PERIOD=2.5
 SERVER_LIST=("u5" "u15" "u17" "u18")
 BASELINE_ANCHOR_PLACEMENT=0
+
+export GUROBI_HOME="/home/einsx7/pr/solver/gurobi902/linux64"
+export PATH="${PATH}:${GUROBI_HOME}/bin"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib"
+export GRB_LICENSE_FILE=/home/einsx7/gurobi.lic
 #----------------------------------------------
 
 POSITIONAL=()
@@ -80,17 +87,10 @@ PAUSE=15
 echo "Waiting for ${PAUSE}s, please check..."
 sleep ${PAUSE}
 
-echo $(date +"%T")
-
-# set up Gurobi
-echo "Set up Gurobi env variables"
-export GUROBI_HOME="/home/einsx7/pr/solver/gurobi902/linux64"
-export PATH="${PATH}:${GUROBI_HOME}/bin"
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib"
-export GRB_LICENSE_FILE=/home/einsx7/gurobi.lic
 
 ####################################################################
 
+echo $(date +"%T")
 echo "Set up scripts..."
 mkdir $BASE_DIR
 cp ${HUB} $BASE_DIR
@@ -157,6 +157,19 @@ for server in ${SERVER_LIST[*]} ; do
 done
 wait
 
+echo "Start system utilization trackers..."
+TRACKER=${RW_BRIDGE_ROOT_DIR}/utilities/system_utilization_tracker.py
+SETUP_PYTHON_ENV="export PYTHONPATH=/home/einsx7/.local/lib/python3.6/site-packages/"
+for server in ${SERVER_LIST[*]} ; do
+    ssh ${server} \
+        ${SETUP_PYTHON_ENV} && \
+        python3.6 ${TRACKER} \
+        --output_dir ${BASE_DIR} \
+        --report_prefix ${server} \
+        --transfer_target "einsx7@u5:${BASE_DIR}/" \
+        --time_out_hour 5 &
+done
+
 echo "Start running"
 
 if [ -z "${UNIQUE_SYNTH_DCP_DIR}" ]; then
@@ -178,6 +191,8 @@ if [[ ${RANDOM_ANCHOR_PLACEMENT} -eq 1 ]]; then
     ${BASE_DIR}/distributed_run_baseline_random_anchor_placement.sh &
     ${BASE_DIR}/distributed_run_baseline_random_anchor_placement_opt.sh &
 fi
+
+####################################################################
 
 while :
 do
@@ -231,6 +246,7 @@ do
     sleep 30
 done
 
+####################################################################
 
 echo $(date +"%T")
 
@@ -241,6 +257,8 @@ parallel < ${BASE_DIR}/slot_anchor_clock_routing/parallel-run-slot-clock-routing
 # routing
 echo "Start slot routing..."
 ${BASE_DIR}/distributed_run_slot_routing.sh &
+
+####################################################################
 
 while :
 do
@@ -257,6 +275,9 @@ done
 
 echo "Finished"
 echo $(date +"%T")
+
+# kill all child process, including the performance tracker
+pkill -P $$
 
 exit $?
 }

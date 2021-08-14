@@ -21,7 +21,7 @@ class GracefulKiller:
     self.kill_now = True
 
 
-def utilization_tracking(report_dir, report_prefix, transfer_target=""):
+def utilization_tracking(report_dir, report_prefix, time_out_hour):
   period = 20
   cpu_core_num = psutil.cpu_count()
 
@@ -31,6 +31,7 @@ def utilization_tracking(report_dir, report_prefix, transfer_target=""):
   cpu_temp = open(f"{report_dir}/{report_prefix}_cpu_usage_temp.txt", "w")
   mem_temp = open(f"{report_dir}/{report_prefix}_mem_usage_temp.txt", "w")
 
+  start_time = time.time()
 
   killer = GracefulKiller()
   while not killer.kill_now:
@@ -48,26 +49,26 @@ def utilization_tracking(report_dir, report_prefix, transfer_target=""):
     cpu_temp.flush()
     mem_temp.flush()
 
+    if time.time() - start_time > time_out_hour * 3600:
+      print(f"Time out after {time_out_hour} hours")
+      break
+
     time.sleep(period)
 
   # when the program gets killed
   open(f"{report_dir}/{report_prefix}_cpu_usage.json", "w").write(json.dumps(time_to_cpu, indent=2))
   open(f"{report_dir}/{report_prefix}_mem_usage.json", "w").write(json.dumps(time_to_mem, indent=2))
 
-  if transfer_target:
-    os.system(f"scp {report_dir}/{report_prefix}_cpu_usage.json {transfer_target}")
-    os.system(f"scp {report_dir}/{report_prefix}_mem_usage.json {transfer_target}")
-
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Record the system utilization until killed')
   parser.add_argument("--output_dir", type=str, nargs="?", default=".")
   parser.add_argument("--report_prefix", type=str, nargs="?", default="")
-  parser.add_argument("--transfer_target", type=str, nargs="?", default="")
+  parser.add_argument("--time_out_hour", type=int, required=True)
   args = parser.parse_args()
 
   utilization_tracking(
     args.output_dir, 
     args.report_prefix,
-    args.transfer_target
+    args.time_out_hour
   )
