@@ -82,11 +82,11 @@ if __name__ == '__main__':
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   VIV_VER=sys.argv[3]
-  USE_UNIQUE_SYNTH_DCP=int(sys.argv[4])
+  UNIQUE_SYNTH_DCP_DIR=sys.argv[4]
 
   # depends on whether we use the uniquified synth checkpoints
-  if USE_UNIQUE_SYNTH_DCP:
-    get_synth_dcp = lambda slot_name : f'{base_dir}/unique_slot_synth/{slot_name}_synth_unique_2020.1.dcp'
+  if UNIQUE_SYNTH_DCP_DIR:
+    get_synth_dcp = lambda slot_name : f'{UNIQUE_SYNTH_DCP_DIR}/{slot_name}/{slot_name}_synth_unique_2021.1.dcp'
     get_guard = lambda slot_name : 'sleep 1' # use a harmless placeholder command
   else:
     get_synth_dcp = lambda slot_name : f'{synth_dir}/{slot_name}/{slot_name}_synth.dcp'
