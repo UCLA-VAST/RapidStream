@@ -38,14 +38,13 @@ def getVivadoScriptForSLR(slr_index):
   # place back the missing laguna anchor sources
   script += placeBackSourceCellofLagunaAnchors(slr_index)
   
+  script.append('report_route_status')
+  
   # to verify the tap of row buffers
   script.append(f'puts [get_property ROUTE [get_nets ap_clk]]')
   script.append(f'report_timing_summary')
 
   script.append(f'delete_pblocks *')
-
-  # unroute the laguna nets that cause conflict
-  script.append(f'set_property ROUTE "" [get_nets -hierarchical -filter {{ ROUTE_STATUS == "CONFLICTS" }}]')
 
   # relax the clock 
   script.append(f'create_clock -name ap_clk -period 3 [get_pins test_bufg/O]')
@@ -74,7 +73,7 @@ def getParallelTasks():
 
     cd = f'cd {slr_stitch_dir}/slr_{slr_index}'
     rw_source = f'source {RW_SETUP_PATH}'
-    get_dcp_regexp = lambda slot_name: f'(.*{slot_name}.*phys_opt.*dcp)'
+    get_dcp_regexp = lambda slot_name: f'(.*{slot_name}.*non_laguna_anchor_nets_unrouted.dcp)'
     all_dcp_regexps = '|'.join([get_dcp_regexp(slot_name) for slot_name in slots])
     rw = f'java com.xilinx.rapidwright.examples.MergeDCP {slot_routing_dir} slr_{slr_index}.dcp "{all_dcp_regexps}"'
 
