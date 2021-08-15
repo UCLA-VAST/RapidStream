@@ -351,6 +351,8 @@ def getAllHorizontalBufferRegions(row_width, is_for_placement: bool, buffer_gap 
     else: # only need buffer at the up side
       row_buffer_region_pblock.append(f'SLICE_X0Y{(i+1) * 120 - row_width}:SLICE_X232Y{(i+1) * 120 - 1} ')
 
+  return row_buffer_region_pblock
+  
 
 def getAllBoundaryBufferRegions(col_width, row_width, is_for_placement: bool):
   """
