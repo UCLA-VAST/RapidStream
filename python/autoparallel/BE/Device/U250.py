@@ -319,6 +319,39 @@ def getAllLagunaBufferRegions(add_empty_space):
   return '\n'.join(slice_besides_laguna)
 
 
+def getAllVerticalBufferRegions(is_for_placement: bool, buffer_gap = 2):
+  # the vertical columns of the buffer region
+  # manually selected to avoid spliting switch boxes. 
+  # Sync with getBufferRegionBetweenSlotPair() 
+  col_buffer_region_pblock = []
+
+  # during placement, we should leave some gap between the slot and the anchor region
+  if not is_for_placement: # for routing, the exact buffer region
+    col_buffer_region_pblock.append(f'SLICE_X56Y0:SLICE_X58Y959')
+    col_buffer_region_pblock.append(f'SLICE_X115Y0:SLICE_X117Y959')
+    col_buffer_region_pblock.append(f'SLICE_X175Y0:SLICE_X177Y959')
+  else: # for placement, expand the buffer region
+    col_buffer_region_pblock.append(f'SLICE_X{56 - buffer_gap}Y0:SLICE_X{58 + buffer_gap}Y959')
+    col_buffer_region_pblock.append(f'SLICE_X{115 - buffer_gap}Y0:SLICE_X{117 + buffer_gap}Y959')
+    col_buffer_region_pblock.append(f'SLICE_X{175 - buffer_gap}Y0:SLICE_X{177 + buffer_gap}Y959')   
+
+  return col_buffer_region_pblock
+
+
+def getAllHorizontalBufferRegions(row_width, is_for_placement: bool, buffer_gap = 2):
+  # the horizontal rows of the buffer region
+  # exclude the region for the up and down device boundaries & die boundaries
+  if is_for_placement:
+    row_width += buffer_gap
+
+  row_buffer_region_pblock = []
+  for i in range(8):
+    if i % 2 == 1: # only need buffer at the down side
+      row_buffer_region_pblock.append(f'SLICE_X0Y{i * 120}:SLICE_X232Y{i * 120 + row_width - 1} ')
+    else: # only need buffer at the up side
+      row_buffer_region_pblock.append(f'SLICE_X0Y{(i+1) * 120 - row_width}:SLICE_X232Y{(i+1) * 120 - 1} ')
+
+
 def getAllBoundaryBufferRegions(col_width, row_width, is_for_placement: bool):
   """
   create a buffer region among 2x2 slots
@@ -346,31 +379,11 @@ def getAllBoundaryBufferRegions(col_width, row_width, is_for_placement: bool):
   last_row_idx = 959 # Y index of the highest SLICE
   last_col_idx = 232 # X index of the rightest SLICE
 
-  # the vertical columns of the buffer region
-  # manually selected to avoid spliting switch boxes. 
-  # Sync with getBufferRegionBetweenSlotPair() 
-  col_buffer_region_pblock = []
+  col_buffer_region_pblock = getAllVerticalBufferRegions(is_for_placement) 
 
-  # during placement, we should leave some gap between the slot and the anchor region
-  if not is_for_placement: # for routing, the exact buffer region
-    col_buffer_region_pblock.append(f'SLICE_X56Y0:SLICE_X58Y959')
-    col_buffer_region_pblock.append(f'SLICE_X115Y0:SLICE_X117Y959')
-    col_buffer_region_pblock.append(f'SLICE_X175Y0:SLICE_X177Y959')
-  else: # for placement, expand the buffer region
-    col_buffer_region_pblock.append(f'SLICE_X55Y0:SLICE_X59Y959')
-    col_buffer_region_pblock.append(f'SLICE_X114Y0:SLICE_X118Y959')
-    col_buffer_region_pblock.append(f'SLICE_X174Y0:SLICE_X178Y959')    
+  row_buffer_region_pblock = getAllHorizontalBufferRegions(row_width, is_for_placement)
 
-  # the horizontal rows of the buffer region
-  # exclude the region for the up and down device boundaries & die boundaries
-  row_buffer_region_pblock = []
-  for i in range(8):
-    if i % 2 == 1: # only need buffer at the down side
-      row_buffer_region_pblock.append(f'SLICE_X0Y{i * 120}:SLICE_X232Y{i * 120 + row_width - 1} ')
-    else: # only need buffer at the up side
-      row_buffer_region_pblock.append(f'SLICE_X0Y{(i+1) * 120 - row_width}:SLICE_X232Y{(i+1) * 120 - 1} ')
-
-  return '\n'.join(col_buffer_region_pblock) + '\n' + '\n'.join(row_buffer_region_pblock)
+  return '\n'.join(col_buffer_region_pblock + row_buffer_region_pblock)
 
 
 def getAllDSPAndBRAMInBoundaryBufferRegions(col_width, row_width):
