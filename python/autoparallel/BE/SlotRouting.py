@@ -93,7 +93,7 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     # next create the inner pblock that only includes the slot
     script.append(f'startgroup')
     script.append(f'create_pblock {slot_name}')
-    script.append(f'resize_pblock [get_pblocks {slot_name}] -add {pblock_def}')
+    script.append(f'resize_pblock [get_pblocks {slot_name}] -add {detailed_pblock_def}')
 
     # previously we set the pblock as the entire clock regions. 
     # However, the intra-slot nets may use the anchor regions. 
@@ -101,11 +101,7 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     # To get a clean anchor region, we set the routing pblock to strictly disjoint from the anchor regions
     # The prerequisite is that the placement pblock is even smaller than the routing pblock.
     # we need at least 1 row/col of empty space at the boundary to make the boundary nets routable.
-    # buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
-    # slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num, is_for_placement=False)
-    # script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_at_boundary} }}')
-    # list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
-    # script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {" ".join(list_of_anchor_region_dsp_and_bram)} }}')
+    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {U250.getNonSlotRegionsForRouting()} }}')
 
     script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
     script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_ctrl_U0]')
@@ -164,13 +160,11 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script.append(f'puts $fp [get_property ROUTE [get_nets ap_clk]]')
     script.append(f'close $fp')
 
-    # shrink the pblock before phys_opt_design
-    # prevent inner cells from being re-placed to anchor regions
-    buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
-    slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num, is_for_placement=False)
-    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_at_boundary} }}')
-    list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
-    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {" ".join(list_of_anchor_region_dsp_and_bram)} }}')
+    # whichever pblock is used for routing,
+    # make sure the pblock is non-overlapping with anchor reigons before phys_opt_design
+    # post-routing phys_opt_design may change placement as well
+    # if inner cells are moved to anchor regions, the stitcher may fail due to its limitation
+    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {U250.getNonSlotRegionsForRouting()} }}')
 
     script.append(f'phys_opt_design')
 
