@@ -171,7 +171,6 @@ for server in ${SERVER_LIST[*]} ; do
         python3.6 ${TRACKER} \
         --output_dir ${BASE_DIR} \
         --report_prefix ${server} \
-        --transfer_target "einsx7@u5:${BASE_DIR}/" \
         --time_out_hour 5 &
 done
 
