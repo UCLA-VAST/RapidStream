@@ -154,8 +154,6 @@ for server in ${SERVER_LIST[*]} ; do
 done
 chmod +x ${KILL_SCRIPT}
 
-####################################################################
-
 echo "Distrube scripts to multiple servers..."
 for server in ${SERVER_LIST[*]} ; do
     rsync -azh --delete -r ${BASE_DIR}/ einsx7@${server}:${BASE_DIR} &
@@ -165,14 +163,20 @@ wait
 echo "Start system utilization trackers..."
 TRACKER=${RW_BRIDGE_ROOT_DIR}/utilities/system_utilization_tracker.py
 SETUP_PYTHON_ENV="export PYTHONPATH=/home/einsx7/.local/lib/python3.6/site-packages/"
+TRACKING_DIR=${BASE_DIR}/system_utilization_tracking
+if [ ! -d  ${TRACKING_DIR} ]; do
+    mkdir ${TRACKING_DIR}
+done
 for server in ${SERVER_LIST[*]} ; do
     ssh ${server} \
         ${SETUP_PYTHON_ENV} && \
         python3.6 ${TRACKER} \
-        --output_dir ${BASE_DIR} \
+        --output_dir ${TRACKING_DIR} \
         --report_prefix ${server} \
         --time_out_hour 5 &
 done
+
+####################################################################
 
 echo "Start running"
 
@@ -197,19 +201,20 @@ if [[ ${RANDOM_ANCHOR_PLACEMENT} -eq 1 ]]; then
 fi
 
 ####################################################################
+if [ -z "${UNIQUE_SYNTH_DCP_DIR}" ]; then
+    while :
+    do
+        done_num=$(find ${BASE_DIR}/slot_synth -maxdepth 2 -type f -name *.dcp.done.flag | wc -w)
+        total_num=$(find ${BASE_DIR}/slot_synth -maxdepth 1 -type d -name CR* | wc -l)
+        echo "[$(date +"%T")] Synthesis: ${done_num}/${total_num} finished"
 
-while :
-do
-    done_num=$(find ${BASE_DIR}/slot_synth -maxdepth 2 -type f -name *.dcp.done.flag | wc -w)
-    total_num=$(find ${BASE_DIR}/slot_synth -maxdepth 1 -type d -name CR* | wc -l)
-    echo "[$(date +"%T")] Synthesis: ${done_num}/${total_num} finished"
+        if (( ${done_num} == ${total_num} )); then
+            break
+        fi
 
-    if (( ${done_num} == ${total_num} )); then
-        break
-    fi
-
-    sleep 30
-done
+        sleep 30
+    done
+fi
 
 while :
 do
@@ -279,6 +284,11 @@ done
 
 echo "Finished"
 echo $(date +"%T")
+
+# terminate the system tracker
+for server in ${SERVER_LIST[*]} ; do
+    ssh ${server} pkill -f $TRACKER
+done
 
 # kill all child process, including the performance tracker
 pkill -P $$
