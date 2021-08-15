@@ -114,7 +114,7 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     # because we will not re-route laguna anchor nets
     # thus those must not spill into other slots
     dl_x, dl_y, ur_x, ur_y = getSlotIndicesFromSlotName(slot_name)
-    script.append(f'set clock_regions [get_clock_regions -regexp X[{dl_x}{ur_x}]Y[{dl_y}{ur_y}] ]') 
+    script.append(f'set clock_regions [get_clock_regions -regexp X({dl_x}|{ur_x})Y({dl_y}|{ur_y}) ]') 
     script.append(f'catch {{ add_cells_to_pblock [get_pblocks {slot_name}] [get_cells -of_objects $clock_regions -filter {{ LOC =~ *LAGUNA* }} ] }}') 
 
     # script.append(f'set_property SNAPPING_MODE ON [get_pblocks {slot_name}]')
