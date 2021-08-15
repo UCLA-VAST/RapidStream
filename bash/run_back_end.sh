@@ -10,6 +10,7 @@ INVERT_ANCHOR_CLOCK=0
 TARGET_PERIOD=2.5
 SERVER_LIST=("u5" "u15" "u17" "u18")
 BASELINE_ANCHOR_PLACEMENT=0
+RUN_RWROUTE_TEST=0
 
 export GUROBI_HOME="/home/einsx7/pr/solver/gurobi902/linux64"
 export PATH="${PATH}:${GUROBI_HOME}/bin"
@@ -58,7 +59,11 @@ while [[ $# -gt 0 ]]; do
     --test-random-anchor-placement)
       RANDOM_ANCHOR_PLACEMENT=1
       shift # past argument
-      ;;      
+      ;;
+    --test-rwroute)
+      RUN_RWROUTE_TEST=1
+      shift # past argument
+      ;;
     *)    # unknown option
       POSITIONAL+=("$1") # save it in an array for later
       shift # past argument
@@ -108,8 +113,8 @@ python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 0  #
 python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 1  # test vivado anchor placement
 python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 2  # test random anchor placement
 python3.6 -m autoparallel.BE.Clock.SlotAnchorClockRouting  ${HUB} ${BASE_DIR} ${VIV_VER} ${INVERT_ANCHOR_CLOCK}
-python3.6 -m autoparallel.BE.SlotRouting ${HUB} ${BASE_DIR} ${VIV_VER} 0
-python3.6 -m autoparallel.BE.SlotRouting ${HUB} ${BASE_DIR} ${VIV_VER} 1
+python3.6 -m autoparallel.BE.SlotRouting ${HUB} ${BASE_DIR} ${VIV_VER} 0 ${RUN_RWROUTE_TEST}  # normal flow
+python3.6 -m autoparallel.BE.SlotRouting ${HUB} ${BASE_DIR} ${VIV_VER} 1 ${RUN_RWROUTE_TEST}  # baseline: no clock locking
 python3.6 -m autoparallel.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VIV_VER}
 python3.6 -m autoparallel.BE.SLRLevelStitch ${HUB} ${BASE_DIR} ${VIV_VER} ${RW_SETUP_PATH}
 
@@ -124,7 +129,7 @@ declare -a steps=(
     "baseline_random_anchor_placement"
     "baseline_random_anchor_placement_opt"
     "slot_routing"
-    "slot_routing_do_not_fix_clock"
+    "baseline_slot_routing_do_not_fix_clock"
 )
 for step in "${steps[@]}"; do
     SCRIPT=${BASE_DIR}/distributed_run_${step}.sh

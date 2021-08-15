@@ -14,6 +14,12 @@ LAGUNA_REG_Y_RANGE = [
   (600, 839)
 ]
 
+
+def getSlotIndicesFromSlotName(slot_name):
+  match = re.search(r'CR_X(\d+)Y(\d+)_To_CR_X(\d+)Y(\d+)', slot_name)
+  return [int(match.group(i)) for i in range(1, 5)]
+
+
 def getSlotsInSLRIndex(hub, slr_index):
   """
   get all slots within a given SLR
