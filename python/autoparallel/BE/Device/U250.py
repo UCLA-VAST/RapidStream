@@ -352,7 +352,7 @@ def getAllHorizontalBufferRegions(row_width, is_for_placement: bool, buffer_gap 
       row_buffer_region_pblock.append(f'SLICE_X0Y{(i+1) * 120 - row_width}:SLICE_X232Y{(i+1) * 120 - 1} ')
 
   return row_buffer_region_pblock
-  
+
 
 def getAllBoundaryBufferRegions(col_width, row_width, is_for_placement: bool):
   """
@@ -388,12 +388,22 @@ def getAllBoundaryBufferRegions(col_width, row_width, is_for_placement: bool):
   return '\n'.join(col_buffer_region_pblock + row_buffer_region_pblock)
 
 
+def getNonSlotRegionsForRouting():
+  """
+  FIXME: must sync with __getBufferRegionSize(). Need to refactor
+  get all regions between slot boundary and the enclosing clockregions
+  """
+  buffer_col_num, buffer_row_num = None, 5
+  slice_buffer_at_boundary = getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num, is_for_placement=False)
+  list_of_anchor_region_dsp_and_bram = getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+  return slice_buffer_at_boundary + " " + " ".join(list_of_anchor_region_dsp_and_bram)
+
+
 def getAllDSPAndBRAMInBoundaryBufferRegions(col_width, row_width):
   """
   should sync up with getAllBoundaryBufferRegions()
   get the DSP and BRAM tiles that fall in the anchor buffer region
   """
-  assert col_width == 4
   assert row_width == 5
 
   # only BRAMs in the horizontable buffer region will be discarded
