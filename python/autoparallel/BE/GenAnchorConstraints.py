@@ -96,8 +96,8 @@ def __constrainSlotBody(hub, slot_name):
   buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
 
   # including vertical & horizontal buffer region, also leave a column of SLICE adjacent to lagunas empty
-  # UPDATE: need additional empty space to facilitate routing. Thus we have the +1 adjustment
-  slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num+1, buffer_row_num+1, is_for_placement=True)
+  # setting will leave additional empty space in the boundary to facilitate routing.
+  slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num, is_for_placement=True)
   
   # we need gaps all around laguna columns, which has similar effects as boundaries
   slice_buffer_besides_laguna = U250.getAllLagunaBufferRegions(add_empty_space=True)
