@@ -49,6 +49,8 @@ def getSynthScript(
 
   script = []
 
+  script.append(f'set_param general.maxThreads 8')
+  
   script.append(f'set_part {fpga_part_name}')
 
   # read in the original RTLs by HLS
