@@ -30,6 +30,9 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   for anchor_placement in anchor_placement_scripts:
     script.append(f'source -notrace {anchor_placement}')
 
+  # when we use inverted clock to help RWRoute hold fix, we do not need to apply to laguna anchors
+  script.append('catch { set_property IS_INVERTED 0 [get_pins -filter {NAME =~ *C} -of_objects [get_cells -filter {BEL =~ *LAGUNA*RX* } ]] }')
+
   # get rid of the place holder LUTs
   # currently keep the LUTs to alleviate hold violations
   if hub['InSlotPipelineStyle'] == 'LUT':

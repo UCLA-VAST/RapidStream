@@ -559,8 +559,8 @@ def writePlacementResults(
   script.append('}')
 
   # place the source of the anchors to the corresponding TX laguna reg
-  if is_slr_crossing_pair and pipeline_style == 'INVERT_CLOCK':
-    script += placeAnchorSourceToLagunaTX(common_anchor_connections)
+  # if is_slr_crossing_pair and pipeline_style == 'INVERT_CLOCK':
+  #   script += placeAnchorSourceToLagunaTX(common_anchor_connections)
 
   open('place_anchors.tcl', 'w').write('\n'.join(script))
 
