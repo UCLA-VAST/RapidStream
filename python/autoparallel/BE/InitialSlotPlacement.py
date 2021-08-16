@@ -13,6 +13,7 @@ loggingSetup()
 
 def getPlacementScript(slot_name):
   script = []
+  script.append(f'set_param general.maxThreads 8')
 
   dcp_path = get_synth_dcp(slot_name)
   script.append(f'open_checkpoint {dcp_path}')
