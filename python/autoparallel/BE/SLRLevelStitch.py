@@ -23,7 +23,7 @@ def placeBackSourceCellofLagunaAnchors(slr_index):
     for pair in hub["AllSlotPairs"]:
       if (pair[0] in slots) != (pair[1] in slots):
         pair_name = '_AND_'.join(pair)
-        script.append(f'source {anchor_placement_dir}/{pair_name}/{anchor_source_placement_script}')
+        script.append(f'catch {{ source {anchor_placement_dir}/{pair_name}/{anchor_source_placement_script} }}')
   
   return script
 
@@ -50,7 +50,8 @@ def getVivadoScriptForSLR(slr_index):
   script.append(f'create_clock -name ap_clk -period 3 [get_pins test_bufg/O]')
   script.append(f'set_clock_uncertainty -hold 0.02 [get_clocks ap_clk]')
 
-  script.append(f'write_checkpoint slr_{slr_index}_before_routed.dcp')
+  script.append(f'write_checkpoint {slr_stitch_dir}/slr_{slr_index}/pre_route_checkpoint/slr_{slr_index}_before_routed.dcp')
+  script.append(f'write_edif {slr_stitch_dir}/slr_{slr_index}/pre_route_checkpoint/slr_{slr_index}_before_routed.edf')
 
   # add back the placeholder FFs
   script += addAllAnchors(hub, base_dir, getSlotsInSLRIndex(hub, slr_index))
@@ -60,8 +61,8 @@ def getVivadoScriptForSLR(slr_index):
   # remove the placeholder anchors
   script += removePlaceholderAnchors()
 
-  script.append(f'write_checkpoint {slr_stitch_dir}/slr_{slr_index}/checkpoint/slr_{slr_index}_routed.dcp')
-  script.append(f'write_edif {slr_stitch_dir}/slr_{slr_index}/checkpoint/slr_{slr_index}_routed.edf')
+  script.append(f'write_checkpoint {slr_stitch_dir}/slr_{slr_index}/vivado_routed_checkpoint/slr_{slr_index}_routed.dcp')
+  script.append(f'write_edif {slr_stitch_dir}/slr_{slr_index}/vivado_routed_checkpoint/slr_{slr_index}_routed.edf')
 
   return script
 
@@ -105,7 +106,9 @@ if __name__ == '__main__':
 
   for slr_index in range(SLR_NUM):
     os.mkdir(f'{slr_stitch_dir}/slr_{slr_index}')
-    os.mkdir(f'{slr_stitch_dir}/slr_{slr_index}/checkpoint')
+    os.mkdir(f'{slr_stitch_dir}/slr_{slr_index}/vivado_routed_checkpoint')
+    os.mkdir(f'{slr_stitch_dir}/slr_{slr_index}/rwroute_routed_checkpoint')
+    os.mkdir(f'{slr_stitch_dir}/slr_{slr_index}/pre_route_checkpoint')
 
   for slr_index in range(SLR_NUM):
     script = getVivadoScriptForSLR(slr_index)
