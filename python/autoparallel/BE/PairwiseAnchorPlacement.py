@@ -1,3 +1,4 @@
+import argparse
 import json
 import math
 import re
@@ -624,7 +625,10 @@ def setupAnchorPlacement(hub):
     guard1 = f'until [ -f {get_anchor_connection_path(slot1_name)}.done.flag ]; do sleep 10; done'
     guard2 = f'until [ -f {get_anchor_connection_path(slot2_name)}.done.flag ]; do sleep 10; done'
 
-    ilp_placement = f'python3.6 -m autoparallel.BE.PairwiseAnchorPlacement {hub_path} {base_dir} RUN {iter} {pair_name} {TEST_RANDOM_ANCHOR_PLACEMENT}'
+    ilp_placement = f'python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
+      --hub_path {hub_path} --base_dir {base_dir} --option RUN --which_iteration {iter} \
+      --pair_name {pair_name} --test_random_anchor_placement {args.test_random_anchor_placement} \
+      --user_name {args.user_name} --server_list_in_str "{args.server_list_in_str}"'
 
     touch_flag = f'touch {anchor_placement_dir}/{pair_name}/place_anchors.tcl.done.flag'
 
@@ -641,7 +645,7 @@ def setupAnchorPlacement(hub):
   for i, server in enumerate(server_list):
     local_tasks = tasks[i * num_job_server: (i+1) * num_job_server]
 
-    if TEST_RANDOM_ANCHOR_PLACEMENT == 0:
+    if not args.test_random_anchor_placement:
       folder_name = f'ILP_anchor_placement_iter{iter}'
     else:
       folder_name = 'baseline_random_anchor_placement'
@@ -703,26 +707,36 @@ def getRandomAnchorPlacementAndWriteScript(pair_name, common_anchor_connections)
 
 
 if __name__ == '__main__':
-  assert len(sys.argv) == 7, 'input (1) the path to the front end result file; (2) the target directory; (3) which action; (4) which iteration'
-  hub_path = sys.argv[1]
-  base_dir = sys.argv[2]
-  option = sys.argv[3]
-  iter = int(sys.argv[4])
-  pair_name = sys.argv[5]
-  TEST_RANDOM_ANCHOR_PLACEMENT = int(sys.argv[6])
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--hub_path", type=str, required=True)
+  parser.add_argument("--base_dir", type=str, required=True)
+  parser.add_argument("--option", type=str, required=True)
+  parser.add_argument("--which_iteration", type=int, required=True)
+  parser.add_argument("--pair_name", type=str, nargs="?", default="")
+  parser.add_argument("--test_random_anchor_placement", type=int, required=True)
+  parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
+  parser.add_argument("--user_name", type=str, required=True)
+  args = parser.parse_args()
+
+  hub_path = args.hub_path
+  base_dir = args.base_dir
+  user_name = args.user_name
+  server_list = args.server_list_in_str.split()
+
+  option = args.option
+  iter = args.which_iteration
+  pair_name = args.pair_name
+
   hub = json.loads(open(hub_path, 'r').read())
 
   pipeline_style = hub["InSlotPipelineStyle"]
-
-  user_name = 'einsx7'
-  server_list = ['u5','u17','u18','u15']
 
   if iter == 0:
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/init_slot_placement/{slot_name}/init_placement_anchor_connections.json'
   else:
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/placement_opt_iter{iter-1}/{slot_name}/phys_opt_design_iter{iter-1}_anchor_connections.json'
 
-  if TEST_RANDOM_ANCHOR_PLACEMENT == 0:
+  if not args.test_random_anchor_placement:
     anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter{iter}'
   else:
     anchor_placement_dir = f'{base_dir}/baseline_random_anchor_placement'
@@ -744,7 +758,7 @@ if __name__ == '__main__':
     is_slr_crossing_pair = isPairSLRCrossing(slot1_name, slot2_name)
 
     # normal flow
-    if TEST_RANDOM_ANCHOR_PLACEMENT == 0:
+    if not args.test_random_anchor_placement:
       if is_slr_crossing_pair:
         anchor_2_loc = placeLagunaAnchors(hub, pair_name, common_anchor_connections)
       else:

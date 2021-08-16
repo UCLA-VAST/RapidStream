@@ -8,6 +8,7 @@ VIV_VER="2021.1"
 RW_SETUP_PATH="/home/einsx7/rapidwright/rapidwright_07_30/rapidwright.sh"
 INVERT_ANCHOR_CLOCK=0
 TARGET_PERIOD=2.5
+USER_NAME="einsx7"
 SERVER_LIST=("u5" "u15" "u17" "u18")
 BASELINE_ANCHOR_PLACEMENT=0
 RUN_RWROUTE_TEST=0
@@ -101,13 +102,47 @@ mkdir $BASE_DIR
 cp ${HUB} $BASE_DIR
 chmod -w $BASE_DIR/front_end_result.json
 
+# slot synth
 if [ -z "${UNIQUE_SYNTH_DCP_DIR}" ]; then
-    python3.6 -m autoparallel.BE.SlotSynthesis ${HUB} ${BASE_DIR} ${VIV_VER} ${INVERT_ANCHOR_CLOCK} ${TARGET_PERIOD}
+    python3.6 -m autoparallel.BE.SlotSynthesis \
+        --hub_path ${HUB} \
+        --base_dir ${BASE_DIR} \
+        --vivado_version ${VIV_VER} \
+        --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
+        --clock_period ${TARGET_PERIOD} \
+        --user_name ${USER_NAME} \
+        --server_list_in_str "${SERVER_LIST[*]}"
 fi
 
-python3.6 -m autoparallel.BE.InitialSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${UNIQUE_SYNTH_DCP_DIR} 
-python3.6 -m autoparallel.BE.PairwiseAnchorPlacement $HUB $BASE_DIR SETUP 0 "place_holder" 0  # iter 0, normal flow
-python3.6 -m autoparallel.BE.PairwiseAnchorPlacement $HUB $BASE_DIR SETUP 0 "place_holder" 1  # iter 0, random anchor placement
+# init slot placement
+python3.6 -m autoparallel.BE.InitialSlotPlacement \
+    --hub_path ${HUB} \
+    --base_dir ${BASE_DIR} \
+    --vivado_version ${VIV_VER} \
+    --path_to_reuse_synth_dcp ${UNIQUE_SYNTH_DCP_DIR} \
+    --user_name ${USER_NAME} \
+    --server_list_in_str "${SERVER_LIST[*]}"
+
+# ILP anchor placement
+python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
+    --hub_path $HUB \
+    --base_dir $BASE_DIR \
+    --option SETUP \
+    --which_iteration 0 \
+    --test_random_anchor_placement 0 \
+    --user_name ${USER_NAME} \
+    --server_list_in_str "${SERVER_LIST[*]}"
+
+# test random anchor placement
+python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
+    --hub_path $HUB \
+    --base_dir $BASE_DIR \
+    --option SETUP \
+    --which_iteration 0 \
+    --test_random_anchor_placement 1 \
+    --user_name ${USER_NAME} \
+    --server_list_in_str "${SERVER_LIST[*]}"
+
 python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${TARGET_PERIOD}  # vivado anchor placement
 python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 0  # normal flow
 python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 1  # test vivado anchor placement
