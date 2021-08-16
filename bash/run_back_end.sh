@@ -119,6 +119,11 @@ python3.6 -m autoparallel.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VI
 python3.6 -m autoparallel.BE.SLRLevelStitch ${HUB} ${BASE_DIR} ${VIV_VER} ${RW_SETUP_PATH}
 
 # create scripts to distribute the workloads
+SCRIPT_DIR=${BASE_DIR}/scripts
+if [ ! -d  ${SCRIPT_DIR} ] ; then
+    mkdir ${SCRIPT_DIR}
+fi
+
 declare -a steps=(
     "slot_synth" 
     "init_slot_placement" 
@@ -132,7 +137,7 @@ declare -a steps=(
     "baseline_slot_routing_do_not_fix_clock"
 )
 for step in "${steps[@]}"; do
-    SCRIPT=${BASE_DIR}/distributed_run_${step}.sh
+    SCRIPT=${SCRIPT_DIR}/distributed_run_${step}.sh
     
     for server in ${SERVER_LIST[*]} ; do
         echo "ssh ${server} \"cd ${BASE_DIR}/${step}/ && parallel < parallel_${step}_${server}.txt\" >> ${BASE_DIR}/backend_${step}.log 2>&1 &" >> ${SCRIPT}
@@ -140,7 +145,7 @@ for step in "${steps[@]}"; do
     echo "wait" >> ${SCRIPT}
     chmod +x ${SCRIPT}
 
-    TRANSFER_SCRIPT=${BASE_DIR}/transfer_${step}.sh
+    TRANSFER_SCRIPT=${SCRIPT_DIR}/transfer_${step}.sh
     for server in ${SERVER_LIST[*]} ; do
         echo "rsync -azh --delete -r ${BASE_DIR}/${step}/ einsx7@${server}:${BASE_DIR}/${step} &" >> ${TRANSFER_SCRIPT}
     done
@@ -148,7 +153,7 @@ for step in "${steps[@]}"; do
     chmod +x ${TRANSFER_SCRIPT}
 done
 
-KILL_SCRIPT=${BASE_DIR}/kill.sh
+KILL_SCRIPT=${SCRIPT_DIR}/kill.sh
 for server in ${SERVER_LIST[*]} ; do
     echo "ssh ${server} pkill -f vivado" >> ${KILL_SCRIPT}
 done
@@ -164,9 +169,9 @@ echo "Start system utilization trackers..."
 TRACKER=${RW_BRIDGE_ROOT_DIR}/utilities/system_utilization_tracker.py
 SETUP_PYTHON_ENV="export PYTHONPATH=/home/einsx7/.local/lib/python3.6/site-packages/"
 TRACKING_DIR=${BASE_DIR}/system_utilization_tracking
-if [ ! -d  ${TRACKING_DIR} ]; do
+if [ ! -d  ${TRACKING_DIR} ] ; then
     mkdir ${TRACKING_DIR}
-done
+fi
 for server in ${SERVER_LIST[*]} ; do
     ssh ${server} \
         ${SETUP_PYTHON_ENV} && \
@@ -181,23 +186,23 @@ done
 echo "Start running"
 
 if [ -z "${UNIQUE_SYNTH_DCP_DIR}" ]; then
-    ${BASE_DIR}/distributed_run_slot_synth.sh &
+    ${SCRIPT_DIR}/distributed_run_slot_synth.sh &
 fi
 
-${BASE_DIR}/distributed_run_init_slot_placement.sh &
+${SCRIPT_DIR}/distributed_run_init_slot_placement.sh &
 
-${BASE_DIR}/distributed_run_ILP_anchor_placement_iter0.sh &
+${SCRIPT_DIR}/distributed_run_ILP_anchor_placement_iter0.sh &
 
-${BASE_DIR}/distributed_run_opt_placement_iter0.sh &
+${SCRIPT_DIR}/distributed_run_opt_placement_iter0.sh &
 
 if [[ ${VIVADO_ANCHOR_PLACEMENT} -eq 1 ]]; then
-    ${BASE_DIR}/distributed_run_baseline_vivado_anchor_placement.sh &
-    ${BASE_DIR}/distributed_run_baseline_vivado_anchor_placement_opt.sh &
+    ${SCRIPT_DIR}/distributed_run_baseline_vivado_anchor_placement.sh &
+    ${SCRIPT_DIR}/distributed_run_baseline_vivado_anchor_placement_opt.sh &
 fi
 
 if [[ ${RANDOM_ANCHOR_PLACEMENT} -eq 1 ]]; then
-    ${BASE_DIR}/distributed_run_baseline_random_anchor_placement.sh &
-    ${BASE_DIR}/distributed_run_baseline_random_anchor_placement_opt.sh &
+    ${SCRIPT_DIR}/distributed_run_baseline_random_anchor_placement.sh &
+    ${SCRIPT_DIR}/distributed_run_baseline_random_anchor_placement_opt.sh &
 fi
 
 ####################################################################
@@ -265,7 +270,7 @@ parallel < ${BASE_DIR}/slot_anchor_clock_routing/parallel-run-slot-clock-routing
 
 # routing
 echo "Start slot routing..."
-${BASE_DIR}/distributed_run_slot_routing.sh &
+${SCRIPT_DIR}/distributed_run_slot_routing.sh &
 
 ####################################################################
 
@@ -281,6 +286,11 @@ do
 
     sleep 30
 done
+
+# stitching
+echo "Start SLR-level stitching..."
+parallel < ${BASE_DIR}/SLR_level_stitch/parallel-route-slr.txt
+
 
 echo "Finished"
 echo $(date +"%T")
