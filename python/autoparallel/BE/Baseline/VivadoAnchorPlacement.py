@@ -4,9 +4,14 @@ import json
 import math
 import os
 import sys
+from typing import Set, Dict, Tuple
+
 from autoparallel.BE.GenAnchorConstraints import createAnchorPlacementExtractScript, __getBufferRegionSize
 from autoparallel.BE.Device import U250
-from typing import Set, Dict, Tuple
+from autoparallel.BE.Utilities import loggingSetup
+
+loggingSetup()
+
 
 def getHeader(slot1_name, slot2_name):
   header = ['\n\n`timescale 1 ns / 1 ps',
@@ -196,7 +201,11 @@ def createVivadoScriptForSlotPair(
   script.append( 'catch {add_cells_to_pblock [get_pblocks anchor_region] [get_cells -regexp {.*q0_reg.*} ] }')
 
   col_width, row_width = __getBufferRegionSize(None, None) # TODO: should automatically choose a suitable buffer region size
-  anchor_region_def = U250.getBufferRegionBetweenSlotPair(slot1_name, slot2_name, col_width, row_width)
+  
+  # the region will be used by Vivado to place the anchors
+  # if we only include lagunas, it will fail placement DRC check
+  # thus we include the lagunas and the SLICE nearby
+  anchor_region_def = U250.getBufferRegionBetweenSlotPair(slot1_name, slot2_name, col_width, row_width, include_laguna=True)
 
   # note that we need to include lagunas into the pblocks
   # otherwise the placer will deem no SLL could be used
@@ -235,18 +244,16 @@ def getParallelScript():
   num_job_server = math.ceil(len(task) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = task[i * num_job_server: (i+1) * num_job_server]
-    open(f'{baseline_dir}/parallel-vivado-anchor-place-{server}.txt', 'w').write('\n'.join(local_tasks))
+    open(f'{baseline_dir}/parallel_baseline_vivado_anchor_placement_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO)
-
   assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   VIV_VER=sys.argv[3]
   CLOCK_PERIOD = sys.argv[4]
 
-  logging.warning('Only 2020.1 supports read_checkpoint -cell. Enforce 2020.1')
+  logging.warning('[baseline anchor placement] Only 2020.1 supports read_checkpoint -cell. Enforce 2020.1')
   VIV_VER = '2020.1'
 
   hub = json.loads(open(hub_path, 'r').read())

@@ -3,10 +3,13 @@ import json
 import os
 import math
 from typing import List
+
 import autoparallel.BE.Constants as Constants
 from autoparallel.BE.Device import U250
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
-from autoparallel.BE.Utilities import getAnchorTimingReportScript
+from autoparallel.BE.Utilities import getAnchorTimingReportScript, loggingSetup, getSlotIndicesFromSlotName
+
+loggingSetup()
 
 
 def extractLagunaAnchorRoutes(slot_name):
@@ -67,7 +70,7 @@ def unrouteNonLagunaAnchorDPinQPinNets() -> List[str]:
 
   script.append('set non_laguna_anchors [get_cells  -filter { NAME =~  "*q0_reg*" && LOC !~  "*LAGUNA*" } ]')
   script.append('set non_laguna_anchor_nets [ get_nets -of_objects $non_laguna_anchors -filter { TYPE == "SIGNAL" && ROUTE_STATUS != "HIERPORT"} ]')
-  script.append('route_design -unroute -nets $non_laguna_anchor_nets')
+  script.append('set_property ROUTE "" $non_laguna_anchor_nets')
 
   return script
 
@@ -90,7 +93,7 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     # next create the inner pblock that only includes the slot
     script.append(f'startgroup')
     script.append(f'create_pblock {slot_name}')
-    script.append(f'resize_pblock [get_pblocks {slot_name}] -add {pblock_def}')
+    script.append(f'resize_pblock [get_pblocks {slot_name}] -add {detailed_pblock_def}')
 
     # previously we set the pblock as the entire clock regions. 
     # However, the intra-slot nets may use the anchor regions. 
@@ -98,15 +101,19 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     # To get a clean anchor region, we set the routing pblock to strictly disjoint from the anchor regions
     # The prerequisite is that the placement pblock is even smaller than the routing pblock.
     # we need at least 1 row/col of empty space at the boundary to make the boundary nets routable.
-    # buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
-    # slice_buffer_at_boundary = U250.getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num, is_for_placement=False)
-    # script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {slice_buffer_at_boundary} }}')
-    # list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
-    # script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {" ".join(list_of_anchor_region_dsp_and_bram)} }}')
+    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {U250.getNonSlotRegionsForRouting()} }}')
 
     script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks {slot_name}]')
     script.append(f'add_cells_to_pblock [get_pblocks {slot_name}] [get_cells {slot_name}_ctrl_U0]')
-    script.append(f'set_property SNAPPING_MODE ON [get_pblocks {slot_name}]')
+
+    # add the laguna anchors within the slot region to the slot pblock
+    # because we will not re-route laguna anchor nets
+    # thus those must not spill into other slots
+    dl_x, dl_y, ur_x, ur_y = getSlotIndicesFromSlotName(slot_name)
+    script.append(f'set clock_regions [get_clock_regions -regexp X({dl_x}|{ur_x})Y({dl_y}|{ur_y}) ]') 
+    script.append(f'catch {{ add_cells_to_pblock [get_pblocks {slot_name}] [get_cells -of_objects $clock_regions -filter {{ LOC =~ *LAGUNA* }} ] }}') 
+
+    # script.append(f'set_property SNAPPING_MODE ON [get_pblocks {slot_name}]')
     script.append(f'endgroup')
 
     script.append(f'report_utilization -pblock [get_pblocks {slot_name}]')
@@ -153,6 +160,12 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script.append(f'puts $fp [get_property ROUTE [get_nets ap_clk]]')
     script.append(f'close $fp')
 
+    # whichever pblock is used for routing,
+    # make sure the pblock is non-overlapping with anchor reigons before phys_opt_design
+    # post-routing phys_opt_design may change placement as well
+    # if inner cells are moved to anchor regions, the stitcher may fail due to its limitation
+    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {U250.getNonSlotRegionsForRouting()} }}')
+
     script.append(f'phys_opt_design')
 
     # remove the placeholder anchors
@@ -197,22 +210,34 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
     setup_rw = f'source {Constants.RWROUTE_SETUP_PATH}'
     target_dcp_path = f'{routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted/'
     target_dcp = f'{target_dcp_path}/non_laguna_anchor_nets_unrouted.dcp'
-    test_rwroute = Constants.RWROUTE.format(dcp=target_dcp, target_dir=target_dcp_path)
+    output_path = f'{routing_dir}/{slot_name}/test_rw_route'
 
-    all_tasks.append(f'cd {dir} && {vivado} && {transfer} && {parse_timing_report_1} && {parse_timing_report_2} && {setup_rw} && {test_rwroute}')
+    if RUN_RWROUTE_TEST:
+      test_rwroute = f'{setup_rw} && mkdir {output_path} && ' + Constants.RWROUTE.format(dcp=target_dcp, target_dir=output_path)
+    else:
+      test_rwroute = f'sleep 1'
+
+    all_tasks.append(f'cd {dir} && {vivado} && {parse_timing_report_1} && {parse_timing_report_2} && {test_rwroute} && {transfer} ')
     
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
-    open(f'{routing_dir}/parallel-route-with-ooc-clock-{server}.txt', 'w').write('\n'.join(local_tasks))
+
+    if DO_NOT_FIX_CLOCK == 0:
+      folder_name = 'slot_routing'
+    else:
+      folder_name = 'slot_routing_do_not_fix_clock'
+
+    open(f'{routing_dir}/parallel_{folder_name}_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 
 if __name__ == '__main__':
-  assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
+  assert len(sys.argv) == 6, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   VIV_VER=sys.argv[3]
   DO_NOT_FIX_CLOCK = int(sys.argv[4])  # for comparison purpose
+  RUN_RWROUTE_TEST = int(sys.argv[5])
 
   opt_dir = f'{base_dir}/opt_placement_iter0'
 
@@ -220,7 +245,7 @@ if __name__ == '__main__':
     routing_dir = f'{base_dir}/slot_routing'
     anchor_clock_routing_dir = f'{base_dir}/slot_anchor_clock_routing'
   else:
-    routing_dir = f'{base_dir}/slot_routing_do_not_fix_clock'
+    routing_dir = f'{base_dir}/baseline_slot_routing_do_not_fix_clock'
 
   user_name = 'einsx7'
   server_list=['u5','u17','u18','u15']

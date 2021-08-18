@@ -3,7 +3,11 @@ import json
 import sys
 import os
 import math
+
 from autoparallel.BE.Utilities import getAnchorTimingReportScript
+from autoparallel.BE.Utilities import loggingSetup
+
+loggingSetup()
 
 
 def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts):
@@ -17,9 +21,7 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   script.append(f'lock_design -unlock -level placement') # seems that "-level placement" will trigger vivado bug
 
   # remove the pblocks for anchors
-  # because some anchors will be placed inside the main pblock. Avoid potential conflict
-  # script.append(f'delete_pblocks [get_pblocks -filter {{ NAME !~ "*{slot_name}*"}} ]')
-  script.append(f'set_property EXCLUDE_PLACEMENT 0 [get_pblocks {slot_name} ]')
+  script.append(f'delete_pblocks [get_pblocks -filter {{ NAME !~ "*{slot_name}*"}} ]')
 
   script.append(f'unplace_cell [get_cells -regexp .*_q0_reg.*]')
 
@@ -27,6 +29,9 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   # script.append(f'source place_anchors_of_slot.tcl')
   for anchor_placement in anchor_placement_scripts:
     script.append(f'source -notrace {anchor_placement}')
+
+  # when we use inverted clock to help RWRoute hold fix, we do not need to apply to laguna anchors
+  script.append('catch { set_property IS_INVERTED 0 [get_pins -filter {NAME =~ *C} -of_objects [get_cells -filter {BEL =~ *LAGUNA*RX* } ]] }')
 
   # get rid of the place holder LUTs
   # currently keep the LUTs to alleviate hold violations
@@ -93,7 +98,15 @@ def generateParallelScript(hub, user_name, server_list):
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
-    open(f'{opt_dir}/parallel-opt-placement-{server}.txt', 'w').write('\n'.join(local_tasks))
+    if RUN_MODE == 0:
+      folder_name = 'opt_placement_iter0'
+    elif RUN_MODE == 1:
+      folder_name = 'baseline_vivado_anchor_placement_opt'
+    elif RUN_MODE == 2:
+      folder_name = 'baseline_random_anchor_placement_opt'
+    else:
+      assert False
+    open(f'{opt_dir}/parallel_{folder_name}_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 def generateOptScript(hub):
   """
@@ -110,24 +123,27 @@ def generateOptScript(hub):
     open(f'{opt_dir}/{slot_name}/{slot_name}_phys_opt_placement.tcl', 'w').write('\n'.join(opt_script))
   
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO)
-
   assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
   VIV_VER=sys.argv[3]
-  VIVADO_BASELINE = int(sys.argv[4])
+  RUN_MODE = int(sys.argv[4])
 
   hub = json.loads(open(hub_path, 'r').read())
   pair_list = hub["AllSlotPairs"]
   pair_name_list = ['_AND_'.join(pair) for pair in pair_list]
 
-  if VIVADO_BASELINE == 0:
+  if RUN_MODE == 0:  # normal flow
     opt_dir = f'{base_dir}/opt_placement_iter0'
     anchor_source_dir = 'ILP_anchor_placement_iter0'
-  else:
-    opt_dir = f'{base_dir}/baseline_opt_placement_iter0'
+  elif RUN_MODE == 1:  # test vivado anchor placement flow
+    opt_dir = f'{base_dir}/baseline_vivado_anchor_placement_opt'
     anchor_source_dir = 'baseline_vivado_anchor_placement'
+  elif RUN_MODE == 2:  # test random anchor placement flow
+    opt_dir = f'{base_dir}/baseline_random_anchor_placement_opt'
+    anchor_source_dir = 'baseline_random_anchor_placement'
+  else:
+    assert False, RUN_MODE
 
   os.mkdir(opt_dir)  
 
