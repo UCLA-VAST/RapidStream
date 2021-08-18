@@ -14,6 +14,12 @@ LAGUNA_REG_Y_RANGE = [
   (600, 839)
 ]
 
+
+def getSlotIndicesFromSlotName(slot_name):
+  match = re.search(r'CR_X(\d+)Y(\d+)_To_CR_X(\d+)Y(\d+)', slot_name)
+  return [int(match.group(i)) for i in range(1, 5)]
+
+
 def getSlotsInSLRIndex(hub, slr_index):
   """
   get all slots within a given SLR
@@ -82,6 +88,27 @@ def isPairSLRCrossing(slot1_name: str, slot2_name: str) -> bool:
       return True
 
 
+def getSLRIndexOfLaguna(laguna_loc: str) -> int:
+  """
+  find which SLR this laguna is in
+  """
+  match = re.search(r'LAGUNA_X(\d+)Y(\d+)/[RT]X_REG(\d)', laguna_loc)
+  assert match, f'wrong laguna location: {laguna_loc}'
+  laguna_y = int(match.group(2))
+
+  divider = [(range[0] + range[1]) // 2 for range in LAGUNA_REG_Y_RANGE]
+  if LAGUNA_REG_Y_RANGE[0][0] <= laguna_y <= divider[0]:
+    return 0
+  elif divider[0] <= laguna_y <= divider[1]:
+    return 1
+  elif divider[1] <= laguna_y <= divider[2]:
+    return 2
+  elif divider[2] <= laguna_y <= LAGUNA_REG_Y_RANGE[-1][-1]:
+    return 3
+  else:
+    assert False, laguna_y
+
+
 def getPairingLagunaTXOfRX(rx_reg: str) -> str:
   """
   Laguna registers are pair by pair. Given an RX, find the corresponding TX
@@ -148,17 +175,20 @@ def getDirectionOfSlotname(slot_name1: str, slot_name2: str) -> str:
     assert False
 
 
-def loggingSetup(log_name):
+def loggingSetup(log_name = ""):
   root = logging.getLogger()
   root.setLevel(logging.DEBUG)
   formatter = logging.Formatter("[%(levelname)s: %(funcName)25s() ] %(message)s")
   
-  info_file_handler = logging.FileHandler(filename=log_name, mode='w')
-  info_file_handler.setLevel(logging.INFO)
+  if log_name:
+    info_file_handler = logging.FileHandler(filename=log_name, mode='w')
+    info_file_handler.setLevel(logging.INFO)
   stdout_handler = logging.StreamHandler(sys.stdout)
   stdout_handler.setLevel(logging.INFO)
 
-  handlers = [info_file_handler, stdout_handler]
+  handlers = [stdout_handler]
+  if log_name:
+    handlers.append(info_file_handler)
   for handler in handlers:
     handler.setFormatter(formatter)
     root.addHandler(handler)

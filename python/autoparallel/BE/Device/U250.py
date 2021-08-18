@@ -8,7 +8,7 @@ def getAllLagunaRange():
   return 'LAGUNA_X0Y0:LAGUNA_X31Y839'
 
 
-def __getBufferRegionOfSLRCrossingSlotPair(slot1, slot2):
+def __getBufferRegionOfSLRCrossingSlotPair(slot1, slot2, include_laguna: bool):
   assert slot1.down_left_x == slot2.down_left_x
   assert slot1.up_right_x == slot2.up_right_x
 
@@ -44,7 +44,10 @@ def __getBufferRegionOfSLRCrossingSlotPair(slot1, slot2):
       slice_down_left_y=slice_down_left_y,
       slice_up_right_y=slice_up_right_y)
 
-  return laguna_region + '\n' + slice_around_laguna
+  if include_laguna:
+    return laguna_region + '\n' + slice_around_laguna
+  else:
+    return slice_around_laguna
 
 # X index of the SLICE column to the left of the i-th Laguna column
 idx_of_left_side_slice_of_laguna_column = (
@@ -204,7 +207,7 @@ def __getSliceAroundLagunaSides(
   return '\n'.join(SLICE_around_laguna)
 
 
-def getBufferRegionBetweenSlotPair(slot_name1, slot_name2, col_width_each_side, row_width_each_side):
+def getBufferRegionBetweenSlotPair(slot_name1, slot_name2, col_width_each_side, row_width_each_side, include_laguna: bool):
   """
   Given a pair of neighbor slots, return the tight buffer region in between
   to help constrain the anchor placement  
@@ -273,7 +276,7 @@ def getBufferRegionBetweenSlotPair(slot_name1, slot_name2, col_width_each_side, 
   elif orient == 'VERTICAL':
     # the buffer region for cross-SLR vertical pairs should only include the buffer around laguna sites
     if slot1.getSLR() != slot2.getSLR():
-      return __getBufferRegionOfSLRCrossingSlotPair(slot1, slot2)
+      return __getBufferRegionOfSLRCrossingSlotPair(slot1, slot2, include_laguna)
       
     # non-slr-crossing pair
     x_range_beg = idx_1st_col_CR_X[slot1.down_left_x]
@@ -316,6 +319,41 @@ def getAllLagunaBufferRegions(add_empty_space):
   return '\n'.join(slice_besides_laguna)
 
 
+def getAllVerticalBufferRegions(is_for_placement: bool, buffer_gap = 2):
+  # the vertical columns of the buffer region
+  # manually selected to avoid spliting switch boxes. 
+  # Sync with getBufferRegionBetweenSlotPair() 
+  col_buffer_region_pblock = []
+
+  # during placement, we should leave some gap between the slot and the anchor region
+  if not is_for_placement: # for routing, the exact buffer region
+    col_buffer_region_pblock.append(f'SLICE_X56Y0:SLICE_X58Y959')
+    col_buffer_region_pblock.append(f'SLICE_X115Y0:SLICE_X117Y959')
+    col_buffer_region_pblock.append(f'SLICE_X175Y0:SLICE_X177Y959')
+  else: # for placement, expand the buffer region
+    col_buffer_region_pblock.append(f'SLICE_X{56 - buffer_gap}Y0:SLICE_X{58 + buffer_gap}Y959')
+    col_buffer_region_pblock.append(f'SLICE_X{115 - buffer_gap}Y0:SLICE_X{117 + buffer_gap}Y959')
+    col_buffer_region_pblock.append(f'SLICE_X{175 - buffer_gap}Y0:SLICE_X{177 + buffer_gap}Y959')   
+
+  return col_buffer_region_pblock
+
+
+def getAllHorizontalBufferRegions(row_width, is_for_placement: bool, buffer_gap = 2):
+  # the horizontal rows of the buffer region
+  # exclude the region for the up and down device boundaries & die boundaries
+  if is_for_placement:
+    row_width += buffer_gap
+
+  row_buffer_region_pblock = []
+  for i in range(8):
+    if i % 2 == 1: # only need buffer at the down side
+      row_buffer_region_pblock.append(f'SLICE_X0Y{i * 120}:SLICE_X232Y{i * 120 + row_width - 1} ')
+    else: # only need buffer at the up side
+      row_buffer_region_pblock.append(f'SLICE_X0Y{(i+1) * 120 - row_width}:SLICE_X232Y{(i+1) * 120 - 1} ')
+
+  return row_buffer_region_pblock
+
+
 def getAllBoundaryBufferRegions(col_width, row_width, is_for_placement: bool):
   """
   create a buffer region among 2x2 slots
@@ -343,31 +381,22 @@ def getAllBoundaryBufferRegions(col_width, row_width, is_for_placement: bool):
   last_row_idx = 959 # Y index of the highest SLICE
   last_col_idx = 232 # X index of the rightest SLICE
 
-  # the vertical columns of the buffer region
-  # manually selected to avoid spliting switch boxes. 
-  # Sync with getBufferRegionBetweenSlotPair() 
-  col_buffer_region_pblock = []
+  col_buffer_region_pblock = getAllVerticalBufferRegions(is_for_placement) 
 
-  # during placement, we should leave some gap between the slot and the anchor region
-  if not is_for_placement: # for routing, the exact buffer region
-    col_buffer_region_pblock.append(f'SLICE_X56Y0:SLICE_X58Y959')
-    col_buffer_region_pblock.append(f'SLICE_X115Y0:SLICE_X117Y959')
-    col_buffer_region_pblock.append(f'SLICE_X175Y0:SLICE_X177Y959')
-  else: # for placement, expand the buffer region
-    col_buffer_region_pblock.append(f'SLICE_X55Y0:SLICE_X59Y959')
-    col_buffer_region_pblock.append(f'SLICE_X114Y0:SLICE_X118Y959')
-    col_buffer_region_pblock.append(f'SLICE_X174Y0:SLICE_X178Y959')    
+  row_buffer_region_pblock = getAllHorizontalBufferRegions(row_width, is_for_placement)
 
-  # the horizontal rows of the buffer region
-  # exclude the region for the up and down device boundaries & die boundaries
-  row_buffer_region_pblock = []
-  for i in range(8):
-    if i % 2 == 1: # only need buffer at the down side
-      row_buffer_region_pblock.append(f'SLICE_X0Y{i * 120}:SLICE_X232Y{i * 120 + row_width - 1} ')
-    else: # only need buffer at the up side
-      row_buffer_region_pblock.append(f'SLICE_X0Y{(i+1) * 120 - row_width}:SLICE_X232Y{(i+1) * 120 - 1} ')
+  return '\n'.join(col_buffer_region_pblock + row_buffer_region_pblock)
 
-  return '\n'.join(col_buffer_region_pblock) + '\n' + '\n'.join(row_buffer_region_pblock)
+
+def getNonSlotRegionsForRouting():
+  """
+  FIXME: must sync with __getBufferRegionSize(). Need to refactor
+  get all regions between slot boundary and the enclosing clockregions
+  """
+  buffer_col_num, buffer_row_num = None, 5
+  slice_buffer_at_boundary = getAllBoundaryBufferRegions(buffer_col_num, buffer_row_num, is_for_placement=False)
+  list_of_anchor_region_dsp_and_bram = getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
+  return slice_buffer_at_boundary + " " + " ".join(list_of_anchor_region_dsp_and_bram)
 
 
 def getAllDSPAndBRAMInBoundaryBufferRegions(col_width, row_width):
@@ -375,7 +404,6 @@ def getAllDSPAndBRAMInBoundaryBufferRegions(col_width, row_width):
   should sync up with getAllBoundaryBufferRegions()
   get the DSP and BRAM tiles that fall in the anchor buffer region
   """
-  assert col_width == 4
   assert row_width == 5
 
   # only BRAMs in the horizontable buffer region will be discarded

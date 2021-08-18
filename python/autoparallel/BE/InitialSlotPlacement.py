@@ -1,15 +1,19 @@
+import argparse
 import logging
 import json
-import sys
 import math
 import os
 
 from autoparallel.BE.Utilities import getAnchorTimingReportScript
 from autoparallel.BE.GenAnchorConstraints import getSlotInitPlacementPblock
+from autoparallel.BE.Utilities import loggingSetup
+
+loggingSetup()
 
 
 def getPlacementScript(slot_name):
   script = []
+  script.append(f'set_param general.maxThreads 8')
 
   dcp_path = get_synth_dcp(slot_name)
   script.append(f'open_checkpoint {dcp_path}')
@@ -50,7 +54,7 @@ def generateParallelScript(hub, user_name, server_list):
   """
   place = []
   
-  vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source place_slot.tcl'
+  vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source place_slot.tcl'
   parse_timing_report = 'python3.6 -m autoparallel.BE.TimingReportParser init_placement'
 
   for slot_name in hub['SlotIO'].keys():
@@ -71,21 +75,27 @@ def generateParallelScript(hub, user_name, server_list):
   num_job_server = math.ceil(len(place) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = place[i * num_job_server: (i+1) * num_job_server]
-    open(f'{init_place_dir}/parallel-place-all-{server}.txt', 'w').write('\n'.join(local_tasks))
+    open(f'{init_place_dir}/parallel_init_slot_placement_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO)
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--hub_path", type=str, required=True)
+  parser.add_argument("--base_dir", type=str, required=True)
+  parser.add_argument("--vivado_version", type=str, required=True)
+  parser.add_argument("--path_to_reuse_synth_dcp", type=str, nargs="?", default="", help="Path to the synth checkpoints that have been uniquefied")
+  parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
+  parser.add_argument("--user_name", type=str, required=True)
+  args = parser.parse_args()
 
-  assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
-  hub_path = sys.argv[1]
-  base_dir = sys.argv[2]
-  VIV_VER=sys.argv[3]
-  USE_UNIQUE_SYNTH_DCP=int(sys.argv[4])
+  hub_path = args.hub_path
+  base_dir = args.base_dir
+  user_name = args.user_name
+  server_list = args.server_list_in_str.split()
 
   # depends on whether we use the uniquified synth checkpoints
-  if USE_UNIQUE_SYNTH_DCP:
-    get_synth_dcp = lambda slot_name : f'{base_dir}/unique_slot_synth/{slot_name}_synth_unique_2020.1.dcp'
+  if args.path_to_reuse_synth_dcp:
+    get_synth_dcp = lambda slot_name : f'{args.path_to_reuse_synth_dcp}/{slot_name}/{slot_name}_synth_unique_2021.1.dcp'
     get_guard = lambda slot_name : 'sleep 1' # use a harmless placeholder command
   else:
     get_synth_dcp = lambda slot_name : f'{synth_dir}/{slot_name}/{slot_name}_synth.dcp'
@@ -96,9 +106,6 @@ if __name__ == '__main__':
   synth_dir = f'{base_dir}/slot_synth'
   init_place_dir = f'{base_dir}/init_slot_placement'
   os.mkdir(init_place_dir)
-
-  user_name = 'einsx7'
-  server_list=['u5','u17','u18','u15']
 
   setupSlotInitPlacement()
 

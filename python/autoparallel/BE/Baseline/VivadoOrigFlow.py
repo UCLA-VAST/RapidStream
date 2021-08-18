@@ -3,6 +3,10 @@ import logging
 import os
 import sys
 
+from autoparallel.BE.Utilities import loggingSetup
+
+loggingSetup()
+
 
 def getVivadoFlowWithOrigRTL(
   fpga_part_name,
@@ -58,8 +62,6 @@ def createClockFromBUFGXDC(target_period=2.50):
 
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO)
-
   assert len(sys.argv) == 6, 'input (1) the path to the front end result file and (2) the target directory'
   hub_path = sys.argv[1]
   base_dir = sys.argv[2]
@@ -69,13 +71,12 @@ if __name__ == '__main__':
 
   hub = json.loads(open(hub_path, 'r').read())
 
-  baseline_dir = f'{base_dir}/baseline'
+  baseline_dir = f'{base_dir}/baseline_orig_vivado_with_pipeline'
   os.mkdir(baseline_dir)
-  os.mkdir(f'{baseline_dir}/pipelined_baseline')
 
   xdc = createClockFromBUFGXDC()
-  script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'])
+  open(f'{baseline_dir}/clock.xdc', 'w').write('\n'.join(xdc))
 
-  open(f'{baseline_dir}/pipelined_baseline/clock.xdc', 'w').write('\n'.join(xdc))
-  open(f'{baseline_dir}/pipelined_baseline/baseline.tcl', 'w').write('\n'.join(script))
+  script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'])
+  open(f'{baseline_dir}/baseline.tcl', 'w').write('\n'.join(script))
 

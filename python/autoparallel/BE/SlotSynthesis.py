@@ -1,10 +1,13 @@
+import argparse
 import json
 import logging
 import math
 import os
-import sys
 
 from autoparallel.BE.UniversalWrapperCreater import addAnchorToNonTopIOs
+from autoparallel.BE.Utilities import loggingSetup
+
+loggingSetup()
 
 
 def getAnchorWrapperOfSlot(hub, slot_name):
@@ -16,7 +19,7 @@ def getAnchorWrapperOfSlot(hub, slot_name):
   slot_to_rtl = hub['SlotWrapperRTL']
   io_list = slot_to_io[slot_name]
 
-  if INVERT_ANCHOR_CLOCK:
+  if args.invert_non_laguna_anchor_clock:
     clock_edge = 'negedge'
   else:
     clock_edge = 'posedge'
@@ -45,6 +48,8 @@ def getSynthScript(
   """ stop at placement """
 
   script = []
+
+  script.append(f'set_param general.maxThreads 8')
 
   script.append(f'set_part {fpga_part_name}')
 
@@ -82,7 +87,7 @@ def setupSlotSynthesis():
   orig_rtl_path = hub['ORIG_RTL_PATH']
   assert os.path.isdir(orig_rtl_path)
 
-  xdc = createClockFromBUFGXDC(CLOCK_PERIOD)
+  xdc = createClockFromBUFGXDC(args.clock_period)
   open(f'{synth_dir}/clock.xdc', 'w').write('\n'.join(xdc))  
   
   # note that pure routing slots are also implemented separately
@@ -113,7 +118,7 @@ def generateParallelScript(hub, user_name, server_list):
   slot_names = hub['SlotIO'].keys()
 
   for slot_name in slot_names:
-    vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source {slot_name}_synth.tcl'
+    vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source {slot_name}_synth.tcl'
     
     # broadcast the results
     transfer = []
@@ -127,30 +132,33 @@ def generateParallelScript(hub, user_name, server_list):
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
-    open(f'{synth_dir}/parallel-synth-{server}.txt', 'w').write('\n'.join(local_tasks))
+    open(f'{synth_dir}/parallel_slot_synth_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.INFO)
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--hub_path", type=str, required=True)
+  parser.add_argument("--base_dir", type=str, required=True)
+  parser.add_argument("--vivado_version", type=str, required=True)
+  parser.add_argument("--invert_non_laguna_anchor_clock", type=int, required=True)
+  parser.add_argument("--clock_period", type=float, required=True)
+  parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
+  parser.add_argument("--user_name", type=str, required=True)
+  args = parser.parse_args()
 
-  assert len(sys.argv) == 6, 'input (1) the path to the front end result file and (2) the target directory'
-  hub_path = sys.argv[1]
-  base_dir = sys.argv[2]
-  VIV_VER=sys.argv[3]
-  INVERT_ANCHOR_CLOCK=int(sys.argv[4])
-  CLOCK_PERIOD = sys.argv[5]
+  hub_path = args.hub_path
+  base_dir = args.base_dir
+  user_name = args.user_name
+  server_list = args.server_list_in_str.split()
 
-  if INVERT_ANCHOR_CLOCK:
-    logging.warning('invert clock mode is on!')
+  if args.invert_non_laguna_anchor_clock:
+    logging.info('invert clock mode is on!')
+  logging.info(f'server list: {server_list}')
 
   hub = json.loads(open(hub_path, 'r').read())
 
   synth_dir = f'{base_dir}/slot_synth'
   os.mkdir(synth_dir)
-
-
-  user_name = 'einsx7'
-  server_list=['u5','u17','u18','u15']
 
   setupSlotSynthesis()
   generateParallelScript(hub, user_name, server_list)
