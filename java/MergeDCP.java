@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.Set;
 
+import com.xilinx.rapidwright.design.Cell;
 import com.xilinx.rapidwright.design.Design;
 import com.xilinx.rapidwright.design.DesignTools;
 import com.xilinx.rapidwright.design.Net;
@@ -32,6 +33,7 @@ import com.xilinx.rapidwright.design.SiteInst;
 import com.xilinx.rapidwright.device.PIP;
 import com.xilinx.rapidwright.edif.EDIFCell;
 import com.xilinx.rapidwright.edif.EDIFCellInst;
+import com.xilinx.rapidwright.edif.EDIFHierCellInst;
 import com.xilinx.rapidwright.edif.EDIFNet;
 import com.xilinx.rapidwright.edif.EDIFPort;
 import com.xilinx.rapidwright.edif.EDIFPortInst;
@@ -65,6 +67,25 @@ public class MergeDCP {
         Set<PIP> pips = new HashSet<>(dest.getPIPs());
         pips.addAll(src.getPIPs());
         dest.setPIPs(pips);
+    }
+    
+    private static void mergeSiteInsts(SiteInst dst, SiteInst src) {
+        Design design0 = dst.getDesign();
+        boolean modifiedSite = false;
+        for(Cell c : src.getCells()) {
+            Cell dstCell = design0.getCell(c.getName());
+            if(dstCell == null) {
+                EDIFHierCellInst cellInst = design0.getNetlist().getHierCellInstFromName(c.getName());
+                if(cellInst != null && dst.getCell(c.getBEL()) == null) {
+                    dstCell = c.copyCell(cellInst.getFullHierarchicalInstName(), cellInst.getInst(), dst);
+                    dst.addCell(dstCell);
+                    modifiedSite = true;
+                }
+            }
+        }
+        if(modifiedSite) {
+            dst.routeSite();
+        }
     }
     
     public static Design mergeDCP(Design design0, Design design1) {
@@ -175,7 +196,11 @@ public class MergeDCP {
         
         // Stitch physical netlist
         for(SiteInst siteInst : design1.getSiteInsts()) {
-            if(design0.getSiteInstFromSite(siteInst.getSite()) != null) continue;
+            SiteInst dstSiteInst = design0.getSiteInstFromSite(siteInst.getSite()); 
+            if(dstSiteInst != null) {
+                mergeSiteInsts(dstSiteInst, siteInst);
+                continue;
+            }
             design0.addSiteInst(siteInst);
         }
         
