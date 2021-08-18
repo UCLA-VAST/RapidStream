@@ -324,7 +324,7 @@ done
 
 # stitching
 echo "Start SLR-level stitching..."
-parallel < ${BASE_DIR}/SLR_level_stitch/parallel-route-slr.txt
+parallel < ${BASE_DIR}/SLR_level_stitch/parallel-route-slr.txt >> ${BASE_DIR}/backend_stitching_routing.log 2>&1 
 
 
 echo "Finished"
