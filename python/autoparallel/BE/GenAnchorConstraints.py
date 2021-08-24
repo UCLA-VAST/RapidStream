@@ -1,6 +1,7 @@
 #! /usr/bin/python3.6
 import logging
 import json
+import os
 import re
 
 from autoparallel.BE.Device import U250
@@ -83,15 +84,8 @@ def __getBufferRegionSize(hub, slot_name):
   
   return buffer_col_num, buffer_row_num
 
-def __constrainSlotBody(hub, slot_name):
-  pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
-  pblock_name = slot_name
-  targets = [f'{slot_name}_ctrl_U0']
-  comments = ['# Slot Body']
 
-  # FIXME: only support U250 for now
-  assert 'xcu250' in hub['FPGA_PART_NAME'] 
-
+def _getBufferPblockToRemove(hub, slot_name):
   # the boundary of each slot will be left vacant to facilitate stitching
   buffer_col_num, buffer_row_num = __getBufferRegionSize(hub, slot_name)
 
@@ -103,6 +97,20 @@ def __constrainSlotBody(hub, slot_name):
   slice_buffer_besides_laguna = U250.getAllLagunaBufferRegions(add_empty_space=True)
   list_of_anchor_region_dsp_and_bram = U250.getAllDSPAndBRAMInBoundaryBufferRegions(buffer_col_num, buffer_row_num)
   SLICE_buffer_pblock = slice_buffer_at_boundary + '\n' + slice_buffer_besides_laguna + '\n' + '\n'.join(list_of_anchor_region_dsp_and_bram)
+
+  return SLICE_buffer_pblock
+
+
+def __constrainSlotBody(hub, slot_name):
+  pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
+  pblock_name = slot_name
+  targets = [f'{slot_name}_ctrl_U0']
+  comments = ['# Slot Body']
+
+  # FIXME: only support U250 for now
+  assert 'xcu250' in hub['FPGA_PART_NAME'] 
+
+  SLICE_buffer_pblock = _getBufferPblockToRemove(hub, slot_name)
 
   script = __generateConstraints(pblock_name, pblock_def, SLICE_buffer_pblock, targets, comments, contain_routing=1, exclude_laguna=True)
   script.append(f'report_utilization -pblock [get_pblocks {pblock_name}]')
@@ -118,21 +126,54 @@ def __constrainSlotWires(hub, slot_name):
   # constrain up
   if UR_y < int(hub['CR_NUM_Y']):
     tcl += __constraintBoundary(hub, slot_name, 'UP', DL_x, UR_y+1, UR_x, UR_y+1)
+    tcl += _constrainNeighborOfAnchorCells(hub, slot_name, 'UP', DL_x, UR_y  , UR_x, UR_y  )
 
   # down
   if DL_y > 0:
     tcl += __constraintBoundary(hub, slot_name, 'DOWN', DL_x, DL_y-1, UR_x, DL_y-1)
+    tcl += _constrainNeighborOfAnchorCells(hub, slot_name, 'DOWN', DL_x, DL_y  , UR_x, DL_y  )
     
   # right
   if UR_x < int(hub['CR_NUM_X']):
     tcl += __constraintBoundary(hub, slot_name, 'RIGHT', UR_x+1, DL_y, UR_x+1, UR_y)
+    tcl += _constrainNeighborOfAnchorCells(hub, slot_name, 'RIGHT', UR_x  , DL_y, UR_x  , UR_y)
 
   # left
   if DL_x > 0:
     tcl += __constraintBoundary(hub, slot_name, 'LEFT', DL_x-1, DL_y, DL_x-1, UR_y)
+    tcl += _constrainNeighborOfAnchorCells(hub, slot_name, 'LEFT', DL_x  , DL_y, DL_x  , UR_y)
 
   return tcl
+
+
+def _constrainNeighborOfAnchorCells(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y):
+  slot_wires = hub['PathPlanningWire'][slot_name]
+  if dir not in slot_wires:
+    return []
+
+  pblock_wires = slot_wires[dir]
+  targets = [f'{wire[-1]}.*' for wire in pblock_wires]
+
+  script = []
   
+  script.append(f'set target_cells [get_cells -regexp {{')
+  for target_cell in targets:
+    script.append(f'  {target_cell}')
+  script.append(f'}} ] ')
+
+  file_dir = os.path.dirname(os.path.realpath(__file__))
+  script.append(f'source {file_dir}/../../../tcl/get_cells_connected_to_anchors.tcl')
+
+  pblock_name = f'CR_X{DL_x}Y{DL_y}_To_CR_X{UR_x}Y{UR_y}'
+  script.append(f'create_pblock {pblock_name}')
+  script.append(f'resize_pblock {pblock_name} -add CLOCKREGION_X{DL_x}Y{DL_y}:CLOCKREGION_X{UR_x}Y{UR_y}')
+  script.append(f'add_cells_to_pblock  {pblock_name} $target_cells')
+  SLICE_buffer_pblock = _getBufferPblockToRemove(hub, slot_name)
+  script.append(f'resize_pblock {pblock_name} -remove {{ {SLICE_buffer_pblock} }}')
+
+  
+  return script
+
 def __constraintBoundary(hub, slot_name, dir, DL_x, DL_y, UR_x, UR_y):
   slot_wires = hub['PathPlanningWire'][slot_name]
   # no wire crossing in a certain boundary segment
