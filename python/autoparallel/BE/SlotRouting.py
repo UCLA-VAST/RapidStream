@@ -134,6 +134,10 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     os.mkdir(f'{routing_dir}/{slot_name}')
 
     script = []
+
+    # enable higher hold fixing efforts
+    script.append('set_param route.enableGlobalHoldIter 1')
+
     script.append(f'open_checkpoint {opt_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp')
 
     # report timing to check the quality of the final anchor placement
@@ -149,7 +153,7 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
       # add hold uncertainty
       # since we find a trick to keep a consistent tap for row buffers, we don't need this
-      script.append(f'set_clock_uncertainty -hold 0.05 [get_clocks ap_clk]')
+      script.append(f'set_clock_uncertainty -hold 0.02 [get_clocks ap_clk]')
 
       # include all anchors to ensure the tap of row buffers are properly set
       script += addAllAnchors(hub, base_dir, [slot_name])
