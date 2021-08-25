@@ -1,13 +1,19 @@
 import sys
 import json
 import os
+import re
 import math
 from typing import List
 
 import autoparallel.BE.Constants as Constants
 from autoparallel.BE.Device import U250
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
-from autoparallel.BE.Utilities import getAnchorTimingReportScript, loggingSetup, getSlotIndicesFromSlotName
+from autoparallel.BE.Utilities import (
+  getAnchorTimingReportScript,
+  loggingSetup,
+  getSlotIndicesFromSlotName,
+  getSLRCrossingNeighbor,
+)
 
 loggingSetup()
 
@@ -34,6 +40,22 @@ foreach net ${laguna_anchor_nets} {
 }
 close $file
 ''')
+
+  return script
+
+
+def addSomeAnchors(hub, base_dir, slot_name_list: List[str]):
+  """
+  when route a slot, instantiate and place a subset of anchors, so that the tap of row buffers are closer to the real case.
+  """
+  pair_name_list = ['_AND_'.join(pair) for pair in hub["AllSlotPairs"]]
+  get_create_anchor_script = lambda pair_name : f'{base_dir}/ILP_anchor_placement_iter0/{pair_name}/create_and_place_anchors_for_clock_routing.tcl'
+  script = ['set_property DONT_TOUCH 0 [get_nets ap_clk]']
+
+  for pair_name in pair_name_list:
+    if all(slot_name not in pair_name for slot_name in slot_name_list):
+      if re.search(r'CR_X2Y\d+_To_CR_X3Y\d+_AND_CR_X4Y\d+_To_CR_X5Y\d+', pair_name):
+        script.append(f'source -notrace {get_create_anchor_script(pair_name)}')
 
   return script
 
@@ -81,6 +103,9 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
     
     detailed_pblock_def = U250.getDetailedRangeOfClockRegion(slot_name)
+    slr_crossing_neighbor = getSLRCrossingNeighbor(hub, slot_name)
+    if slr_crossing_neighbor:
+      slr_crossing_neighbor_pblock_def = U250.getDetailedRangeOfClockRegion(slr_crossing_neighbor)
 
     # relax placement pblocks
     # do this before updating the clock to prevent vivado crash
@@ -94,6 +119,8 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     script.append(f'startgroup')
     script.append(f'create_pblock {slot_name}')
     script.append(f'resize_pblock [get_pblocks {slot_name}] -add {detailed_pblock_def}')
+    if slr_crossing_neighbor:
+      script.append(f'resize_pblock [get_pblocks {slot_name}] -add {slr_crossing_neighbor_pblock_def}')
 
     # previously we set the pblock as the entire clock regions. 
     # However, the intra-slot nets may use the anchor regions. 
@@ -110,8 +137,7 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     # because we will not re-route laguna anchor nets
     # thus those must not spill into other slots
     dl_x, dl_y, ur_x, ur_y = getSlotIndicesFromSlotName(slot_name)
-    script.append(f'set clock_regions [get_clock_regions -regexp X({dl_x}|{ur_x})Y({dl_y}|{ur_y}) ]') 
-    script.append(f'catch {{ add_cells_to_pblock [get_pblocks {slot_name}] [get_cells -of_objects $clock_regions -filter {{ LOC =~ *LAGUNA* }} ] }}') 
+    script.append(f'catch {{ add_cells_to_pblock [get_pblocks {slot_name}] [get_cells -filter {{ LOC =~ *LAGUNA* }} ] }}')
 
     # script.append(f'set_property SNAPPING_MODE ON [get_pblocks {slot_name}]')
     script.append(f'endgroup')
@@ -134,6 +160,10 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     os.mkdir(f'{routing_dir}/{slot_name}')
 
     script = []
+
+    # enable higher hold fixing efforts
+    script.append('set_param route.enableGlobalHoldIter 1')
+
     script.append(f'open_checkpoint {opt_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp')
 
     # report timing to check the quality of the final anchor placement
@@ -149,10 +179,10 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
       # add hold uncertainty
       # since we find a trick to keep a consistent tap for row buffers, we don't need this
-      script.append(f'set_clock_uncertainty -hold 0.05 [get_clocks ap_clk]')
+      script.append(f'set_clock_uncertainty -hold 0.02 [get_clocks ap_clk]')
 
       # include all anchors to ensure the tap of row buffers are properly set
-      script += addAllAnchors(hub, base_dir, [slot_name])
+      script += addSomeAnchors(hub, base_dir, [slot_name])
 
     script.append(f'route_design')
     script.append(f'write_checkpoint routed.dcp')

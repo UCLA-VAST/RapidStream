@@ -537,7 +537,10 @@ def placeAnchorSourceToLagunaTX(
     for source_cell, loc in source_cell_to_loc.items():
       script.append(f'  {source_cell} {loc} \\')
     script.append('} }')
-    
+  
+  # if both the TX and the RX lagunas are in the FIXED state, the router will not perform hold violation fix
+  script.append('catch { set_property IS_LOC_FIXED 0 [get_cells -hierachical -filter { BEL =~ *LAGUNA*TX* }] }')
+
   open('place_laguna_anchor_source_cells.tcl', 'w').write('\n'.join(script))
 
   return script
