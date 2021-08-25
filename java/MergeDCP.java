@@ -35,6 +35,7 @@ import com.xilinx.rapidwright.edif.EDIFCell;
 import com.xilinx.rapidwright.edif.EDIFCellInst;
 import com.xilinx.rapidwright.edif.EDIFHierCellInst;
 import com.xilinx.rapidwright.edif.EDIFNet;
+import com.xilinx.rapidwright.edif.EDIFNetlist;
 import com.xilinx.rapidwright.edif.EDIFPort;
 import com.xilinx.rapidwright.edif.EDIFPortInst;
 import com.xilinx.rapidwright.edif.EDIFTools;
@@ -98,8 +99,6 @@ public class MergeDCP {
         EDIFNet gnd = EDIFTools.getStaticNet(NetType.GND, design0Top, design0.getNetlist());
         EDIFNet clk = design0Top.getNet("ap_clk");
         
-        
-        
         // Add cell instances (except duplicates)
         List<String> duplicates = new ArrayList<>();
         for(EDIFCellInst inst : design1Top.getCellInsts()) {
@@ -112,9 +111,27 @@ public class MergeDCP {
             } else {
                 design0Top.addCellInst(inst);
                 if(inst.getCellType().getName().equals("FDRE")) {
-                    gnd.addPortInst(inst.getPortInst("R"));
-                    vcc.addPortInst(inst.getPortInst("CE"));
-                    clk.addPortInst(inst.getPortInst("C"));
+                    EDIFPortInst r = inst.getPortInst("R");
+                    EDIFPortInst ce = inst.getPortInst("CE");
+                    EDIFPortInst c = inst.getPortInst("C");
+                    if(r == null) {
+                        System.err.println("ERROR: " + inst + " missing connection on port R");
+                        r = gnd.createPortInst(inst.getPort("R"));
+                    } else {
+                        gnd.addPortInst(r);
+                    }
+                    if(ce == null) {
+                        System.err.println("ERROR: " + inst + " missing connection on port CE");
+                        ce = vcc.createPortInst(inst.getPort("CE"));
+                    } else {
+                        vcc.addPortInst(ce);
+                    }
+                    if(c == null) {
+                        System.err.println("ERROR: " + inst + " missing connection on port C");
+                        c = clk.createPortInst(inst.getPort("C"));
+                    } else {
+                        clk.addPortInst(c);                        
+                    }
                 }else {
                     // slot instance
                     clk.addPortInst(inst.getPortInst(clk.getName()));
@@ -175,22 +192,27 @@ public class MergeDCP {
         for(EDIFNet net : design1Top.getNets()) {
             if(netsNotToCopy.contains(net.getName())) continue;
             if(net.getPortInsts().size() == 0) continue;
-            try{
-                design0Top.addNet(net);
-            }catch(RuntimeException e) {
-                // Check if this is VCC or GND
-                List<EDIFPortInst> srcs = net.getSourcePortInsts(false);
-                if(srcs != null && srcs.size() >= 1) {
-                    EDIFCell cell = srcs.get(0).getCellInst().getCellType();
-                    String cellName = cell.getName();
-                    if(cell.isPrimitive() && cellName.equals("VCC") || cellName.equals("GND")) {
-                        EDIFNet destNet = design0Top.getNet(net.getName());
-                        for(EDIFPortInst portInst : new ArrayList<>(net.getPortInsts())) {
-                            portInst.getNet().removePortInst(portInst);
-                            destNet.addPortInst(portInst);
+            EDIFNet existingNet = design0Top.getNet(net.getName());
+            if(existingNet != null) {
+                if(existingNet.getParentCell() == net.getParentCell()) {
+                    continue;
+                } else {
+                    // Check if this is VCC or GND
+                    List<EDIFPortInst> srcs = net.getSourcePortInsts(false);
+                    if(srcs != null && srcs.size() >= 1) {
+                        EDIFCell cell = srcs.get(0).getCellInst().getCellType();
+                        String cellName = cell.getName();
+                        if(cell.isPrimitive() && cellName.equals("VCC") || cellName.equals("GND")) {
+                            EDIFNet destNet = design0Top.getNet(net.getName());
+                            for(EDIFPortInst portInst : new ArrayList<>(net.getPortInsts())) {
+                                portInst.getNet().removePortInst(portInst);
+                                destNet.addPortInst(portInst);
+                            }
                         }
-                    }
+                    }                        
                 }
+            }else {
+                design0Top.addNet(net);                    
             }
         }
         
