@@ -7,7 +7,12 @@ from typing import List
 import autoparallel.BE.Constants as Constants
 from autoparallel.BE.Device import U250
 from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
-from autoparallel.BE.Utilities import getAnchorTimingReportScript, loggingSetup, getSlotIndicesFromSlotName
+from autoparallel.BE.Utilities import (
+  getAnchorTimingReportScript,
+  loggingSetup,
+  getSlotIndicesFromSlotName,
+  getSLRCrossingNeighbor,
+)
 
 loggingSetup()
 
@@ -81,6 +86,9 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     pblock_def = slot_name.replace('CR', 'CLOCKREGION').replace('_To_', ':')
     
     detailed_pblock_def = U250.getDetailedRangeOfClockRegion(slot_name)
+    slr_crossing_neighbor = getSLRCrossingNeighbor(hub, slot_name)
+    if slr_crossing_neighbor:
+      slr_crossing_neighbor_pblock_def = U250.getDetailedRangeOfClockRegion(slr_crossing_neighbor)
 
     # relax placement pblocks
     # do this before updating the clock to prevent vivado crash
@@ -94,6 +102,8 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     script.append(f'startgroup')
     script.append(f'create_pblock {slot_name}')
     script.append(f'resize_pblock [get_pblocks {slot_name}] -add {detailed_pblock_def}')
+    if slr_crossing_neighbor:
+      script.append(f'resize_pblock [get_pblocks {slot_name}] -add {slr_crossing_neighbor_pblock_def}')
 
     # previously we set the pblock as the entire clock regions. 
     # However, the intra-slot nets may use the anchor regions. 
@@ -110,8 +120,7 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     # because we will not re-route laguna anchor nets
     # thus those must not spill into other slots
     dl_x, dl_y, ur_x, ur_y = getSlotIndicesFromSlotName(slot_name)
-    script.append(f'set clock_regions [get_clock_regions -regexp X({dl_x}|{ur_x})Y({dl_y}|{ur_y}) ]') 
-    script.append(f'catch {{ add_cells_to_pblock [get_pblocks {slot_name}] [get_cells -of_objects $clock_regions -filter {{ LOC =~ *LAGUNA* }} ] }}') 
+    script.append(f'catch {{ add_cells_to_pblock [get_pblocks {slot_name}] [get_cells -filter {{ LOC =~ *LAGUNA* }} ] }}')
 
     # script.append(f'set_property SNAPPING_MODE ON [get_pblocks {slot_name}]')
     script.append(f'endgroup')

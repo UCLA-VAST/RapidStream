@@ -1,7 +1,7 @@
 import logging
 import re
 import sys
-from typing import List
+from typing import List, Optional
 
 from autobridge.Opt.Slot import Slot
 from autobridge.Device.DeviceManager import DeviceU250
@@ -69,6 +69,13 @@ def getPruningAnchorScript(dcp_path, inner_module_name, output_dir):
   script.append(f'write_checkpoint {output_dir}/{inner_module_name}.dcp')
 
   return script
+
+
+def getSLRCrossingNeighbor(hub, slot_name) -> Optional[str]:
+  for neighbor in getNeighborSlots(hub, slot_name):
+    if isPairSLRCrossing(neighbor, slot_name):
+      return neighbor
+  return None
 
 
 def isPairSLRCrossing(slot1_name: str, slot2_name: str) -> bool:
