@@ -1,6 +1,7 @@
 import sys
 import json
 import os
+import re
 import math
 from typing import List
 
@@ -39,6 +40,22 @@ foreach net ${laguna_anchor_nets} {
 }
 close $file
 ''')
+
+  return script
+
+
+def addSomeAnchors(hub, base_dir, slot_name_list: List[str]):
+  """
+  when route a slot, instantiate and place a subset of anchors, so that the tap of row buffers are closer to the real case.
+  """
+  pair_name_list = ['_AND_'.join(pair) for pair in hub["AllSlotPairs"]]
+  get_create_anchor_script = lambda pair_name : f'{base_dir}/ILP_anchor_placement_iter0/{pair_name}/create_and_place_anchors_for_clock_routing.tcl'
+  script = ['set_property DONT_TOUCH 0 [get_nets ap_clk]']
+
+  for pair_name in pair_name_list:
+    if all(slot_name not in pair_name for slot_name in slot_name_list):
+      if re.search(r'CR_X2Y\d+_To_CR_X3Y\d+_AND_CR_X4Y\d+_To_CR_X5Y\d+', pair_name):
+        script.append(f'source -notrace {get_create_anchor_script(pair_name)}')
 
   return script
 
@@ -165,7 +182,7 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
       script.append(f'set_clock_uncertainty -hold 0.02 [get_clocks ap_clk]')
 
       # include all anchors to ensure the tap of row buffers are properly set
-      script += addAllAnchors(hub, base_dir, [slot_name])
+      script += addSomeAnchors(hub, base_dir, [slot_name])
 
     script.append(f'route_design')
     script.append(f'write_checkpoint routed.dcp')
