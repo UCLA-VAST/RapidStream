@@ -21,7 +21,9 @@ def getVivadoScriptForSLR(slr_index):
   script.append('report_route_status')
   
   # to verify the tap of row buffers
-  script.append(f'puts [get_property ROUTE [get_nets ap_clk]]')
+  script.append(f'set fp [open "clock_route.txt" "w" ]') # to check the row buffer tap
+  script.append(f'puts $fp [get_property ROUTE [get_nets ap_clk]]')
+  script.append(f'close $fp')
   script.append(f'report_timing_summary')
 
   script.append(f'delete_pblocks *')
