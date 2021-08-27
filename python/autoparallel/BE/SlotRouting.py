@@ -233,6 +233,10 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
   parse_timing_report_2 = 'python3.6 -m autoparallel.BE.TimingReportParser phys_opt_routed/slot_routing_iter0'
 
   for slot_name in hub['SlotIO'].keys():
+    guard1 = f'until [[ -f {anchor_clock_routing_dir}/{slot_name}/set_anchor_clock_route.tcl.done.flag ]] ; do sleep 5; done'
+    guard2 = f'until [[ -f {anchor_source_dir}/done.flag ]] ; do sleep 5; done'
+    guard = f'{guard1} && {guard2}'
+    
     vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source route_with_ooc_clock.tcl'
     dir = f'{routing_dir}/{slot_name}/'
     
@@ -248,7 +252,7 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
     else:
       test_rwroute = f'sleep 1'
 
-    all_tasks.append(f'cd {dir} && {vivado} && {parse_timing_report_1} && {parse_timing_report_2} && {test_rwroute} && {transfer} ')
+    all_tasks.append(f'cd {dir} && {guard} && {vivado} && {parse_timing_report_1} && {parse_timing_report_2} && {test_rwroute} && {transfer} ')
     
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
@@ -281,12 +285,14 @@ if __name__ == '__main__':
   main_server_name = args.main_server_name
 
   opt_dir = f'{base_dir}/opt_placement_iter0'
+  anchor_source_dir = f'{base_dir}/ILP_anchor_placement_iter0'
 
   if args.do_not_fix_clock == False:
     routing_dir = f'{base_dir}/slot_routing'
-    anchor_clock_routing_dir = f'{base_dir}/slot_anchor_clock_routing'
   else:
     routing_dir = f'{base_dir}/baseline_slot_routing_do_not_fix_clock'
+
+  anchor_clock_routing_dir = f'{base_dir}/slot_anchor_clock_routing'
 
   print(f'WARNING: the server list is: {server_list}' )
 

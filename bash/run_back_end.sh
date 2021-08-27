@@ -295,6 +295,10 @@ if [[ ${RANDOM_ANCHOR_PLACEMENT} -eq 1 ]]; then
     ${SCRIPT_DIR}/distributed_run_baseline_random_anchor_placement_opt.sh &
 fi
 
+${SCRIPT_DIR}/distributed_run_slot_anchor_clock_routing.sh &
+
+${SCRIPT_DIR}/distributed_run_slot_routing.sh &
+
 ####################################################################
 if [ -z "${UNIQUE_SYNTH_DCP_DIR}" ]; then
     while :
@@ -326,7 +330,7 @@ done
 
 while :
 do
-    done_num=$(find ${BASE_DIR}/ILP_anchor_placement_iter0 -maxdepth 2 -type f -name *.done.flag | wc -w)
+    done_num=$(find ${BASE_DIR}/ILP_anchor_placement_iter0 -maxdepth 2 -type f -name *place_anchors.tcl.done.flag | wc -w)
     total_num=$(find ${BASE_DIR}/ILP_anchor_placement_iter0 -maxdepth 1 -type d -name CR* | wc -l)
     echo "[$(date +"%T")] Anchor Placement: ${done_num}/${total_num} finished"
     
@@ -350,19 +354,18 @@ do
     sleep 30
 done
 
-####################################################################
+while :
+do
+    done_num=$(find ${BASE_DIR}/slot_anchor_clock_routing -maxdepth 3 -type f -name set_anchor_clock_route.tcl | wc -w)
+    total_num=$(find ${BASE_DIR}/slot_anchor_clock_routing -maxdepth 1 -type d -name CR* | wc -l)
+    echo "[$(date +"%T")] Slot Anchor Clock Routing: ${done_num}/${total_num} finished"
+    
+    if (( ${done_num} == ${total_num} )); then
+        break
+    fi
 
-echo $(date +"%T")
-
-echo "Post-placement opt finished"
-echo "Start routing anchor clocks..."
-parallel < ${BASE_DIR}/slot_anchor_clock_routing/parallel-run-slot-clock-routing.txt >> ${BASE_DIR}/backend_slot_clock_routing.log 2>&1  
-
-# routing
-echo "Start slot routing..."
-${SCRIPT_DIR}/distributed_run_slot_routing.sh &
-
-####################################################################
+    sleep 30
+done
 
 while :
 do

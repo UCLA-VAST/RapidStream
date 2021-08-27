@@ -69,7 +69,7 @@ def getAnchorInitScripts(slot_name) -> List[str]:
   """
   related_pairs = [pair_name for pair_name in pair_name_list if slot_name in pair_name]
 
-  get_anchor_initialization_script_path = lambda pair_name : f'{base_dir}/{anchor_source_dir}/{pair_name}/create_and_place_anchors_for_clock_routing.tcl'
+  get_anchor_initialization_script_path = lambda pair_name : f'{anchor_source_dir}/{pair_name}/create_and_place_anchors_for_clock_routing.tcl'
   
   anchor_init_script_list = [get_anchor_initialization_script_path(pair_name) for pair_name in related_pairs]
 
@@ -98,12 +98,14 @@ def getParallelScript():
     script_name = f'{slot_anchor_clock_routing_dir}/{slot_name}/{slot_name}_anchor_clock_routing.tcl'
     vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source {script_name}'
     
+    touch_flag = f'touch {slot_anchor_clock_routing_dir}/{slot_name}/set_anchor_clock_route.tcl.done.flag'
+
     transfer = []
     for server in server_list:
       transfer.append(f'rsync -azh --delete -r {slot_anchor_clock_routing_dir}/{slot_name}/ {user_name}@{server}:{slot_anchor_clock_routing_dir}/{slot_name}/')
     transfer_str = ' && '.join(transfer)
 
-    all_tasks.append(f'{cd} && {guards} && {vivado} && {transfer_str}')
+    all_tasks.append(f'{cd} && {guards} && {vivado} && {touch_flag} && {transfer_str}')
 
   open(f'{slot_anchor_clock_routing_dir}/parallel_{folder_name}_all.txt', 'w').write('\n'.join(all_tasks))
 
@@ -142,7 +144,7 @@ if __name__ == '__main__':
 
   print(f'WARNING: the server list is: {server_list}' )
 
-  anchor_source_dir = 'ILP_anchor_placement_iter0'
+  anchor_source_dir = f'{base_dir}/ILP_anchor_placement_iter0'
 
   getAllSlotAnchorRoutingScripts()
   getParallelScript()
