@@ -67,6 +67,8 @@ while [[ $# -gt 0 ]]; do
       ;;
     *)    # unknown option
       POSITIONAL+=("$1") # save it in an array for later
+      echo "Unknown parameter: $1"
+      exit
       shift # past argument
       ;;
   esac
@@ -191,6 +193,7 @@ done
 KILL_SCRIPT=${SCRIPT_DIR}/kill.sh
 for server in ${SERVER_LIST[*]} ; do
     echo "ssh ${server} pkill -f vivado" >> ${KILL_SCRIPT}
+    echo "ssh ${server} pkill -f system_utilization_tracker" >> ${KILL_SCRIPT}
 done
 chmod +x ${KILL_SCRIPT}
 
@@ -324,8 +327,11 @@ done
 
 # stitching
 echo "Start SLR-level stitching..."
-parallel < ${BASE_DIR}/SLR_level_stitch/parallel-route-slr.txt >> ${BASE_DIR}/backend_stitching_routing.log 2>&1 
+parallel < ${BASE_DIR}/SLR_level_stitch/vivado/parallel-route-slr.txt >> ${BASE_DIR}/backend_stitching_routing.log 2>&1 
 
+# top-level stitching
+echo "Start Top-level stitching..."
+bash ${BASE_DIR}/SLR_level_stitch/vivado/top_stitch/stitch.sh
 
 echo "Finished"
 echo $(date +"%T")
