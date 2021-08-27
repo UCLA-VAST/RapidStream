@@ -50,6 +50,7 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   script.append(f'phys_opt_design -directive Explore')
   script.append(f'phys_opt_design -directive Explore')  # found that run it two times may work
   script.append(f'write_checkpoint -force {slot_name}_post_placed_opt.dcp')
+  script.append(f'exec touch {slot_name}_post_placed_opt.dcp.done.flag')
 
   # report timing to check the timing improvement of slot phys_opt_design
   script += getAnchorTimingReportScript(report_prefix='phys_opt_design_iter0')

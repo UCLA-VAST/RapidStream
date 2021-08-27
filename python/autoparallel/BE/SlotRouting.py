@@ -235,8 +235,9 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
   for slot_name in hub['SlotIO'].keys():
     guard1 = f'until [[ -f {anchor_clock_routing_dir}/{slot_name}/set_anchor_clock_route.tcl.done.flag ]] ; do sleep 5; done'
     guard2 = f'until [[ -f {anchor_source_dir}/done.flag ]] ; do sleep 5; done'
-    guard = f'{guard1} && {guard2}'
-    
+    guard3 = f'until [[ -f {opt_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp ]] ; do sleep 5; done'
+    guard = f'{guard1} && {guard2} && {guard3}'
+
     vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source route_with_ooc_clock.tcl'
     dir = f'{routing_dir}/{slot_name}/'
     
