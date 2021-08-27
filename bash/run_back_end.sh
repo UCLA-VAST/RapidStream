@@ -92,9 +92,9 @@ if [[ -n $1 ]]; then
     tail -1 "$1"
 fi
 
-# PAUSE=15
-# echo "Waiting for ${PAUSE}s, please check..."
-# sleep ${PAUSE}
+PAUSE=15
+echo "Waiting for ${PAUSE}s, please check..."
+sleep ${PAUSE}
 
 
 ####################################################################
@@ -175,7 +175,13 @@ python3.6 -m autoparallel.BE.OptSlotPlacement \
     --user_name ${USER_NAME} \
     --server_list_in_str "${SERVER_LIST[*]}"
 
-python3.6 -m autoparallel.BE.Clock.SlotAnchorClockRouting  ${HUB} ${BASE_DIR} ${VIV_VER} ${INVERT_ANCHOR_CLOCK}
+python3.6 -m autoparallel.BE.Clock.SlotAnchorClockRouting \
+    --hub_path ${HUB} \
+    --base_dir ${BASE_DIR} \
+    --vivado_version ${VIV_VER} \
+    --is_invert_clock ${INVERT_ANCHOR_CLOCK} \
+    --user_name ${USER_NAME} \
+    --server_list_in_str "${SERVER_LIST[*]}"
 
 # normal flow
 python3.6 -m autoparallel.BE.SlotRouting \
@@ -198,7 +204,7 @@ python3.6 -m autoparallel.BE.SlotRouting \
 
 python3.6 -m autoparallel.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VIV_VER}
 python3.6 -m autoparallel.BE.SLRLevelStitch ${HUB} ${BASE_DIR} ${VIV_VER} ${RW_SETUP_PATH}
-exit
+
 # create scripts to distribute the workloads
 SCRIPT_DIR=${BASE_DIR}/scripts
 if [ ! -d  ${SCRIPT_DIR} ] ; then
@@ -214,6 +220,7 @@ declare -a steps=(
     "baseline_vivado_anchor_placement_opt"
     "baseline_random_anchor_placement"
     "baseline_random_anchor_placement_opt"
+    "slot_anchor_clock_routing"
     "slot_routing"
     "baseline_slot_routing_do_not_fix_clock"
 )
@@ -224,6 +231,7 @@ for step in "${steps[@]}"; do
         echo "ssh ${server} \"cd ${BASE_DIR}/${step}/ && parallel < parallel_${step}_${server}.txt\" >> ${BASE_DIR}/backend_${step}.log 2>&1 &" >> ${SCRIPT}
     done
     echo "wait" >> ${SCRIPT}
+    echo "touch ${BASE_DIR}/${step}/done.flag" >> ${SCRIPT}
     chmod +x ${SCRIPT}
 
     TRANSFER_SCRIPT=${SCRIPT_DIR}/transfer_${step}.sh

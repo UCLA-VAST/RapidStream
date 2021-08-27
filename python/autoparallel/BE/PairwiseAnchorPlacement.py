@@ -633,8 +633,10 @@ def setupAnchorPlacement(hub):
       --pair_name {pair_name} --test_random_anchor_placement {args.test_random_anchor_placement} \
       --user_name {args.user_name} --server_list_in_str "{args.server_list_in_str}"'
 
-    touch_flag = f'touch {anchor_placement_dir}/{pair_name}/place_anchors.tcl.done.flag'
-
+    touch_flag1 = f'touch {anchor_placement_dir}/{pair_name}/place_anchors.tcl.done.flag'
+    touch_flag2 = f'touch {anchor_placement_dir}/{pair_name}/create_and_place_anchors_for_clock_routing.tcl.done.flag'
+    touch_flag = touch_flag1 + ' && ' + touch_flag2
+    
     transfer = []
     for server in server_list:
       transfer.append(f'rsync -azh --delete -r {anchor_placement_dir}/{pair_name}/ {user_name}@{server}:{anchor_placement_dir}/{pair_name}/')
