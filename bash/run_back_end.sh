@@ -231,7 +231,10 @@ for step in "${steps[@]}"; do
         echo "ssh ${server} \"cd ${BASE_DIR}/${step}/ && parallel < parallel_${step}_${server}.txt\" >> ${BASE_DIR}/backend_${step}.log 2>&1 &" >> ${SCRIPT}
     done
     echo "wait" >> ${SCRIPT}
-    echo "touch ${BASE_DIR}/${step}/done.flag" >> ${SCRIPT}
+    # at each server, create the done flag
+    for server in ${SERVER_LIST[*]} ; do
+        echo "ssh ${server} touch ${BASE_DIR}/${step}/done.flag" >> ${SCRIPT}
+    done
     chmod +x ${SCRIPT}
 
     TRANSFER_SCRIPT=${SCRIPT_DIR}/transfer_${step}.sh
