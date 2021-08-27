@@ -10,6 +10,7 @@ INVERT_ANCHOR_CLOCK=0
 TARGET_PERIOD=2.5
 USER_NAME="einsx7"
 SERVER_LIST=("u5" "u15" "u17" "u18")
+MAIN_SERVER="u5"
 BASELINE_ANCHOR_PLACEMENT=0
 RUN_RWROUTE_TEST=0
 
@@ -91,9 +92,9 @@ if [[ -n $1 ]]; then
     tail -1 "$1"
 fi
 
-PAUSE=15
-echo "Waiting for ${PAUSE}s, please check..."
-sleep ${PAUSE}
+# PAUSE=15
+# echo "Waiting for ${PAUSE}s, please check..."
+# sleep ${PAUSE}
 
 
 ####################################################################
@@ -146,15 +147,58 @@ python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
     --server_list_in_str "${SERVER_LIST[*]}"
 
 python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${TARGET_PERIOD}  # vivado anchor placement
-python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 0  # normal flow
-python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 1  # test vivado anchor placement
-python3.6 -m autoparallel.BE.OptSlotPlacement ${HUB} ${BASE_DIR} ${VIV_VER} 2  # test random anchor placement
+
+ # normal flow
+python3.6 -m autoparallel.BE.OptSlotPlacement \
+    --hub_path ${HUB} \
+    --base_dir ${BASE_DIR} \
+    --vivado_version ${VIV_VER} \
+    --run_mode 0 \
+    --user_name ${USER_NAME} \
+    --server_list_in_str "${SERVER_LIST[*]}"
+
+# test vivado anchor placement
+python3.6 -m autoparallel.BE.OptSlotPlacement \
+    --hub_path ${HUB} \
+    --base_dir ${BASE_DIR} \
+    --vivado_version ${VIV_VER} \
+    --run_mode 1  \
+    --user_name ${USER_NAME} \
+    --server_list_in_str "${SERVER_LIST[*]}"
+
+# test random anchor placement
+python3.6 -m autoparallel.BE.OptSlotPlacement \
+    --hub_path ${HUB} \
+    --base_dir ${BASE_DIR} \
+    --vivado_version ${VIV_VER} \
+    --run_mode 2  \
+    --user_name ${USER_NAME} \
+    --server_list_in_str "${SERVER_LIST[*]}"
+
 python3.6 -m autoparallel.BE.Clock.SlotAnchorClockRouting  ${HUB} ${BASE_DIR} ${VIV_VER} ${INVERT_ANCHOR_CLOCK}
-python3.6 -m autoparallel.BE.SlotRouting ${HUB} ${BASE_DIR} ${VIV_VER} 0 ${RUN_RWROUTE_TEST}  # normal flow
-python3.6 -m autoparallel.BE.SlotRouting ${HUB} ${BASE_DIR} ${VIV_VER} 1 ${RUN_RWROUTE_TEST}  # baseline: no clock locking
+
+# normal flow
+python3.6 -m autoparallel.BE.SlotRouting \
+    --hub_path ${HUB} \
+    --base_dir ${BASE_DIR} \
+    --vivado_version ${VIV_VER} \
+    --user_name ${USER_NAME} \
+    --server_list_in_str "${SERVER_LIST[*]}" \
+    --main_server_name ${MAIN_SERVER}
+
+# baseline: no clock locking
+python3.6 -m autoparallel.BE.SlotRouting \
+    --hub_path ${HUB} \
+    --base_dir ${BASE_DIR} \
+    --vivado_version ${VIV_VER} \
+    --do_not_fix_clock  \
+    --user_name ${USER_NAME} \
+    --server_list_in_str "${SERVER_LIST[*]}" \
+    --main_server_name ${MAIN_SERVER}  
+
 python3.6 -m autoparallel.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VIV_VER}
 python3.6 -m autoparallel.BE.SLRLevelStitch ${HUB} ${BASE_DIR} ${VIV_VER} ${RW_SETUP_PATH}
-
+exit
 # create scripts to distribute the workloads
 SCRIPT_DIR=${BASE_DIR}/scripts
 if [ ! -d  ${SCRIPT_DIR} ] ; then

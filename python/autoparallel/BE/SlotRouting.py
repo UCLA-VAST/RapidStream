@@ -1,3 +1,4 @@
+import argparse
 import sys
 import json
 import os
@@ -171,7 +172,7 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
     script += addRoutingPblock(slot_name, enable_anchor_pblock=True)
 
-    if DO_NOT_FIX_CLOCK == 0:
+    if args.do_not_fix_clock == False:
       # *** prevent gap in clock routing
       script.append(f'set_property ROUTE "" [get_nets ap_clk]')
       script.append(f'source -notrace {anchor_clock_routing_dir}/{slot_name}/set_anchor_clock_route.tcl')
@@ -232,7 +233,7 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
   parse_timing_report_2 = 'python3.6 -m autoparallel.BE.TimingReportParser phys_opt_routed/slot_routing_iter0'
 
   for slot_name in hub['SlotIO'].keys():
-    vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source route_with_ooc_clock.tcl'
+    vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source route_with_ooc_clock.tcl'
     dir = f'{routing_dir}/{slot_name}/'
     
     transfer = f'rsync -azh --delete -r {dir} {user_name}@{main_server_name}:{dir}'
@@ -242,7 +243,7 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
     target_dcp = f'{target_dcp_path}/non_laguna_anchor_nets_unrouted.dcp'
     output_path = f'{routing_dir}/{slot_name}/test_rw_route'
 
-    if RUN_RWROUTE_TEST:
+    if args.run_rwroute_test:
       test_rwroute = f'{setup_rw} && mkdir {output_path} && ' + Constants.RWROUTE.format(dcp=target_dcp, target_dir=output_path)
     else:
       test_rwroute = f'sleep 1'
@@ -253,7 +254,7 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
   for i, server in enumerate(server_list):
     local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
 
-    if DO_NOT_FIX_CLOCK == 0:
+    if args.do_not_fix_clock == False:
       folder_name = 'slot_routing'
     else:
       folder_name = 'slot_routing_do_not_fix_clock'
@@ -262,24 +263,31 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
 
 
 if __name__ == '__main__':
-  assert len(sys.argv) == 6, 'input (1) the path to the front end result file and (2) the target directory'
-  hub_path = sys.argv[1]
-  base_dir = sys.argv[2]
-  VIV_VER=sys.argv[3]
-  DO_NOT_FIX_CLOCK = int(sys.argv[4])  # for comparison purpose
-  RUN_RWROUTE_TEST = int(sys.argv[5])
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--hub_path", type=str, required=True)
+  parser.add_argument("--base_dir", type=str, required=True)
+  parser.add_argument("--vivado_version", type=str, required=True)
+  parser.add_argument("--do_not_fix_clock", action='store_true')
+  parser.add_argument("--run_rwroute_test", action='store_true')
+  parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
+  parser.add_argument("--user_name", type=str, required=True)
+  parser.add_argument("--main_server_name", type=str, required=True)
+  args = parser.parse_args()
+
+  hub_path = args.hub_path
+  base_dir = args.base_dir
+  user_name = args.user_name
+  server_list = args.server_list_in_str.split()
+  main_server_name = args.main_server_name
 
   opt_dir = f'{base_dir}/opt_placement_iter0'
 
-  if DO_NOT_FIX_CLOCK == 0:
+  if args.do_not_fix_clock == False:
     routing_dir = f'{base_dir}/slot_routing'
     anchor_clock_routing_dir = f'{base_dir}/slot_anchor_clock_routing'
   else:
     routing_dir = f'{base_dir}/baseline_slot_routing_do_not_fix_clock'
 
-  user_name = 'einsx7'
-  server_list=['u5','u17','u18','u15']
-  main_server_name = 'u5'
   print(f'WARNING: the server list is: {server_list}' )
 
   hub = json.loads(open(hub_path, 'r').read())

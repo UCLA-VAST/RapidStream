@@ -1,3 +1,4 @@
+import argparse
 import logging
 import json
 import sys
@@ -84,7 +85,7 @@ def generateParallelScript(hub, user_name, server_list):
     get_guard = lambda flag : f'until [[ -f {flag} ]] ; do sleep 5; done'
     guards =  ' && '.join([get_guard(flag) for flag in flags])
 
-    vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source {slot_name}_phys_opt_placement.tcl'
+    vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source {slot_name}_phys_opt_placement.tcl'
     
     # broadcast the results
     transfer_list = []
@@ -98,11 +99,11 @@ def generateParallelScript(hub, user_name, server_list):
   num_job_server = math.ceil(len(all_tasks) / len(server_list) ) 
   for i, server in enumerate(server_list):
     local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
-    if RUN_MODE == 0:
+    if args.run_mode == 0:
       folder_name = 'opt_placement_iter0'
-    elif RUN_MODE == 1:
+    elif args.run_mode == 1:
       folder_name = 'baseline_vivado_anchor_placement_opt'
-    elif RUN_MODE == 2:
+    elif args.run_mode == 2:
       folder_name = 'baseline_random_anchor_placement_opt'
     else:
       assert False
@@ -123,32 +124,38 @@ def generateOptScript(hub):
     open(f'{opt_dir}/{slot_name}/{slot_name}_phys_opt_placement.tcl', 'w').write('\n'.join(opt_script))
   
 if __name__ == '__main__':
-  assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
-  hub_path = sys.argv[1]
-  base_dir = sys.argv[2]
-  VIV_VER=sys.argv[3]
-  RUN_MODE = int(sys.argv[4])
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--hub_path", type=str, required=True)
+  parser.add_argument("--base_dir", type=str, required=True)
+  parser.add_argument("--vivado_version", type=str, required=True)
+  parser.add_argument("--run_mode", type=int, required=True)
+  parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
+  parser.add_argument("--user_name", type=str, required=True)
+  args = parser.parse_args()
+
+  hub_path = args.hub_path
+  base_dir = args.base_dir
+  user_name = args.user_name
+  server_list = args.server_list_in_str.split()
 
   hub = json.loads(open(hub_path, 'r').read())
   pair_list = hub["AllSlotPairs"]
   pair_name_list = ['_AND_'.join(pair) for pair in pair_list]
 
-  if RUN_MODE == 0:  # normal flow
+  if args.run_mode == 0:  # normal flow
     opt_dir = f'{base_dir}/opt_placement_iter0'
     anchor_source_dir = 'ILP_anchor_placement_iter0'
-  elif RUN_MODE == 1:  # test vivado anchor placement flow
+  elif args.run_mode == 1:  # test vivado anchor placement flow
     opt_dir = f'{base_dir}/baseline_vivado_anchor_placement_opt'
     anchor_source_dir = 'baseline_vivado_anchor_placement'
-  elif RUN_MODE == 2:  # test random anchor placement flow
+  elif args.run_mode == 2:  # test random anchor placement flow
     opt_dir = f'{base_dir}/baseline_random_anchor_placement_opt'
     anchor_source_dir = 'baseline_random_anchor_placement'
   else:
-    assert False, RUN_MODE
+    assert False, args.run_mode
 
   os.mkdir(opt_dir)  
 
-  user_name = 'einsx7'
-  server_list=['u5','u17','u18','u15']
   print(f'WARNING: the server list is: {server_list}' )
 
   # path of the checkpoint in the last iteration
