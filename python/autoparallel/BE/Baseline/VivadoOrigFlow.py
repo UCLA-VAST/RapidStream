@@ -11,7 +11,8 @@ loggingSetup()
 
 def getVivadoFlowWithOrigRTL(
   fpga_part_name,
-  orig_rtl_path
+  orig_rtl_path,
+  top_name
 ):
   script = []
 
@@ -34,10 +35,8 @@ def getVivadoFlowWithOrigRTL(
   script.append(r'foreach ip_tcl ${orig_ip_files} { source ${ip_tcl} }') 
 
   # clock xdc
-  script.append(f'read_xdc "clock.xdc"')
+  script.append(f'read_xdc "{baseline_dir}/clock.xdc"')
 
-  top_rtl = hub['NewTopRTL']
-  top_name = re.search(rf'[^ ]+{NEW_TOP_MODULE_SUFFIX}', top_rtl).group(0)
   script.append(f'synth_design -top "{top_name}" -mode out_of_context')
   script.append(f'write_checkpoint synth.dcp')
 
@@ -77,6 +76,24 @@ def createSlotWrappers():
   open(f'{wrapper_path}/new_top.v', 'w').write(top_rtl)
 
 
+def getNonPipelinedTopWithBUFG():
+  """
+  run the original HLS design. However we need to add the BUFG into the top for fair comparison
+  """
+  orig_rtl_path = hub['ORIG_RTL_PATH']
+  orig_rtl_top = open(f'{orig_rtl_path}/{orig_top_name}.v').read()
+
+  orig_rtl_top = re.sub(f'module {orig_top_name}', f'module {orig_top_name_with_bufg}', orig_rtl_top)
+  orig_rtl_top = orig_rtl_top.replace('ap_clk,', 'ap_clk_port,')
+
+  bufg_connect = 'input   ap_clk_port; wire ap_clk;  '
+  bufg_annotation = '(* DONT_TOUCH = "yes", LOC = "BUFGCE_X0Y194" *)'
+  bufg_def = 'BUFGCE test_bufg (.I(ap_clk_port), .CE(1\'b1),.O(ap_clk) );'
+  orig_rtl_top = re.sub(r'input[ ]+ap_clk;', f'{bufg_connect} {bufg_annotation} {bufg_def}', orig_rtl_top)
+
+  open(f'{wrapper_path}/orig_top_with_bufg.v', 'w').write(orig_rtl_top)
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument("--hub_path", type=str, required=True)
@@ -90,8 +107,12 @@ if __name__ == '__main__':
   hub = json.loads(open(hub_path, 'r').read())
 
   NEW_TOP_MODULE_SUFFIX = '_hw_test'
+  top_rtl = hub['NewTopRTL']
+  pipeline_top_name = re.search(rf'[^ ]+{NEW_TOP_MODULE_SUFFIX}', top_rtl).group(0)
+  orig_top_name = pipeline_top_name.replace(NEW_TOP_MODULE_SUFFIX, '')
+  orig_top_name_with_bufg = f'{orig_top_name}_non_pipeline_with_bufg'
 
-  baseline_dir = f'{base_dir}/baseline_orig_vivado_with_pipeline'
+  baseline_dir = f'{base_dir}/baseline_orig_vivado'
   os.mkdir(baseline_dir)
   
   wrapper_path = f'{baseline_dir}/wrappers'
@@ -100,7 +121,13 @@ if __name__ == '__main__':
   xdc = createClockFromBUFGXDC()
   open(f'{baseline_dir}/clock.xdc', 'w').write('\n'.join(xdc))
 
-  script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'])
-  open(f'{baseline_dir}/baseline.tcl', 'w').write('\n'.join(script))
+  os.mkdir(f'{baseline_dir}/pipelined_baseline')
+  script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], pipeline_top_name)
+  open(f'{baseline_dir}/pipelined_baseline/baseline_pipelined.tcl', 'w').write('\n'.join(script))
+
+  os.mkdir(f'{baseline_dir}/non_pipelined_baseline')
+  script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], orig_top_name_with_bufg)
+  open(f'{baseline_dir}/non_pipelined_baseline/baseline_non_pipelined.tcl', 'w').write('\n'.join(script))
 
   createSlotWrappers()
+  getNonPipelinedTopWithBUFG()
