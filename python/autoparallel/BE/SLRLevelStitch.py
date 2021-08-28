@@ -1,8 +1,10 @@
+import argparse
 import sys
 import json
 import re
 import os
 
+import autoparallel.BE.Constants as Constants
 from autoparallel.BE.SlotRouting import addSomeAnchors, removePlaceholderAnchors
 from autoparallel.BE.Utilities import getSlotsInSLRIndex, loggingSetup
 
@@ -48,8 +50,8 @@ def getVivadoRouteSLRScript(slr_index):
 
   script.append(f'set_clock_uncertainty -hold 0 [get_clocks ap_clk]')
 
-  script.append(f'write_checkpoint {vivado_dir}/routed_checkpoint/slr_{slr_index}_routed.dcp')
-  script.append(f'write_edif {vivado_dir}/routed_checkpoint/slr_{slr_index}_routed.edf')
+  script.append(f'write_checkpoint {vivado_dir}/routed_checkpoint/routed_slr_{slr_index}.dcp')
+  script.append(f'write_edif {vivado_dir}/routed_checkpoint/routed_slr_{slr_index}.edf')
 
   return script
 
@@ -80,14 +82,13 @@ def getVivadoRouteParallelTasks():
     slots = getSlotsInSLRIndex(hub, slr_index)
 
     cd = f'cd {vivado_dir}'
-    rw_source = f'source {RW_SETUP_PATH}'
     get_dcp_regexp = lambda slot_name: f'(.*{slot_name}.*non_laguna_anchor_nets_unrouted.dcp)'
     all_dcp_regexps = '|'.join([get_dcp_regexp(slot_name) for slot_name in slots])
-    rw = f'java com.xilinx.rapidwright.examples.MergeDCP {slot_routing_dir} slr_{slr_index}.dcp "{all_dcp_regexps}"'
+    rw_stitch = f'source {args.rw_stitch_setup_path} && java com.xilinx.rapidwright.examples.MergeDCP {slot_routing_dir} slr_{slr_index}.dcp "{all_dcp_regexps}"'
 
-    vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source {vivado_dir}/route_slr.tcl'
+    vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source {vivado_dir}/route_slr.tcl'
 
-    stitch = f'{cd} && {rw_source} && {rw} && {vivado}'
+    stitch = f'{cd} && {rw_stitch} && {vivado}'
 
     all_tasks.append(stitch)
 
@@ -107,15 +108,13 @@ def getRWRouteSetupParallelScript():
     slots = getSlotsInSLRIndex(hub, slr_index)
 
     cd = f'cd {rwroute_dir}'
-    rw_source = f'source {RW_SETUP_PATH}'
     get_dcp_regexp = lambda slot_name: f'(.*{slot_name}.*phys_opt_routed.*.dcp)'
     all_dcp_regexps = '|'.join([get_dcp_regexp(slot_name) for slot_name in slots])
-    rw = f'java com.xilinx.rapidwright.examples.MergeDCP {slot_routing_dir} slr_{slr_index}.dcp "{all_dcp_regexps}"'
+    rw_stitch = f'source {args.rw_stitch_setup_path} && java com.xilinx.rapidwright.examples.MergeDCP {slot_routing_dir} slr_{slr_index}.dcp "{all_dcp_regexps}"'
 
-    # FIXME: replace this by the RWRoute command
-    vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source {rwroute_dir}/get_preroute_dcp_with_conflict.tcl'
+    rw_route = f'source {args.rw_route_setup_path} && ' + Constants.RWROUTE.format(dcp=f'slr_{slr_index}.dcp', target_dir=f'{slr_stitch_dir}/rwroute/slr_{slr_index}/routed_checkpoint')
 
-    get_rwroute_preroute_dcp = f'{cd} && {rw_source} && {rw} && {vivado}'
+    get_rwroute_preroute_dcp = f'{cd} && {rw_stitch} && {rw_route}'
 
     all_tasks.append(get_rwroute_preroute_dcp)
 
@@ -126,17 +125,22 @@ def setupTopStitch():
   os.mkdir(f'{slr_stitch_dir}/vivado/top_stitch')
   os.mkdir(f'{slr_stitch_dir}/rwroute/top_stitch')
 
-  get_cmd = lambda tool: f'source {RW_SETUP_PATH} && java com.xilinx.rapidwright.examples.MergeDCP {slr_stitch_dir}/{tool} top_stitch.dcp ".*slr_\d_routed.*dcp"'
+  get_cmd = lambda tool: f'source {args.rw_stitch_setup_path} && java com.xilinx.rapidwright.examples.MergeDCP {slr_stitch_dir}/{tool} top_stitch.dcp ".*slr_\d_routed.*dcp"'
   open(f'{slr_stitch_dir}/vivado/top_stitch/stitch.sh', 'w').write(get_cmd('vivado'))
   open(f'{slr_stitch_dir}/rwroute/top_stitch/stitch.sh', 'w').write(get_cmd('rwroute'))
 
 
 if __name__ == '__main__':
-  assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
-  hub_path = sys.argv[1]
-  base_dir = sys.argv[2]
-  VIV_VER=sys.argv[3]
-  RW_SETUP_PATH = sys.argv[4]
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--hub_path", type=str, required=True)
+  parser.add_argument("--base_dir", type=str, required=True)
+  parser.add_argument("--vivado_version", type=str, required=True)
+  parser.add_argument("--rw_stitch_setup_path", type=str, required=True)
+  parser.add_argument("--rw_route_setup_path", type=str, required=True)
+  args = parser.parse_args()
+
+  hub_path = args.hub_path
+  base_dir = args.base_dir
 
   hub = json.loads(open(hub_path, 'r').read())
 

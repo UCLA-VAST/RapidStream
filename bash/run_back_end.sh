@@ -5,7 +5,8 @@
 RW_BRIDGE_ROOT_DIR="/home/einsx7/auto-parallel/src"
 
 VIV_VER="2021.1"
-RW_SETUP_PATH="/home/einsx7/rapidwright/rapidwright_07_30/rapidwright.sh"
+RW_STITCH_SETUP_PATH="/home/einsx7/rapidwright/rapidwright_07_30/rapidwright.sh"
+RW_ROUTE_SETUP_PATH="/home/einsx7/rapidwright/rapidwright_rwroute/rapidwright.sh"
 INVERT_ANCHOR_CLOCK=0
 TARGET_PERIOD=2.5
 USER_NAME="einsx7"
@@ -203,7 +204,13 @@ python3.6 -m autoparallel.BE.SlotRouting \
     --main_server_name ${MAIN_SERVER}  
 
 python3.6 -m autoparallel.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VIV_VER}
-python3.6 -m autoparallel.BE.SLRLevelStitch ${HUB} ${BASE_DIR} ${VIV_VER} ${RW_SETUP_PATH}
+
+python3.6 -m autoparallel.BE.SLRLevelStitch  \
+    --hub_path ${HUB} \
+    --base_dir ${BASE_DIR} \
+    --vivado_version ${VIV_VER} \
+    --rw_stitch_setup_path ${RW_STITCH_SETUP_PATH} \
+    --rw_route_setup_path ${RW_ROUTE_SETUP_PATH}
 
 # baseline: vanilla vivado flow
 python3.6 -m autoparallel.BE.Baseline.VivadoOrigFlow \
