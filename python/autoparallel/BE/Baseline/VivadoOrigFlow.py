@@ -1,7 +1,8 @@
+import argparse
 import json
 import logging
 import os
-import sys
+import re
 
 from autoparallel.BE.Utilities import loggingSetup
 
@@ -14,6 +15,8 @@ def getVivadoFlowWithOrigRTL(
 ):
   script = []
 
+  script.append(f'set_param general.maxThreads 8')
+
   # to differentiate with the original top
   script.append(f'set_part {fpga_part_name}')
 
@@ -23,8 +26,7 @@ def getVivadoFlowWithOrigRTL(
   script.append(r'read_verilog ${orig_rtl_files}') 
 
   # read in the generated wrappers
-  script.append(f'set WRAPPER_PATH "{WRAPPER_PATH}"') 
-  script.append(r'set wrapper_files [glob ${WRAPPER_PATH}/*.v]') 
+  script.append(f'set wrapper_files [glob {wrapper_path}/*.v]') 
   script.append(r'read_verilog ${wrapper_files}') 
 
   # instantiate IPs used in the RTL. Use "-nocomplain" in case no IP is used
@@ -34,7 +36,9 @@ def getVivadoFlowWithOrigRTL(
   # clock xdc
   script.append(f'read_xdc "clock.xdc"')
 
-  script.append(f'synth_design -top "{TOP_NAME}" -mode out_of_context')
+  top_rtl = hub['NewTopRTL']
+  top_name = re.search(rf'[^ ]+{NEW_TOP_MODULE_SUFFIX}', top_rtl).group(0)
+  script.append(f'synth_design -top "{top_name}" -mode out_of_context')
   script.append(f'write_checkpoint synth.dcp')
 
   script.append(f'opt_design')
@@ -61,18 +65,37 @@ def createClockFromBUFGXDC(target_period=2.50):
   return xdc
 
 
+def createSlotWrappers():
+  slot_name_to_rtl = hub['SlotWrapperRTL']
+  for slot_name, rtl in slot_name_to_rtl.items():
+    # remove all annotations because those are for the split compile flow
+    rtl = [re.sub(r"\(\*.+\*\)", "", line) for line in rtl]
+
+    open(f'{wrapper_path}/{slot_name}.v', 'w').write('\n'.join(rtl))
+
+  top_rtl = hub['NewTopRTL']
+  open(f'{wrapper_path}/new_top.v', 'w').write(top_rtl)
+
+
 if __name__ == '__main__':
-  assert len(sys.argv) == 6, 'input (1) the path to the front end result file and (2) the target directory'
-  hub_path = sys.argv[1]
-  base_dir = sys.argv[2]
-  VIV_VER = sys.argv[3]
-  TOP_NAME = sys.argv[4]
-  WRAPPER_PATH = sys.argv[5]
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--hub_path", type=str, required=True)
+  parser.add_argument("--base_dir", type=str, required=True)
+  parser.add_argument("--vivado_version", type=str, required=True)
+  args = parser.parse_args()
+
+  hub_path = args.hub_path
+  base_dir = args.base_dir
 
   hub = json.loads(open(hub_path, 'r').read())
 
+  NEW_TOP_MODULE_SUFFIX = '_hw_test'
+
   baseline_dir = f'{base_dir}/baseline_orig_vivado_with_pipeline'
   os.mkdir(baseline_dir)
+  
+  wrapper_path = f'{baseline_dir}/wrappers'
+  os.mkdir(wrapper_path)
 
   xdc = createClockFromBUFGXDC()
   open(f'{baseline_dir}/clock.xdc', 'w').write('\n'.join(xdc))
@@ -80,3 +103,4 @@ if __name__ == '__main__':
   script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'])
   open(f'{baseline_dir}/baseline.tcl', 'w').write('\n'.join(script))
 
+  createSlotWrappers()

@@ -205,6 +205,12 @@ python3.6 -m autoparallel.BE.SlotRouting \
 python3.6 -m autoparallel.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VIV_VER}
 python3.6 -m autoparallel.BE.SLRLevelStitch ${HUB} ${BASE_DIR} ${VIV_VER} ${RW_SETUP_PATH}
 
+# baseline: vanilla vivado flow
+python3.6 -m autoparallel.BE.Baseline.VivadoOrigFlow \
+    --hub_path ${HUB} \
+    --base_dir ${BASE_DIR} \
+    --vivado_version ${VIV_VER}
+
 # create scripts to distribute the workloads
 SCRIPT_DIR=${BASE_DIR}/scripts
 if [ ! -d  ${SCRIPT_DIR} ] ; then
