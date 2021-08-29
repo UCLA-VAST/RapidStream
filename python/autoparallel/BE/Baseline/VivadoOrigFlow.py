@@ -12,11 +12,12 @@ loggingSetup()
 def getVivadoFlowWithOrigRTL(
   fpga_part_name,
   orig_rtl_path,
-  top_name
+  top_name,
+  thread_num
 ):
   script = []
 
-  script.append(f'set_param general.maxThreads 8')
+  script.append(f'set_param general.maxThreads {thread_num}')
 
   # to differentiate with the original top
   script.append(f'set_part {fpga_part_name}')
@@ -121,13 +122,16 @@ if __name__ == '__main__':
   xdc = createClockFromBUFGXDC()
   open(f'{baseline_dir}/clock.xdc', 'w').write('\n'.join(xdc))
 
-  os.mkdir(f'{baseline_dir}/pipelined_baseline')
-  script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], pipeline_top_name)
-  open(f'{baseline_dir}/pipelined_baseline/baseline_pipelined.tcl', 'w').write('\n'.join(script))
+  for thread_num in [1, 8]:
+    run_dir = f'{baseline_dir}/pipelined_baseline_{thread_num}_thread'
+    os.mkdirrun_dir
+    script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], pipeline_top_name, thread_num)
+    open(f'{run_dir}/baseline_pipelined_{thread_num}_thread.tcl', 'w').write('\n'.join(script))
 
-  os.mkdir(f'{baseline_dir}/non_pipelined_baseline')
-  script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], orig_top_name_with_bufg)
-  open(f'{baseline_dir}/non_pipelined_baseline/baseline_non_pipelined.tcl', 'w').write('\n'.join(script))
+    run_dir = f'{baseline_dir}/non_pipelined_baseline_{thread_num}_thread'
+    os.mkdir(run_dir)
+    script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], orig_top_name_with_bufg, thread_num)
+    open(f'{run_dir}/baseline_non_pipelined_{thread_num}_thread.tcl', 'w').write('\n'.join(script))
 
   createSlotWrappers()
   getNonPipelinedTopWithBUFG()
