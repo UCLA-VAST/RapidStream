@@ -753,6 +753,8 @@ if __name__ == '__main__':
 
   # run the ILP placement for the given slot pairs
   elif option == 'RUN':
+    logging.info(f'Start of session at: {round(time.time())}')
+
     common_anchor_connections = collectAllConnectionsOfTargetAnchors(pair_name)
     open('anchor_connection_of_the_pair.json', 'w').write(json.dumps(common_anchor_connections, indent=2))
 
@@ -778,5 +780,8 @@ if __name__ == '__main__':
     
     setupSlotClockRouting(anchor_2_loc)
     
+    # FIXME: the exit time tracker use this keyword to locate the exit time
+    logging.info(f'Exiting Vivado at: {round(time.time())}')
+
   else:
     assert False, f'unrecognized option {option}'

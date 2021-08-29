@@ -13,22 +13,24 @@ VIVADO_STEPS = [
   "opt_placement_iter0",
   "slot_routing"
 ]
+ILP_PLACEMENT_STEP = "ILP_anchor_placement_iter0"
 LOG_START_TIME_MARKER = "Start of session at"
 LOG_END_TIME_MARKER = "Exiting Vivado at"
-LOG = "vivado.log"
+VIVADO_LOG = "vivado.log"
+ILP_PLACEMENT_LOG = "ILP-placement.log"
 
 
-def get_all_vivado_log_in_directory(directory: str) -> List[str]:
+def get_all_vivado_log_in_directory(directory: str, log_name: str) -> List[str]:
   log_list = []
   for root, dirs, files in os.walk(directory):
     for file in files:
-      if file.endswith(LOG):
+      if file.endswith(log_name):
         log_list.append(root.replace(f"{directory}/", ""))
   
   return log_list
 
 
-def get_log_start_time(log_path: str) -> Dict[str, List[Any]]:
+def get_vivado_log_start_end_time(log_path: str) -> Dict[str, List[Any]]:
   """
   get the start unix time
   """
@@ -47,7 +49,22 @@ def get_log_start_time(log_path: str) -> Dict[str, List[Any]]:
       timestamps['unix_time'].append(datetime(year, month, day, hour, minute, second).timestamp()) 
       timestamps['date'].append(match.group(0)) 
 
-  assert len(timestamps) == 2, timestamps
+  assert len(timestamps['unix_time']) == 2, timestamps
+  return timestamps
+
+
+def get_ilp_placement_log_start_end_time(log_path: str) -> Dict[str, List[Any]]:
+  """
+  get the start unix time
+  """
+  timestamps = defaultdict(list)
+
+  for line in open(log_path, "r").readlines():
+    if LOG_START_TIME_MARKER in line or LOG_END_TIME_MARKER in line:
+      match = re.search(r'\d+', line)
+      timestamps['unix_time'].append(match.group(0)) 
+
+  assert len(timestamps['unix_time']) == 2, timestamps
   return timestamps
 
 
@@ -57,10 +74,16 @@ def get_worker_start_end_time(base_dir: str):
   """
   worker_start_end_time = defaultdict(dict)
   for step in VIVADO_STEPS:
-    job_list = get_all_vivado_log_in_directory(f"{base_dir}/{step}")
+    job_list = get_all_vivado_log_in_directory(f"{base_dir}/{step}", VIVADO_LOG)
     for job in job_list:
-      log_path = f'{base_dir}/{step}/{job}/{LOG}'
-      worker_start_end_time[step][job] = get_log_start_time(log_path)
+      log_path = f'{base_dir}/{step}/{job}/{VIVADO_LOG}'
+      worker_start_end_time[step][job] = get_vivado_log_start_end_time(log_path)
+
+  # ilp placement jobs
+  job_list = get_all_vivado_log_in_directory(f"{base_dir}/{ILP_PLACEMENT_STEP}", ILP_PLACEMENT_LOG)
+  for job in job_list:
+    log_path = f'{base_dir}/{ILP_PLACEMENT_STEP}/{job}/{ILP_PLACEMENT_LOG}'
+    worker_start_end_time[ILP_PLACEMENT_STEP][job] = get_ilp_placement_log_start_end_time(log_path)
 
   return worker_start_end_time
 
@@ -71,7 +94,7 @@ def save_results(output_path: str, worker_start_end_time) -> None:
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Extract the start/end time of RW-Bridge jobs')
-  parser.add_argument("--base_dir", type=str)
+  parser.add_argument("--base_dir", type=str, required=True)
   parser.add_argument("--output_path", type=str, nargs="?", default="./job_start_end_time.json")
   args = parser.parse_args()
 
