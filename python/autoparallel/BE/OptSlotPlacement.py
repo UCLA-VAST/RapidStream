@@ -45,10 +45,14 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   # report timing to check the quality of anchor placement
   script += getAnchorTimingReportScript(report_prefix=anchor_source_dir)
 
+  script.append('set_max_delay -from [get_pins -of_objects [ get_cells -of_objects [ get_nets -segments  -of_objects  [get_pins -of_objects [get_cells *q0_reg* -filter {LOC =~ "SLICE*"}] -filter {NAME =~ "*D"} ] ] ] -filter {NAME =~ "*C"} ] 0.5')
+
   # optimize the slot based on the given anchor placement
-  # do placement only so that we could track the change from the log
   script.append(f'phys_opt_design -directive Explore')
   script.append(f'phys_opt_design -directive Explore')  # found that run it two times may work
+
+  script.append('set_max_delay -from [get_pins -of_objects [ get_cells -of_objects [ get_nets -segments  -of_objects  [get_pins -of_objects [get_cells *q0_reg* -filter {LOC =~ "SLICE*"}] -filter {NAME =~ "*D"} ] ] ] -filter {NAME =~ "*C"} ] [expr [get_property PERIOD [get_clocks ap_clk]] / 2 ]')
+
   script.append(f'write_checkpoint -force {slot_name}_post_placed_opt.dcp')
   script.append(f'exec touch {slot_name}_post_placed_opt.dcp.done.flag')
 
