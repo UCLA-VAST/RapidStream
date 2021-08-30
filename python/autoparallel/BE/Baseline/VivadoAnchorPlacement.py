@@ -1,4 +1,4 @@
-#! /usr/bin/python3.6
+import argparse
 import logging
 import json
 import math
@@ -232,7 +232,7 @@ def getParallelScript():
     pair_name = f'{slot1_name}_AND_{slot2_name}'
 
     cd = f'cd {baseline_dir}/{pair_name}'
-    vivado = f'VIV_VER={VIV_VER} vivado -mode batch -source place.tcl'
+    vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source place.tcl'
 
     transfer = []
     for server in server_list:
@@ -247,14 +247,18 @@ def getParallelScript():
     open(f'{baseline_dir}/parallel_baseline_vivado_anchor_placement_{server}.txt', 'w').write('\n'.join(local_tasks))
 
 if __name__ == '__main__':
-  assert len(sys.argv) == 5, 'input (1) the path to the front end result file and (2) the target directory'
-  hub_path = sys.argv[1]
-  base_dir = sys.argv[2]
-  VIV_VER=sys.argv[3]
-  CLOCK_PERIOD = sys.argv[4]
+  parser = argparse.ArgumentParser()
+  parser.add_argument("--hub_path", type=str, required=True)
+  parser.add_argument("--base_dir", type=str, required=True)
+  parser.add_argument("--vivado_version", type=str, required=True)
+  parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
+  parser.add_argument("--user_name", type=str, required=True)
+  args = parser.parse_args()
 
-  logging.warning('[baseline anchor placement] Only 2020.1 supports read_checkpoint -cell. Enforce 2020.1')
-  VIV_VER = '2020.1'
+  hub_path = args.hub_path
+  base_dir = args.base_dir
+  user_name = args.user_name
+  server_list = args.server_list_in_str.split()
 
   hub = json.loads(open(hub_path, 'r').read())
 
@@ -262,9 +266,6 @@ if __name__ == '__main__':
   placement_dir = f'{base_dir}/init_slot_placement'
   baseline_dir = f'{base_dir}/baseline_vivado_anchor_placement'
   os.mkdir(baseline_dir)
-
-  user_name = 'einsx7'
-  server_list=['u5','u17','u18','u15']
 
   for slot1_name, slot2_name in hub["AllSlotPairs"]:
     pair_name = f'{slot1_name}_AND_{slot2_name}'

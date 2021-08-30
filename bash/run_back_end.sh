@@ -150,9 +150,15 @@ python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
     --user_name ${USER_NAME} \
     --server_list_in_str "${SERVER_LIST[*]}"
 
-python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement ${HUB} ${BASE_DIR} ${VIV_VER} ${TARGET_PERIOD}  # vivado anchor placement
+# baseline: vivado anchor placement
+python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement  \
+    --hub_path ${HUB} \
+    --base_dir ${BASE_DIR} \
+    --vivado_version ${VIV_VER} \
+    --user_name ${USER_NAME} \
+    --server_list_in_str "${SERVER_LIST[*]}"
 
- # normal flow
+# normal flow
 python3.6 -m autoparallel.BE.OptSlotPlacement \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
