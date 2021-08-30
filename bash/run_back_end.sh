@@ -67,6 +67,10 @@ while [[ $# -gt 0 ]]; do
       RUN_RWROUTE_TEST=1
       shift # past argument
       ;;
+    --setup-only)
+      SETUP_ONLY=1
+      shift # past argument
+      ;;
     *)    # unknown option
       POSITIONAL+=("$1") # save it in an array for later
       echo "Unknown parameter: $1"
@@ -87,6 +91,7 @@ echo "VIVADO_ANCHOR_PLACEMENT   = ${VIVADO_ANCHOR_PLACEMENT}"
 echo "RANDOM_ANCHOR_PLACEMENT   = ${RANDOM_ANCHOR_PLACEMENT}"
 echo "VIV_VER                   = ${VIV_VER}"
 echo "SERVER_LIST               = ${SERVER_LIST[@]}"
+echo "SETUP_ONLY                = ${SETUP_ONLY[@]}"
 
 if [[ -n $1 ]]; then
     echo "Last line of file specified as non-opt/last argument:"
@@ -107,16 +112,14 @@ cp ${HUB} $BASE_DIR
 chmod -w $BASE_DIR/front_end_result.json
 
 # slot synth
-if [ -z "${UNIQUE_SYNTH_DCP_DIR}" ]; then
-    python3.6 -m autoparallel.BE.SlotSynthesis \
-        --hub_path ${HUB} \
-        --base_dir ${BASE_DIR} \
-        --vivado_version ${VIV_VER} \
-        --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
-        --clock_period ${TARGET_PERIOD} \
-        --user_name ${USER_NAME} \
-        --server_list_in_str "${SERVER_LIST[*]}"
-fi
+python3.6 -m autoparallel.BE.SlotSynthesis \
+    --hub_path ${HUB} \
+    --base_dir ${BASE_DIR} \
+    --vivado_version ${VIV_VER} \
+    --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
+    --clock_period ${TARGET_PERIOD} \
+    --user_name ${USER_NAME} \
+    --server_list_in_str "${SERVER_LIST[*]}"
 
 # init slot placement
 python3.6 -m autoparallel.BE.InitialSlotPlacement \
@@ -265,6 +268,13 @@ for server in ${SERVER_LIST[*]} ; do
 done
 chmod +x ${KILL_SCRIPT}
 
+if [ -n "${SETUP_ONLY}" ]; then
+    echo "Finish setup"
+    exit
+fi
+
+########################################################
+
 echo "Distrube scripts to multiple servers..."
 for server in ${SERVER_LIST[*]} ; do
     rsync -azh --delete -r ${BASE_DIR}/ einsx7@${server}:${BASE_DIR} &
@@ -291,9 +301,7 @@ done
 
 echo "Start running"
 
-if [ -z "${UNIQUE_SYNTH_DCP_DIR}" ]; then
-    ${SCRIPT_DIR}/distributed_run_slot_synth.sh &
-fi
+${SCRIPT_DIR}/distributed_run_slot_synth.sh &
 
 ${SCRIPT_DIR}/distributed_run_init_slot_placement.sh &
 
@@ -316,20 +324,18 @@ ${SCRIPT_DIR}/distributed_run_slot_anchor_clock_routing.sh &
 ${SCRIPT_DIR}/distributed_run_slot_routing.sh &
 
 ####################################################################
-if [ -z "${UNIQUE_SYNTH_DCP_DIR}" ]; then
-    while :
-    do
-        done_num=$(find ${BASE_DIR}/slot_synth -maxdepth 2 -type f -name *.dcp.done.flag | wc -w)
-        total_num=$(find ${BASE_DIR}/slot_synth -maxdepth 1 -type d -name CR* | wc -l)
-        echo "[$(date +"%T")] Synthesis: ${done_num}/${total_num} finished"
+while :
+do
+    done_num=$(find ${BASE_DIR}/slot_synth -maxdepth 2 -type f -name *.dcp.done.flag | wc -w)
+    total_num=$(find ${BASE_DIR}/slot_synth -maxdepth 1 -type d -name CR* | wc -l)
+    echo "[$(date +"%T")] Synthesis: ${done_num}/${total_num} finished"
 
-        if (( ${done_num} == ${total_num} )); then
-            break
-        fi
+    if (( ${done_num} == ${total_num} )); then
+        break
+    fi
 
-        sleep 30
-    done
-fi
+    sleep 30
+done
 
 while :
 do
