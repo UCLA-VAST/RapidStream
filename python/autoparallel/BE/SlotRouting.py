@@ -205,6 +205,9 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     # restore the hold uncertainty
     script.append(f'set_clock_uncertainty -hold 0 [get_clocks ap_clk]')
 
+    # the RW stitcher cannot handle the pblocks well
+    script.append(f'delete_pblocks *')
+
     # sometimes phys_opt_design make things worse, probably because of the fixed clock
     script.append(f'exec mkdir {routing_dir}/{slot_name}/phys_opt_routed')
     script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/phys_opt_routed/phys_opt_routed_with_ooc_clock.dcp')
