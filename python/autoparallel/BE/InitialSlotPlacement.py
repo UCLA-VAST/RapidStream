@@ -96,7 +96,10 @@ if __name__ == '__main__':
   # depends on whether we use the uniquified synth checkpoints
   if args.path_to_reuse_synth_dcp:
     get_synth_dcp = lambda slot_name : f'{args.path_to_reuse_synth_dcp}/{slot_name}/{slot_name}_synth_unique_2021.1.dcp'
-    get_guard = lambda slot_name : 'sleep 1' # use a harmless placeholder command
+    
+    # note that in order to measure the e2e runtime, we run the synthesis again
+    # just that we will start placement from the previous synthesized checkpoints that has been renamed.
+    get_guard = lambda slot_name : f'until [[ -f {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag ]] ; do sleep 10; done'
   else:
     get_synth_dcp = lambda slot_name : f'{synth_dir}/{slot_name}/{slot_name}_synth.dcp'
     get_guard = lambda slot_name : f'until [[ -f {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag ]] ; do sleep 10; done'
