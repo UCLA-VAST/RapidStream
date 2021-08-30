@@ -124,7 +124,7 @@ if __name__ == '__main__':
 
   for thread_num in [1, 8]:
     run_dir = f'{baseline_dir}/pipelined_baseline_{thread_num}_thread'
-    os.mkdirrun_dir
+    os.mkdir(run_dir)
     script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], pipeline_top_name, thread_num)
     open(f'{run_dir}/baseline_pipelined_{thread_num}_thread.tcl', 'w').write('\n'.join(script))
 
