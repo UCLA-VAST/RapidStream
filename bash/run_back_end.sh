@@ -111,6 +111,9 @@ mkdir $BASE_DIR
 cp ${HUB} $BASE_DIR
 chmod -w $BASE_DIR/front_end_result.json
 
+# start logging from here
+{
+
 # slot synth
 python3.6 -m autoparallel.BE.SlotSynthesis \
     --hub_path ${HUB} \
@@ -423,6 +426,9 @@ echo $(date +"%T")
 for server in ${SERVER_LIST[*]} ; do
     ssh ${server} pkill -f $TRACKER
 done
+
+# end logging from here
+} 2>&1 | tee -a ${BASE_DIR}/rapid_stream.log 
 
 # kill all child process, including the performance tracker
 pkill -P $$
