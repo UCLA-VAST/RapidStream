@@ -125,7 +125,7 @@ def setupTopStitch():
   os.mkdir(f'{slr_stitch_dir}/vivado/top_stitch')
   os.mkdir(f'{slr_stitch_dir}/rwroute/top_stitch')
 
-  get_cmd = lambda tool: f'source {args.rw_stitch_setup_path} && java com.xilinx.rapidwright.examples.MergeDCP {slr_stitch_dir}/{tool} top_stitch.dcp ".*routed_slr_\d.*dcp"'
+  get_cmd = lambda tool: f'source {args.rw_stitch_setup_path} && java com.xilinx.rapidwright.examples.MergeDCP -Xmx100g {slr_stitch_dir}/{tool} top_stitch.dcp ".*routed_slr_\d.*dcp"'
   open(f'{slr_stitch_dir}/vivado/top_stitch/stitch.sh', 'w').write(get_cmd('vivado'))
   open(f'{slr_stitch_dir}/rwroute/top_stitch/stitch.sh', 'w').write(get_cmd('rwroute'))
 
