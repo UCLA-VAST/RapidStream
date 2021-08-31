@@ -38,6 +38,11 @@ def getConnection(inner_connection):
 
   pipeline_level = 1  # keep this for historical reason
 
+  if args.invert_non_laguna_anchor_clock:
+    clock_edge = 'negedge'
+  else:
+    clock_edge = 'posedge'
+
   for io, dir_width in inner_connection.items():
     width = dir_width[1] if len(dir_width) == 2 else ''
     connection.append(f'  wire {width} {io}_in;')
@@ -57,7 +62,7 @@ def getConnection(inner_connection):
         pipeline_regs.append(dir_width + [f'{io}_q{i}'])
     
       # connect the head and tail
-      connection.append(f'  always @ (posedge ap_clk) begin')
+      connection.append(f'  always @ ({clock_edge} ap_clk) begin')
       connection.append(f'    {io}_q0 <= {io}_out;')
       for i in range(1, pipeline_level):
         connection.append(f'    {io}_q{i} <= {io}_q{i-1};')
@@ -177,7 +182,7 @@ def createVivadoScriptForSlotPair(
   script.append(f'read_verilog {baseline_dir}/{pair_name}/{pair_name}.v')  
 
   # clock xdc
-  script.append(f'read_xdc {synth_dir}/clock.xdc')
+  script.append(f'read_xdc ./clock.xdc')
 
   # synth
   script.append(f'synth_design -top "{pair_name}" -part {fpga_part_name} -mode out_of_context')
@@ -196,6 +201,7 @@ def createVivadoScriptForSlotPair(
 
   # constrain the pipeline registers. get the pblocks based on slot names
   script.append(f'create_pblock anchor_region')
+  script.append(f'set_property IS_SOFT 0 [get_pblocks anchor_region]')
 
   # corner case: there may be no anchors between two slots
   script.append( 'catch {add_cells_to_pblock [get_pblocks anchor_region] [get_cells -regexp {.*q0_reg.*} ] }')
@@ -224,6 +230,7 @@ def createVivadoScriptForSlotPair(
   script.append(f'write_checkpoint {pair_name}_placed.dcp')
 
   open(f'{output_dir}/place.tcl', 'w').write('\n'.join(script))
+  open(f'{output_dir}/clock.xdc', 'w').write(f'create_clock -name ap_clk -period {args.clock_period} [get_ports ap_clk]')
 
 
 def getParallelScript():
@@ -251,6 +258,8 @@ if __name__ == '__main__':
   parser.add_argument("--hub_path", type=str, required=True)
   parser.add_argument("--base_dir", type=str, required=True)
   parser.add_argument("--vivado_version", type=str, required=True)
+  parser.add_argument("--clock_period", type=float, required=True)
+  parser.add_argument("--invert_non_laguna_anchor_clock", type=int, required=True)
   parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
   parser.add_argument("--user_name", type=str, required=True)
   args = parser.parse_args()

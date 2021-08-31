@@ -158,6 +158,8 @@ python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement  \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
+    --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
+    --clock_period ${TARGET_PERIOD} \
     --user_name ${USER_NAME} \
     --server_list_in_str "${SERVER_LIST[*]}"
 
