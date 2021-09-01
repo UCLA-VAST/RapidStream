@@ -317,7 +317,7 @@ if [ ! -d  ${TRACKING_DIR} ] ; then
 fi
 for server in ${SERVER_LIST[*]} ; do
     ssh ${server} \
-        ${SETUP_PYTHON_ENV} && \
+        PYTHONPATH=/home/einsx7/.local/lib/python3.6/site-packages/ \
         python3.6 ${TRACKER} \
         --output_dir ${TRACKING_DIR} \
         --report_prefix ${server} \
