@@ -34,7 +34,7 @@ def getVivadoRouteSLRScript(slr_index):
   script.append(f'delete_pblocks *')
 
   # relax the clock 
-  script.append(f'create_clock -name ap_clk -period 3 [get_pins test_bufg/O]')
+  script.append(f'create_clock -name ap_clk -period {args.clock_period} [get_pins test_bufg/O]')
   script.append(f'set_clock_uncertainty -hold 0.02 [get_clocks ap_clk]')
 
   script.append(f'write_checkpoint {vivado_dir}/pre_route_checkpoint/slr_{slr_index}_before_routed.dcp')
@@ -134,6 +134,7 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument("--hub_path", type=str, required=True)
   parser.add_argument("--base_dir", type=str, required=True)
+  parser.add_argument("--clock_period", type=float, required=True)
   parser.add_argument("--vivado_version", type=str, required=True)
   parser.add_argument("--rw_stitch_setup_path", type=str, required=True)
   parser.add_argument("--rw_route_setup_path", type=str, required=True)

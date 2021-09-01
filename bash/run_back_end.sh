@@ -129,6 +129,7 @@ python3.6 -m autoparallel.BE.InitialSlotPlacement \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
+    --clock_period ${TARGET_PERIOD} \
     --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
     --path_to_reuse_synth_dcp ${UNIQUE_SYNTH_DCP_DIR} \
     --user_name ${USER_NAME} \
@@ -227,6 +228,7 @@ python3.6 -m autoparallel.BE.SLRLevelStitch  \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
+    --clock_period ${TARGET_PERIOD} \
     --rw_stitch_setup_path ${RW_STITCH_SETUP_PATH} \
     --rw_route_setup_path ${RW_ROUTE_SETUP_PATH}
 
