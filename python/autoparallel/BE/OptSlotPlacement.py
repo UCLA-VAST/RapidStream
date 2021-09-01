@@ -45,13 +45,17 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   # report timing to check the quality of anchor placement
   script += getAnchorTimingReportScript(report_prefix=anchor_source_dir)
 
-  script.append('set_max_delay -from [get_pins -of_objects [ get_cells -of_objects [ get_nets -segments  -of_objects  [get_pins -of_objects [get_cells *q0_reg* -filter {LOC =~ "SLICE*"}] -filter {NAME =~ "*D"} ] ] ] -filter {NAME =~ "*C"} ] 0.5')
+  # in invert mode, pull the src/sink as close as possible to the anchors
+  if args.invert_non_laguna_anchor_clock:
+    script.append('set_max_delay -from [get_pins -of_objects [ get_cells -of_objects [ get_nets -segments  -of_objects  [get_pins -of_objects [get_cells *q0_reg* -filter {LOC =~ "SLICE*"}] -filter {NAME =~ "*D"} ] ] ] -filter {NAME =~ "*C"} ] 0.5')
 
   # optimize the slot based on the given anchor placement
   script.append(f'phys_opt_design -directive Explore')
   script.append(f'phys_opt_design -directive Explore')  # found that run it two times may work
 
-  script.append('set_max_delay -from [get_pins -of_objects [ get_cells -of_objects [ get_nets -segments  -of_objects  [get_pins -of_objects [get_cells *q0_reg* -filter {LOC =~ "SLICE*"}] -filter {NAME =~ "*D"} ] ] ] -filter {NAME =~ "*C"} ] [expr [get_property PERIOD [get_clocks ap_clk]] / 2 ]')
+  # in invert mode, reset the extra timing constraints before routing
+  if args.invert_non_laguna_anchor_clock:
+    script.append('set_max_delay -from [get_pins -of_objects [ get_cells -of_objects [ get_nets -segments  -of_objects  [get_pins -of_objects [get_cells *q0_reg* -filter {LOC =~ "SLICE*"}] -filter {NAME =~ "*D"} ] ] ] -filter {NAME =~ "*C"} ] [expr [get_property PERIOD [get_clocks ap_clk]] / 2 ]')
 
   script.append(f'write_checkpoint -force {slot_name}_post_placed_opt.dcp')
   script.append(f'exec touch {slot_name}_post_placed_opt.dcp.done.flag')
@@ -133,6 +137,7 @@ if __name__ == '__main__':
   parser.add_argument("--hub_path", type=str, required=True)
   parser.add_argument("--base_dir", type=str, required=True)
   parser.add_argument("--vivado_version", type=str, required=True)
+  parser.add_argument("--invert_non_laguna_anchor_clock", type=int, required=True)
   parser.add_argument("--run_mode", type=int, required=True)
   parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
   parser.add_argument("--user_name", type=str, required=True)
