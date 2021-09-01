@@ -18,6 +18,9 @@ def getPlacementScript(slot_name):
   dcp_path = get_synth_dcp(slot_name)
   script.append(f'open_checkpoint {dcp_path}')
   
+  # in case the reused synth checkpoint has a different clock
+  script.append(f'create_clock -name ap_clk -period {args.clock_period} [get_pins test_bufg/O]')
+
   # add floorplanning constraints
   script += getSlotInitPlacementPblock(hub, slot_name)
   
@@ -87,6 +90,7 @@ if __name__ == '__main__':
   parser.add_argument("--hub_path", type=str, required=True)
   parser.add_argument("--base_dir", type=str, required=True)
   parser.add_argument("--vivado_version", type=str, required=True)
+  parser.add_argument("--clock_period", type=float, required=True)
   parser.add_argument("--invert_non_laguna_anchor_clock", type=int, required=True)
   parser.add_argument("--path_to_reuse_synth_dcp", type=str, nargs="?", default="", help="Path to the synth checkpoints that have been uniquefied")
   parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
