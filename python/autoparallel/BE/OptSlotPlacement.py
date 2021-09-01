@@ -45,17 +45,22 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   # report timing to check the quality of anchor placement
   script += getAnchorTimingReportScript(report_prefix=anchor_source_dir)
 
-  # in invert mode, pull the src/sink as close as possible to the anchors
+  # always make the timing of anchor nets more tight to pull the src/sink closer to anchors to facilitate stitching.
+  # in invert mode, the default timing constraint is period/2.
   if args.invert_non_laguna_anchor_clock:
-    script.append('set_max_delay -from [get_pins -of_objects [ get_cells -of_objects [ get_nets -segments  -of_objects  [get_pins -of_objects [get_cells *q0_reg* -filter {LOC =~ "SLICE*"}] -filter {NAME =~ "*D"} ] ] ] -filter {NAME =~ "*C"} ] 0.5')
+    script.append('set_max_delay -from [get_pins -of_objects [ get_cells -of_objects [ get_nets -segments  -of_objects  [get_pins -of_objects [get_cells *q0_reg* -filter {LOC =~ "SLICE*"}] -filter {NAME =~ "*D"} ] ] ] -filter {NAME =~ "*C"} ] [expr [get_property PERIOD [get_clocks ap_clk]] / 4 ]')
+  else:
+    script.append('set_max_delay -from [get_pins -of_objects [ get_cells -of_objects [ get_nets -segments  -of_objects  [get_pins -of_objects [get_cells *q0_reg* -filter {LOC =~ "SLICE*"}] -filter {NAME =~ "*D"} ] ] ] -filter {NAME =~ "*C"} ] [expr [get_property PERIOD [get_clocks ap_clk]] / 2 ]')
 
   # optimize the slot based on the given anchor placement
   script.append(f'phys_opt_design -directive Explore')
   script.append(f'phys_opt_design -directive Explore')  # found that run it two times may work
 
-  # in invert mode, reset the extra timing constraints before routing
+  # reset the extra timing constraints before routing
   if args.invert_non_laguna_anchor_clock:
     script.append('set_max_delay -from [get_pins -of_objects [ get_cells -of_objects [ get_nets -segments  -of_objects  [get_pins -of_objects [get_cells *q0_reg* -filter {LOC =~ "SLICE*"}] -filter {NAME =~ "*D"} ] ] ] -filter {NAME =~ "*C"} ] [expr [get_property PERIOD [get_clocks ap_clk]] / 2 ]')
+  else:
+    script.append('set_max_delay -from [get_pins -of_objects [ get_cells -of_objects [ get_nets -segments  -of_objects  [get_pins -of_objects [get_cells *q0_reg* -filter {LOC =~ "SLICE*"}] -filter {NAME =~ "*D"} ] ] ] -filter {NAME =~ "*C"} ] [get_property PERIOD [get_clocks ap_clk] ]')
 
   script.append(f'write_checkpoint -force {slot_name}_post_placed_opt.dcp')
   script.append(f'exec touch {slot_name}_post_placed_opt.dcp.done.flag')
