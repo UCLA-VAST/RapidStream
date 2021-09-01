@@ -129,6 +129,7 @@ python3.6 -m autoparallel.BE.InitialSlotPlacement \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
+    --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
     --path_to_reuse_synth_dcp ${UNIQUE_SYNTH_DCP_DIR} \
     --user_name ${USER_NAME} \
     --server_list_in_str "${SERVER_LIST[*]}"
@@ -168,6 +169,7 @@ python3.6 -m autoparallel.BE.OptSlotPlacement \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
+    --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
     --run_mode 0 \
     --user_name ${USER_NAME} \
     --server_list_in_str "${SERVER_LIST[*]}"
@@ -177,6 +179,7 @@ python3.6 -m autoparallel.BE.OptSlotPlacement \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
+    --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
     --run_mode 1  \
     --user_name ${USER_NAME} \
     --server_list_in_str "${SERVER_LIST[*]}"
@@ -186,6 +189,7 @@ python3.6 -m autoparallel.BE.OptSlotPlacement \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
+    --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
     --run_mode 2  \
     --user_name ${USER_NAME} \
     --server_list_in_str "${SERVER_LIST[*]}"

@@ -21,6 +21,10 @@ def getPlacementScript(slot_name):
   # add floorplanning constraints
   script += getSlotInitPlacementPblock(hub, slot_name)
   
+  # in the reuse mode, we are not sure if the reused synth checkpoints have inverted or not
+  if not args.invert_non_laguna_anchor_clock:
+    script.append('set_property IS_INVERTED 0 [ get_pins -filter {NAME =~ *C} -of_objects [get_cells *q0_reg* ] ]')
+
   script.append(f'opt_design')
 
   # placement
@@ -83,6 +87,7 @@ if __name__ == '__main__':
   parser.add_argument("--hub_path", type=str, required=True)
   parser.add_argument("--base_dir", type=str, required=True)
   parser.add_argument("--vivado_version", type=str, required=True)
+  parser.add_argument("--invert_non_laguna_anchor_clock", type=int, required=True)
   parser.add_argument("--path_to_reuse_synth_dcp", type=str, nargs="?", default="", help="Path to the synth checkpoints that have been uniquefied")
   parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
   parser.add_argument("--user_name", type=str, required=True)
