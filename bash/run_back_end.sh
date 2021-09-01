@@ -444,6 +444,11 @@ bash ${BASE_DIR}/SLR_level_stitch/vivado/top_stitch/stitch.sh
 echo "Finished"
 echo $(date +"%T")
 
+# copy the remote tracking results back
+for server in ${SERVER_LIST[*]} ; do
+    rsync ${server}:${TRACKING_DIR}/* ${TRACKING_DIR}/
+done
+
 # terminate the system tracker
 for server in ${SERVER_LIST[*]} ; do
     ssh ${server} pkill -f $TRACKER
