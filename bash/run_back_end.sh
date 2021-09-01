@@ -55,6 +55,11 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --server-list)
+      read -r -a SERVER_LIST <<< "$2"
+      shift # past argument
+      shift # past value
+      ;;
     --test-vivado-anchor-placement)
       VIVADO_ANCHOR_PLACEMENT=1
       shift # past argument
@@ -69,6 +74,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --setup-only)
       SETUP_ONLY=1
+      shift # past argument
+      ;;
+    --skip-synthesis)
+      SKIP_SYNTHESIS="--skip_synthesis"
       shift # past argument
       ;;
     *)    # unknown option
@@ -133,7 +142,8 @@ python3.6 -m autoparallel.BE.InitialSlotPlacement \
     --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
     --path_to_reuse_synth_dcp ${UNIQUE_SYNTH_DCP_DIR} \
     --user_name ${USER_NAME} \
-    --server_list_in_str "${SERVER_LIST[*]}"
+    --server_list_in_str "${SERVER_LIST[*]}" \
+    ${SKIP_SYNTHESIS}
 
 # ILP anchor placement
 python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
@@ -318,7 +328,9 @@ done
 
 echo "Start running"
 
-${SCRIPT_DIR}/distributed_run_slot_synth.sh &
+if [ -z "${SKIP_SYNTHESIS}" ]; then
+    ${SCRIPT_DIR}/distributed_run_slot_synth.sh &
+fi
 
 ${SCRIPT_DIR}/distributed_run_init_slot_placement.sh &
 
@@ -341,18 +353,20 @@ ${SCRIPT_DIR}/distributed_run_slot_anchor_clock_routing.sh &
 ${SCRIPT_DIR}/distributed_run_slot_routing.sh &
 
 ####################################################################
-while :
-do
-    done_num=$(find ${BASE_DIR}/slot_synth -maxdepth 2 -type f -name *.dcp.done.flag | wc -w)
-    total_num=$(find ${BASE_DIR}/slot_synth -maxdepth 1 -type d -name CR* | wc -l)
-    echo "[$(date +"%T")] Synthesis: ${done_num}/${total_num} finished"
+if [ -z "${SKIP_SYNTHESIS}" ]; then
+    while :
+    do
+        done_num=$(find ${BASE_DIR}/slot_synth -maxdepth 2 -type f -name *.dcp.done.flag | wc -w)
+        total_num=$(find ${BASE_DIR}/slot_synth -maxdepth 1 -type d -name CR* | wc -l)
+        echo "[$(date +"%T")] Synthesis: ${done_num}/${total_num} finished"
 
-    if (( ${done_num} == ${total_num} )); then
-        break
-    fi
+        if (( ${done_num} == ${total_num} )); then
+            break
+        fi
 
-    sleep 30
-done
+        sleep 30
+    done
+fi
 
 while :
 do

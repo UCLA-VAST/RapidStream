@@ -95,6 +95,7 @@ if __name__ == '__main__':
   parser.add_argument("--path_to_reuse_synth_dcp", type=str, nargs="?", default="", help="Path to the synth checkpoints that have been uniquefied")
   parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
   parser.add_argument("--user_name", type=str, required=True)
+  parser.add_argument("--skip_synthesis", action="store_true")
   args = parser.parse_args()
 
   hub_path = args.hub_path
@@ -108,7 +109,10 @@ if __name__ == '__main__':
     
     # note that in order to measure the e2e runtime, we run the synthesis again
     # just that we will start placement from the previous synthesized checkpoints that has been renamed.
-    get_guard = lambda slot_name : f'until [[ -f {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag ]] ; do sleep 10; done'
+    if args.skip_synthesis:
+      get_guard = lambda slot_name : f'sleep 1'
+    else:
+      get_guard = lambda slot_name : f'until [[ -f {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag ]] ; do sleep 10; done'
   else:
     get_synth_dcp = lambda slot_name : f'{synth_dir}/{slot_name}/{slot_name}_synth.dcp'
     get_guard = lambda slot_name : f'until [[ -f {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag ]] ; do sleep 10; done'
