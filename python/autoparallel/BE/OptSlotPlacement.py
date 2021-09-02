@@ -66,7 +66,7 @@ def getSlotPlacementOptScript(hub, slot_name, dcp_path, anchor_placement_scripts
   script.append(f'exec touch {slot_name}_post_placed_opt.dcp.done.flag')
 
   # report timing to check the timing improvement of slot phys_opt_design
-  script += getAnchorTimingReportScript(report_prefix='phys_opt_design_iter0')
+  script += getAnchorTimingReportScript(report_prefix=f'phys_opt_design_iter{args.which_iteration}')
 
   return script
 
@@ -90,7 +90,7 @@ def generateParallelScript(hub, user_name, server_list):
   all_tasks = []
   slot_names = hub['SlotIO'].keys()
   parse_timing_report_1 = f'python3.6 -m autoparallel.BE.TimingReportParser {anchor_source_dir}'
-  parse_timing_report_2 = 'python3.6 -m autoparallel.BE.TimingReportParser phys_opt_design_iter0'
+  parse_timing_report_2 = f'python3.6 -m autoparallel.BE.TimingReportParser phys_opt_design_iter{args.which_iteration}'
 
   for slot_name in slot_names:
     # wait until local anchors are ready
@@ -114,11 +114,11 @@ def generateParallelScript(hub, user_name, server_list):
   for i, server in enumerate(server_list):
     local_tasks = all_tasks[i * num_job_server: (i+1) * num_job_server]
     if args.run_mode == 0:
-      folder_name = 'opt_placement_iter0'
+      folder_name = f'opt_placement_iter{args.which_iteration}'
     elif args.run_mode == 1:
-      folder_name = 'baseline_vivado_anchor_placement_opt'
+      folder_name = f'baseline_vivado_anchor_placement_opt_iter{args.which_iteration}'
     elif args.run_mode == 2:
-      folder_name = 'baseline_random_anchor_placement_opt'
+      folder_name = f'baseline_random_anchor_placement_opt_iter{args.which_iteration}'
     else:
       assert False
     open(f'{opt_dir}/parallel_{folder_name}_{server}.txt', 'w').write('\n'.join(local_tasks))
@@ -143,6 +143,7 @@ if __name__ == '__main__':
   parser.add_argument("--base_dir", type=str, required=True)
   parser.add_argument("--vivado_version", type=str, required=True)
   parser.add_argument("--invert_non_laguna_anchor_clock", type=int, required=True)
+  parser.add_argument("--which_iteration", type=int, required=True)
   parser.add_argument("--run_mode", type=int, required=True)
   parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
   parser.add_argument("--user_name", type=str, required=True)
@@ -158,14 +159,14 @@ if __name__ == '__main__':
   pair_name_list = ['_AND_'.join(pair) for pair in pair_list]
 
   if args.run_mode == 0:  # normal flow
-    opt_dir = f'{base_dir}/opt_placement_iter0'
-    anchor_source_dir = 'ILP_anchor_placement_iter0'
+    opt_dir = f'{base_dir}/opt_placement_iter{args.which_iteration}'
+    anchor_source_dir = f'ILP_anchor_placement_iter{args.which_iteration}'
   elif args.run_mode == 1:  # test vivado anchor placement flow
-    opt_dir = f'{base_dir}/baseline_vivado_anchor_placement_opt'
-    anchor_source_dir = 'baseline_vivado_anchor_placement'
+    opt_dir = f'{base_dir}/baseline_vivado_anchor_placement_opt_iter{args.which_iteration}'
+    anchor_source_dir = f'baseline_vivado_anchor_placement_iter{args.which_iteration}'
   elif args.run_mode == 2:  # test random anchor placement flow
-    opt_dir = f'{base_dir}/baseline_random_anchor_placement_opt'
-    anchor_source_dir = 'baseline_random_anchor_placement'
+    opt_dir = f'{base_dir}/baseline_random_anchor_placement_opt_iter{args.which_iteration}'
+    anchor_source_dir = f'baseline_random_anchor_placement_iter{args.which_iteration}'
   else:
     assert False, args.run_mode
 
