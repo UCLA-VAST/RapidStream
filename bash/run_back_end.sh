@@ -295,11 +295,6 @@ for server in ${SERVER_LIST[*]} ; do
 done
 chmod +x ${KILL_SCRIPT}
 
-if [ -n "${SETUP_ONLY}" ]; then
-    echo "Finish setup"
-    exit
-fi
-
 ########################################################
 
 echo "Distrube scripts to multiple servers..."
@@ -307,6 +302,11 @@ for server in ${SERVER_LIST[*]} ; do
     rsync -azh --delete -r ${BASE_DIR}/ einsx7@${server}:${BASE_DIR} &
 done
 wait
+
+if [ -n "${SETUP_ONLY}" ]; then
+    echo "Finish setup"
+    exit
+fi
 
 echo "Start system utilization trackers..."
 TRACKER=${RW_BRIDGE_ROOT_DIR}/utilities/system_utilization_tracker.py

@@ -73,8 +73,14 @@ def createSlotWrappers():
 
     open(f'{wrapper_path}/{slot_name}.v', 'w').write('\n'.join(rtl))
 
+
+def getPipelinedTopWithBUFG():
   top_rtl = hub['NewTopRTL']
-  open(f'{wrapper_path}/new_top.v', 'w').write(top_rtl)
+  open(f'{wrapper_path}/new_top_pipelined_inverted.v', 'w').write(top_rtl)
+
+  top_rtl_non_inverted = top_rtl.replace('negedge', 'posedge')
+  top_rtl_non_inverted = top_rtl_non_inverted.replace(invert_pipeline_top_name, non_invert_pipeline_top_name)
+  open(f'{wrapper_path}/new_top_pipelined_non_inverted.v', 'w').write(top_rtl_non_inverted)
 
 
 def getNonPipelinedTopWithBUFG():
@@ -109,9 +115,17 @@ if __name__ == '__main__':
 
   NEW_TOP_MODULE_SUFFIX = '_hw_test'
   top_rtl = hub['NewTopRTL']
-  pipeline_top_name = re.search(rf'[^ ]+{NEW_TOP_MODULE_SUFFIX}', top_rtl).group(0)
-  orig_top_name = pipeline_top_name.replace(NEW_TOP_MODULE_SUFFIX, '')
+
+  # top name for the original top + invert clock pipeline + bufg
+  invert_pipeline_top_name = re.search(rf'[^ ]+{NEW_TOP_MODULE_SUFFIX}', top_rtl).group(0)
+  
+  # top name for the original top
+  orig_top_name = invert_pipeline_top_name.replace(NEW_TOP_MODULE_SUFFIX, '')
+  
+  # top name for the original top + bufg
   orig_top_name_with_bufg = f'{orig_top_name}_non_pipeline_with_bufg'
+
+  non_invert_pipeline_top_name = f'{orig_top_name}_pipeline_non_invert'
 
   baseline_dir = f'{base_dir}/baseline_orig_vivado'
   os.mkdir(baseline_dir)
@@ -122,16 +136,22 @@ if __name__ == '__main__':
   xdc = createClockFromBUFGXDC()
   open(f'{baseline_dir}/clock.xdc', 'w').write('\n'.join(xdc))
 
-  for thread_num in [1, 8]:
-    run_dir = f'{baseline_dir}/pipelined_baseline_{thread_num}_thread'
+  for thread_num in [8]:
+    run_dir = f'{baseline_dir}/top_pipelined_invert_clock_{thread_num}_thread'
     os.mkdir(run_dir)
-    script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], pipeline_top_name, thread_num)
-    open(f'{run_dir}/baseline_pipelined_{thread_num}_thread.tcl', 'w').write('\n'.join(script))
+    script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], invert_pipeline_top_name, thread_num)
+    open(f'{run_dir}/top_pipelined_invert_clock_{thread_num}_thread.tcl', 'w').write('\n'.join(script))
 
-    run_dir = f'{baseline_dir}/non_pipelined_baseline_{thread_num}_thread'
+    run_dir = f'{baseline_dir}/top_non_pipelined_{thread_num}_thread'
     os.mkdir(run_dir)
     script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], orig_top_name_with_bufg, thread_num)
-    open(f'{run_dir}/baseline_non_pipelined_{thread_num}_thread.tcl', 'w').write('\n'.join(script))
+    open(f'{run_dir}/top_non_pipelined_{thread_num}_thread.tcl', 'w').write('\n'.join(script))
+
+    run_dir = f'{baseline_dir}/top_pipelined_{thread_num}_thread'
+    os.mkdir(run_dir)
+    script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], non_invert_pipeline_top_name, thread_num)
+    open(f'{run_dir}/top_pipelined_{thread_num}_thread.tcl', 'w').write('\n'.join(script))
 
   createSlotWrappers()
+  getPipelinedTopWithBUFG()
   getNonPipelinedTopWithBUFG()
