@@ -258,6 +258,7 @@ if __name__ == '__main__':
   parser.add_argument("--hub_path", type=str, required=True)
   parser.add_argument("--base_dir", type=str, required=True)
   parser.add_argument("--vivado_version", type=str, required=True)
+  parser.add_argument("--which_iteration", type=int, required=True)
   parser.add_argument("--clock_period", type=float, required=True)
   parser.add_argument("--invert_non_laguna_anchor_clock", type=int, required=True)
   parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
@@ -272,8 +273,13 @@ if __name__ == '__main__':
   hub = json.loads(open(hub_path, 'r').read())
 
   synth_dir = f'{base_dir}/slot_synth'
-  placement_dir = f'{base_dir}/init_slot_placement'
-  baseline_dir = f'{base_dir}/baseline_vivado_anchor_placement'
+
+  if args.which_iteration == 0:
+    placement_dir = f'{base_dir}/init_slot_placement'
+  else:
+    placement_dir = f'{base_dir}/baseline_vivado_anchor_placement_opt_iter{args.which_iteration-1}'
+
+  baseline_dir = f'{base_dir}/baseline_vivado_anchor_placement_iter{args.which_iteration}'
   os.mkdir(baseline_dir)
 
   for slot1_name, slot2_name in hub["AllSlotPairs"]:

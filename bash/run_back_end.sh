@@ -14,6 +14,7 @@ SERVER_LIST=("u5" "u15" "u17" "u18")
 MAIN_SERVER="u5"
 BASELINE_ANCHOR_PLACEMENT=0
 RUN_RWROUTE_TEST=0
+OPT_ITER=0
 
 export GUROBI_HOME="/home/einsx7/pr/solver/gurobi902/linux64"
 export PATH="${PATH}:${GUROBI_HOME}/bin"
@@ -57,6 +58,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --server-list)
       read -r -a SERVER_LIST <<< "$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --opt-iter)
+      OPT_ITER="$2"
       shift # past argument
       shift # past value
       ;;
@@ -145,65 +151,71 @@ python3.6 -m autoparallel.BE.InitialSlotPlacement \
     --server_list_in_str "${SERVER_LIST[*]}" \
     ${SKIP_SYNTHESIS}
 
-# ILP anchor placement
-python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
-    --hub_path $HUB \
-    --base_dir $BASE_DIR \
-    --option SETUP \
-    --which_iteration 0 \
-    --test_random_anchor_placement 0 \
-    --user_name ${USER_NAME} \
-    --server_list_in_str "${SERVER_LIST[*]}"
+for iter in $(seq 0 ${OPT_ITER}); do
+    # ILP anchor placement
+    python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
+        --hub_path $HUB \
+        --base_dir $BASE_DIR \
+        --option SETUP \
+        --which_iteration ${iter} \
+        --test_random_anchor_placement 0 \
+        --user_name ${USER_NAME} \
+        --server_list_in_str "${SERVER_LIST[*]}"
 
-# test random anchor placement
-python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
-    --hub_path $HUB \
-    --base_dir $BASE_DIR \
-    --option SETUP \
-    --which_iteration 0 \
-    --test_random_anchor_placement 1 \
-    --user_name ${USER_NAME} \
-    --server_list_in_str "${SERVER_LIST[*]}"
+    # test random anchor placement
+    python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
+        --hub_path $HUB \
+        --base_dir $BASE_DIR \
+        --option SETUP \
+        --which_iteration ${iter} \
+        --test_random_anchor_placement 1 \
+        --user_name ${USER_NAME} \
+        --server_list_in_str "${SERVER_LIST[*]}"
 
-# baseline: vivado anchor placement
-python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement  \
-    --hub_path ${HUB} \
-    --base_dir ${BASE_DIR} \
-    --vivado_version ${VIV_VER} \
-    --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
-    --clock_period ${TARGET_PERIOD} \
-    --user_name ${USER_NAME} \
-    --server_list_in_str "${SERVER_LIST[*]}"
+    # baseline: vivado anchor placement
+    python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement  \
+        --hub_path ${HUB} \
+        --base_dir ${BASE_DIR} \
+        --vivado_version ${VIV_VER} \
+        --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
+        --which_iteration ${iter} \
+        --clock_period ${TARGET_PERIOD} \
+        --user_name ${USER_NAME} \
+        --server_list_in_str "${SERVER_LIST[*]}"
 
-# normal flow
-python3.6 -m autoparallel.BE.OptSlotPlacement \
-    --hub_path ${HUB} \
-    --base_dir ${BASE_DIR} \
-    --vivado_version ${VIV_VER} \
-    --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
-    --run_mode 0 \
-    --user_name ${USER_NAME} \
-    --server_list_in_str "${SERVER_LIST[*]}"
+    # normal flow
+    python3.6 -m autoparallel.BE.OptSlotPlacement \
+        --hub_path ${HUB} \
+        --base_dir ${BASE_DIR} \
+        --vivado_version ${VIV_VER} \
+        --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
+        --which_iteration ${iter} \
+        --run_mode 0 \
+        --user_name ${USER_NAME} \
+        --server_list_in_str "${SERVER_LIST[*]}"
 
-# test vivado anchor placement
-python3.6 -m autoparallel.BE.OptSlotPlacement \
-    --hub_path ${HUB} \
-    --base_dir ${BASE_DIR} \
-    --vivado_version ${VIV_VER} \
-    --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
-    --run_mode 1  \
-    --user_name ${USER_NAME} \
-    --server_list_in_str "${SERVER_LIST[*]}"
+    # test vivado anchor placement
+    python3.6 -m autoparallel.BE.OptSlotPlacement \
+        --hub_path ${HUB} \
+        --base_dir ${BASE_DIR} \
+        --vivado_version ${VIV_VER} \
+        --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
+        --which_iteration ${iter} \
+        --run_mode 1  \
+        --user_name ${USER_NAME} \
+        --server_list_in_str "${SERVER_LIST[*]}"
 
-# test random anchor placement
-python3.6 -m autoparallel.BE.OptSlotPlacement \
-    --hub_path ${HUB} \
-    --base_dir ${BASE_DIR} \
-    --vivado_version ${VIV_VER} \
-    --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
-    --run_mode 2  \
-    --user_name ${USER_NAME} \
-    --server_list_in_str "${SERVER_LIST[*]}"
+    # test random anchor placement
+    python3.6 -m autoparallel.BE.OptSlotPlacement \
+        --hub_path ${HUB} \
+        --base_dir ${BASE_DIR} \
+        --vivado_version ${VIV_VER} \
+        --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
+        --which_iteration ${iter} \
+        --run_mode 2  \
+        --user_name ${USER_NAME} \
+        --server_list_in_str "${SERVER_LIST[*]}"
+done
 
 python3.6 -m autoparallel.BE.Clock.SlotAnchorClockRouting \
     --hub_path ${HUB} \
@@ -257,16 +269,19 @@ fi
 declare -a steps=(
     "slot_synth" 
     "init_slot_placement" 
-    "ILP_anchor_placement_iter0" 
-    "opt_placement_iter0"
-    "baseline_vivado_anchor_placement"
-    "baseline_vivado_anchor_placement_opt"
-    "baseline_random_anchor_placement"
-    "baseline_random_anchor_placement_opt"
     "slot_anchor_clock_routing"
     "slot_routing"
     "baseline_slot_routing_do_not_fix_clock"
 )
+for i in $(seq 0 ${OPT_ITER}); do
+    steps+=("ILP_anchor_placement_iter${i}") 
+    steps+=("opt_placement_iter${i}") 
+    steps+=("baseline_vivado_anchor_placement_iter${i}") 
+    steps+=("baseline_vivado_anchor_placement_opt_iter${i}") 
+    steps+=("baseline_random_anchor_placement_iter${i}") 
+    steps+=("baseline_random_anchor_placement_opt_iter${i}") 
+done
+
 for step in "${steps[@]}"; do
     SCRIPT=${SCRIPT_DIR}/distributed_run_${step}.sh
     
@@ -295,6 +310,11 @@ for server in ${SERVER_LIST[*]} ; do
 done
 chmod +x ${KILL_SCRIPT}
 
+TRACKING_DIR=${BASE_DIR}/system_utilization_tracking
+if [ ! -d  ${TRACKING_DIR} ] ; then
+    mkdir ${TRACKING_DIR}
+fi
+
 ########################################################
 
 echo "Distrube scripts to multiple servers..."
@@ -311,10 +331,6 @@ fi
 echo "Start system utilization trackers..."
 TRACKER=${RW_BRIDGE_ROOT_DIR}/utilities/system_utilization_tracker.py
 SETUP_PYTHON_ENV="export PYTHONPATH=/home/einsx7/.local/lib/python3.6/site-packages/"
-TRACKING_DIR=${BASE_DIR}/system_utilization_tracking
-if [ ! -d  ${TRACKING_DIR} ] ; then
-    mkdir ${TRACKING_DIR}
-fi
 for server in ${SERVER_LIST[*]} ; do
     ssh ${server} \
         PYTHONPATH=/home/einsx7/.local/lib/python3.6/site-packages/ \
@@ -334,18 +350,24 @@ fi
 
 ${SCRIPT_DIR}/distributed_run_init_slot_placement.sh &
 
-${SCRIPT_DIR}/distributed_run_ILP_anchor_placement_iter0.sh &
+for i in $(seq 0 ${OPT_ITER}); do
+    ${SCRIPT_DIR}/distributed_run_ILP_anchor_placement_iter${i}.sh &
 
-${SCRIPT_DIR}/distributed_run_opt_placement_iter0.sh &
+    ${SCRIPT_DIR}/distributed_run_opt_placement_iter${i}.sh &
+done
 
 if [[ ${VIVADO_ANCHOR_PLACEMENT} -eq 1 ]]; then
-    ${SCRIPT_DIR}/distributed_run_baseline_vivado_anchor_placement.sh &
-    ${SCRIPT_DIR}/distributed_run_baseline_vivado_anchor_placement_opt.sh &
+    for i in $(seq 0 ${OPT_ITER}); do
+        ${SCRIPT_DIR}/distributed_run_baseline_vivado_anchor_placement_iter${i}.sh &
+        ${SCRIPT_DIR}/distributed_run_baseline_vivado_anchor_placement_opt_iter${i}.sh &
+    done
 fi
 
 if [[ ${RANDOM_ANCHOR_PLACEMENT} -eq 1 ]]; then
-    ${SCRIPT_DIR}/distributed_run_baseline_random_anchor_placement.sh &
-    ${SCRIPT_DIR}/distributed_run_baseline_random_anchor_placement_opt.sh &
+    for i in $(seq 0 ${OPT_ITER}); do
+        ${SCRIPT_DIR}/distributed_run_baseline_random_anchor_placement_iter${i}.sh &
+        ${SCRIPT_DIR}/distributed_run_baseline_random_anchor_placement_opt_iter${i}.sh &
+    done
 fi
 
 ${SCRIPT_DIR}/distributed_run_slot_anchor_clock_routing.sh &

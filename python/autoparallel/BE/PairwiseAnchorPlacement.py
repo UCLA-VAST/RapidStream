@@ -739,12 +739,12 @@ if __name__ == '__main__':
   if iter == 0:
     get_anchor_connection_path = lambda slot_name : f'{base_dir}/init_slot_placement/{slot_name}/init_placement_anchor_connections.json'
   else:
-    get_anchor_connection_path = lambda slot_name : f'{base_dir}/placement_opt_iter{iter-1}/{slot_name}/phys_opt_design_iter{iter-1}_anchor_connections.json'
+    get_anchor_connection_path = lambda slot_name : f'{base_dir}/opt_placement_iter{iter-1}/{slot_name}/phys_opt_design_iter{iter-1}_anchor_connections.json'
 
   if not args.test_random_anchor_placement:
     anchor_placement_dir = f'{base_dir}/ILP_anchor_placement_iter{iter}'
   else:
-    anchor_placement_dir = f'{base_dir}/baseline_random_anchor_placement'
+    anchor_placement_dir = f'{base_dir}/baseline_random_anchor_placement_iter{iter}'
 
   # run this before the ILP anchor placement, setup for the later steps
   if option == 'SETUP':
