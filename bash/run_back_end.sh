@@ -455,20 +455,23 @@ do
     sleep 30
 done
 
-# stitching
-echo "Start SLR-level stitching..."
-parallel < ${BASE_DIR}/SLR_level_stitch/vivado/parallel-route-slr.txt >> ${BASE_DIR}/backend_stitching_routing.log 2>&1 
+# only stitch if we are using renamed dcps, otherwise its meaningless
+if [ -n "${UNIQUE_SYNTH_DCP_DIR}" ]; then
+    # stitching
+    echo "Start SLR-level stitching..."
+    parallel < ${BASE_DIR}/SLR_level_stitch/vivado/parallel-route-slr.txt >> ${BASE_DIR}/backend_stitching_routing.log 2>&1 
 
-# top-level stitching
-echo "Start Top-level stitching..."
-bash ${BASE_DIR}/SLR_level_stitch/vivado/top_stitch/stitch.sh
+    # top-level stitching
+    echo "Start Top-level stitching..."
+    bash ${BASE_DIR}/SLR_level_stitch/vivado/top_stitch/stitch.sh
+fi
 
 echo "Finished"
 echo $(date +"%T")
 
 # copy the remote tracking results back
 for server in ${SERVER_LIST[*]} ; do
-    rsync ${server}:${TRACKING_DIR}/* ${TRACKING_DIR}/
+    rsync -a ${server}:${TRACKING_DIR}/ ${TRACKING_DIR}/
 done
 
 # terminate the system tracker
