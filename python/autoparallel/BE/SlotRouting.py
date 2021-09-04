@@ -167,6 +167,9 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
     script.append(f'open_checkpoint {opt_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp')
 
+    # should lock before adding placeholder FFs, otherwise vivado may crash
+    script.append(f'lock_design -level placement')
+
     # report timing to check the quality of the final anchor placement
     script += getAnchorTimingReportScript(report_prefix='ILP_anchor_placement_iter1')
 
