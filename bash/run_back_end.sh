@@ -107,6 +107,7 @@ echo "RANDOM_ANCHOR_PLACEMENT   = ${RANDOM_ANCHOR_PLACEMENT}"
 echo "VIV_VER                   = ${VIV_VER}"
 echo "SERVER_LIST               = ${SERVER_LIST[@]}"
 echo "SETUP_ONLY                = ${SETUP_ONLY[@]}"
+echo "SKIP_SYNTHESIS            = ${SKIP_SYNTHESIS}"
 
 if [[ -n $1 ]]; then
     echo "Last line of file specified as non-opt/last argument:"
@@ -464,6 +465,11 @@ if [ -n "${UNIQUE_SYNTH_DCP_DIR}" ]; then
     # top-level stitching
     echo "Start Top-level stitching..."
     bash ${BASE_DIR}/SLR_level_stitch/vivado/top_stitch/stitch.sh
+else
+    # prepare for uploading and renaming
+    cp -r ${BASE_DIR}/slot_synth ${BASE_DIR}/slot_synth_for_upload
+    find ${BASE_DIR}/slot_synth_for_upload -type f -not -name *.dcp -delete
+    find ${BASE_DIR}/slot_synth_for_upload -type d -empty -delete
 fi
 
 echo "Finished"
@@ -477,6 +483,14 @@ done
 # terminate the system tracker
 for server in ${SERVER_LIST[*]} ; do
     ssh ${server} pkill -f $TRACKER
+done
+
+# remove the temp storage on other servers
+for server in ${SERVER_LIST[*]} ; do
+  if [ $server != $MAIN_SERVER ]; then
+    echo "rm ${BASE_DIR} from $server"
+    ssh $server rm -rf ${BASE_DIR}
+  fi  
 done
 
 # end logging from here
