@@ -136,11 +136,11 @@ if __name__ == '__main__':
   xdc = createClockFromBUFGXDC()
   open(f'{baseline_dir}/clock.xdc', 'w').write('\n'.join(xdc))
 
-  for thread_num in [8]:
-    run_dir = f'{baseline_dir}/top_pipelined_invert_clock_{thread_num}_thread'
-    os.mkdir(run_dir)
-    script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], invert_pipeline_top_name, thread_num)
-    open(f'{run_dir}/top_pipelined_invert_clock_{thread_num}_thread.tcl', 'w').write('\n'.join(script))
+  for thread_num in range(1, 9):
+    # run_dir = f'{baseline_dir}/top_pipelined_invert_clock_{thread_num}_thread'
+    # os.mkdir(run_dir)
+    # script = getVivadoFlowWithOrigRTL(hub['FPGA_PART_NAME'], hub['ORIG_RTL_PATH'], invert_pipeline_top_name, thread_num)
+    # open(f'{run_dir}/top_pipelined_invert_clock_{thread_num}_thread.tcl', 'w').write('\n'.join(script))
 
     run_dir = f'{baseline_dir}/top_non_pipelined_{thread_num}_thread'
     os.mkdir(run_dir)
