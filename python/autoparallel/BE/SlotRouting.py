@@ -151,6 +151,71 @@ def addRoutingPblock(slot_name: str, enable_anchor_pblock: bool) -> List[str]:
     return script
 
 
+def routeWithoutClockFixing(hub, opt_dir, routing_dir):
+  """
+  Baseline, check how much timing degradation there will be
+  """
+  os.mkdir(routing_dir)
+
+  for slot_name in hub['SlotIO'].keys():
+    os.mkdir(f'{routing_dir}/{slot_name}')
+    os.mkdir(f'{routing_dir}/{slot_name}/phys_opt_routed')
+    os.mkdir(f'{routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted')
+
+    script = []
+
+    # enable higher hold fixing efforts
+    script.append('set_param route.enableGlobalHoldIter 1')
+
+    script.append(f'open_checkpoint {opt_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp')
+
+    # should lock before adding placeholder FFs, otherwise vivado may crash
+    script.append(f'lock_design -level placement')
+
+    # report timing to check the quality of the final anchor placement
+    script += getAnchorTimingReportScript(report_prefix='ILP_anchor_placement_iter1')
+
+    script += addRoutingPblock(slot_name, enable_anchor_pblock=True)
+
+    script.append(f'route_design')
+    script.append(f'write_checkpoint routed.dcp')
+    script.append(f'set fp [open "clock_route.txt" "w" ]') # to check the row buffer tap
+    script.append(f'puts $fp [get_property ROUTE [get_nets ap_clk]]')
+    script.append(f'close $fp')
+
+    # whichever pblock is used for routing,
+    # make sure the pblock is non-overlapping with anchor reigons before phys_opt_design
+    # post-routing phys_opt_design may change placement as well
+    # if inner cells are moved to anchor regions, the stitcher may fail due to its limitation
+    script.append(f'resize_pblock [get_pblocks {slot_name}] -remove {{ {U250.getNonSlotRegionsForRouting()} }}')
+
+    script.append(f'phys_opt_design')
+
+    script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/phys_opt_routed/phys_opt_routed_without_clock_fixing.dcp')
+    script.append(f'write_edif -force {routing_dir}/{slot_name}/phys_opt_routed/phys_opt_routed_without_clock_fixing.edf')
+    script += getAnchorTimingReportScript(report_prefix='phys_opt_routed/slot_routing_iter0_before_clock_change')
+
+    # unroute the clock, replace by the clock trunk that will be used for the stitched design
+    # reroute in preserve mode to check the loss
+    script.append(f'set_property ROUTE "" [get_nets ap_clk]')
+    script.append(f'source -notrace {anchor_clock_routing_dir}/{slot_name}/set_anchor_clock_route.tcl')
+    script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
+
+    # reroute the clock, preserve the signals, show the clock shock
+    script.append(f'route_design -preserve')
+
+    script += getAnchorTimingReportScript(report_prefix='phys_opt_routed/slot_routing_iter0_after_clock_change')
+
+    # the RW stitcher cannot handle the pblocks well
+    script.append(f'delete_pblocks *')
+
+    # sometimes phys_opt_design make things worse, probably because of the fixed clock
+    script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/phys_opt_routed/phys_opt_routed_after_clock_change.dcp')
+    script.append(f'write_edif -force {routing_dir}/{slot_name}/phys_opt_routed/phys_opt_routed_after_clock_change.edf')
+
+    open(f'{routing_dir}/{slot_name}/{script_name}', "w").write('\n'.join(script))
+
+
 def routeWithGivenClock(hub, opt_dir, routing_dir):
   """
   Run the final routing of each slot with the given clock network
@@ -175,18 +240,17 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
 
     script += addRoutingPblock(slot_name, enable_anchor_pblock=True)
 
-    if args.do_not_fix_clock == False:
-      # *** prevent gap in clock routing
-      script.append(f'set_property ROUTE "" [get_nets ap_clk]')
-      script.append(f'source -notrace {anchor_clock_routing_dir}/{slot_name}/set_anchor_clock_route.tcl')
-      script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
+    # *** prevent gap in clock routing
+    script.append(f'set_property ROUTE "" [get_nets ap_clk]')
+    script.append(f'source -notrace {anchor_clock_routing_dir}/{slot_name}/set_anchor_clock_route.tcl')
+    script.append(f'set_property IS_ROUTE_FIXED 1 [get_nets ap_clk]')
 
-      # add hold uncertainty
-      # since we find a trick to keep a consistent tap for row buffers, we don't need this
-      script.append(f'set_clock_uncertainty -hold 0.02 [get_clocks ap_clk]')
+    # add hold uncertainty
+    # since we find a trick to keep a consistent tap for row buffers, we don't need this
+    script.append(f'set_clock_uncertainty -hold 0.02 [get_clocks ap_clk]')
 
-      # include all anchors to ensure the tap of row buffers are properly set
-      script += addSomeAnchors(hub, base_dir, [slot_name])
+    # include all anchors to ensure the tap of row buffers are properly set
+    script += addSomeAnchors(hub, base_dir, [slot_name])
 
     script.append(f'route_design')
     script.append(f'write_checkpoint routed.dcp')
@@ -228,7 +292,7 @@ def routeWithGivenClock(hub, opt_dir, routing_dir):
     script.append(f'write_checkpoint -force {routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted/non_laguna_anchor_nets_unrouted.dcp')
     script.append(f'write_edif -force {routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted/non_laguna_anchor_nets_unrouted.edf')
 
-    open(f'{routing_dir}/{slot_name}/route_with_ooc_clock.tcl', "w").write('\n'.join(script))
+    open(f'{routing_dir}/{slot_name}/{script_name}', "w").write('\n'.join(script))
 
 
 def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name):
@@ -244,7 +308,7 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
     guard3 = f'until [[ -f {opt_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp ]] ; do sleep 5; done'
     guard = f'{guard1} && {guard2} && {guard3}'
 
-    vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source route_with_ooc_clock.tcl'
+    vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source {script_name}'
     dir = f'{routing_dir}/{slot_name}/'
     
     transfer = f'rsync -azh --delete -r {dir} {user_name}@{main_server_name}:{dir}'
@@ -271,6 +335,8 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
       folder_name = 'slot_routing_do_not_fix_clock'
 
     open(f'{routing_dir}/parallel_{folder_name}_{server}.txt', 'w').write('\n'.join(local_tasks))
+  
+  open(f'{routing_dir}/parallel_{folder_name}_all.txt', 'w').write('\n'.join(all_tasks))
 
 
 if __name__ == '__main__':
@@ -290,19 +356,20 @@ if __name__ == '__main__':
   user_name = args.user_name
   server_list = args.server_list_in_str.split()
   main_server_name = args.main_server_name
+  print(f'WARNING: the server list is: {server_list}' )
 
   opt_dir = f'{base_dir}/opt_placement_iter0'
   anchor_source_dir = f'{base_dir}/ILP_anchor_placement_iter0'
+  anchor_clock_routing_dir = f'{base_dir}/slot_anchor_clock_routing'
+  hub = json.loads(open(hub_path, 'r').read())
 
   if args.do_not_fix_clock == False:
     routing_dir = f'{base_dir}/slot_routing'
+    script_name = f'route_with_ooc_clock.tcl'
+    routeWithGivenClock(hub, opt_dir, routing_dir)
   else:
     routing_dir = f'{base_dir}/baseline_slot_routing_do_not_fix_clock'
-
-  anchor_clock_routing_dir = f'{base_dir}/slot_anchor_clock_routing'
-
-  print(f'WARNING: the server list is: {server_list}' )
-
-  hub = json.loads(open(hub_path, 'r').read())
-  routeWithGivenClock(hub, opt_dir, routing_dir)
+    script_name = f'route_without_clock_fixing.tcl'
+    routeWithoutClockFixing(hub, opt_dir, routing_dir)
+    
   getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
