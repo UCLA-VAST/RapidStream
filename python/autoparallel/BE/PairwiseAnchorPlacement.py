@@ -653,7 +653,7 @@ def setupAnchorPlacement(hub):
     if not args.test_random_anchor_placement:
       folder_name = f'ILP_anchor_placement_iter{iter}'
     else:
-      folder_name = 'baseline_random_anchor_placement'
+      folder_name = 'baseline_random_anchor_placement_iter{iter}'
       
     open(f'{anchor_placement_dir}/parallel_{folder_name}_{server}.txt', 'w').write('\n'.join(local_tasks))
 
