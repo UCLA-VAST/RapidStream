@@ -239,6 +239,15 @@ def getParallelScript():
     pair_name = f'{slot1_name}_AND_{slot2_name}'
 
     cd = f'cd {baseline_dir}/{pair_name}'
+
+    if args.which_iteration == 0:
+      get_guard = lambda slot_name: f'{placement_dir}/{slot_name}/{slot_name}_placed.dcp.done.flag'
+    else:
+      get_guard = lambda slot_name: f'{placement_dir}/{slot_name}/{slot_name}_post_placed_opt.dcp.done.flag'
+
+    guard1 = f'until [ -f {get_guard(slot1_name)} ]; do sleep 10; done'
+    guard2 = f'until [ -f {get_guard(slot2_name)} ]; do sleep 10; done'
+
     vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source place.tcl'
 
     transfer = []
@@ -246,7 +255,7 @@ def getParallelScript():
       transfer.append(f'rsync -azh --delete -r {baseline_dir}/{pair_name}/ {user_name}@{server}:{baseline_dir}/{pair_name}/')
     transfer_str = "&&".join(transfer)
 
-    task.append(f'{cd} && {vivado} && {transfer_str}')
+    task.append(f'{cd} && {guard1} && {guard2} && {vivado} && {transfer_str}')
 
   num_job_server = math.ceil(len(task) / len(server_list) ) 
   for i, server in enumerate(server_list):
