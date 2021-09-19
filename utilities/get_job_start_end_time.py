@@ -11,7 +11,8 @@ VIVADO_STEPS = [
   "slot_synth",
   "init_slot_placement",
   "opt_placement_iter0",
-  "slot_routing"
+  "slot_routing",
+  "baseline_vivado_anchor_placement_iter0",
 ]
 ILP_PLACEMENT_STEP = "ILP_anchor_placement_iter0"
 LOG_START_TIME_MARKER = "Start of session at"
@@ -48,8 +49,10 @@ def get_vivado_log_start_end_time(log_path: str) -> Dict[str, List[Any]]:
       year = int(match.group(6))
       timestamps['unix_time'].append(datetime(year, month, day, hour, minute, second).timestamp()) 
       timestamps['date'].append(match.group(0)) 
-
-  assert len(timestamps['unix_time']) == 2, timestamps
+  
+  assert len(timestamps['unix_time']) == 2, log_path
+  timestamps['duration'] = timestamps['unix_time'][1] - timestamps['unix_time'][0]
+  
   return timestamps
 
 
@@ -62,9 +65,11 @@ def get_ilp_placement_log_start_end_time(log_path: str) -> Dict[str, List[Any]]:
   for line in open(log_path, "r").readlines():
     if LOG_START_TIME_MARKER in line or LOG_END_TIME_MARKER in line:
       match = re.search(r'\d+', line)
-      timestamps['unix_time'].append(match.group(0)) 
+      timestamps['unix_time'].append(float(match.group(0))) 
 
   assert len(timestamps['unix_time']) == 2, timestamps
+  timestamps['duration'] = timestamps['unix_time'][1] - timestamps['unix_time'][0]
+
   return timestamps
 
 
@@ -101,3 +106,8 @@ if __name__ == "__main__":
   worker_start_end_time = get_worker_start_end_time(args.base_dir)
 
   save_results(args.output_path, worker_start_end_time)
+
+  for pair_name in worker_start_end_time['baseline_vivado_anchor_placement_iter0'].keys():
+    ilp_anchor_time = worker_start_end_time['ILP_anchor_placement_iter0'][pair_name]['duration']
+    vivado_anchor_time = worker_start_end_time['baseline_vivado_anchor_placement_iter0'][pair_name]['duration']
+    print(f'{pair_name}, {ilp_anchor_time}, {vivado_anchor_time}')
