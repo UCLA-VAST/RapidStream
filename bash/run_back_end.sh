@@ -108,6 +108,7 @@ echo "VIV_VER                   = ${VIV_VER}"
 echo "SERVER_LIST               = ${SERVER_LIST[@]}"
 echo "SETUP_ONLY                = ${SETUP_ONLY[@]}"
 echo "SKIP_SYNTHESIS            = ${SKIP_SYNTHESIS}"
+echo "OPT_ITER                  = ${OPT_ITER}"
 
 if [[ -n $1 ]]; then
     echo "Last line of file specified as non-opt/last argument:"
