@@ -3,11 +3,13 @@ import json
 import logging
 import math
 import os
+from typing import List
 
 from autoparallel.BE.UniversalWrapperCreater import addAnchorToNonTopIOs
 from autoparallel.BE.Utilities import loggingSetup
 
 loggingSetup()
+HOME_DIR = os.path.expanduser('~')
 
 
 def getAnchorWrapperOfSlot(hub, slot_name):
@@ -39,6 +41,58 @@ def createClockFromBUFGXDC(target_period=2.50):
   xdc = []
   xdc.append(f'create_clock -name ap_clk -period {target_period} [get_pins test_bufg/O]')
   return xdc
+
+
+def getProjectBasedSynthScript(
+    fpga_part_name: str,
+    orig_rtl_path: str,
+    slot_name: str,
+) -> List[str]:
+  """ Use project based synthesis. Enable IP cache"""
+  script = []
+
+  script.append(f'create_project {slot_name} {synth_dir}/{slot_name} -part {fpga_part_name}')
+  
+  script.append(f'set ORIG_RTL_PATH "{orig_rtl_path}"') 
+  script.append(r'set orig_rtl_files [glob ${ORIG_RTL_PATH}/*.v]') 
+  script.append(r'add_files ${orig_rtl_files}') 
+
+  # read in the generated wrappers
+  script.append(f'set WRAPPER_PATH "{synth_dir}/{slot_name}/rtl"') 
+  script.append(r'set wrapper_files [glob ${WRAPPER_PATH}/*.v]') 
+  script.append(r'add_files ${wrapper_files}') 
+
+  script.append(f'config_ip_cache -use_cache_location {HOME_DIR}/.Xilinx/ip_cache') 
+  script.append(r'set orig_ip_files [glob -nocomplain ${ORIG_RTL_PATH}/*.tcl]') 
+  script.append(r'foreach ip_tcl ${orig_ip_files} { source ${ip_tcl} }') 
+
+  script.append( 'set_property -name {STEPS.SYNTH_DESIGN.ARGS.MORE OPTIONS} -value {-mode out_of_context} -objects [get_runs synth_1]') 
+  script.append(f'set_property top {slot_name}_ctrl_anchored [current_fileset]')
+
+  script.append(f'set all_ips [get_ips *]') 
+  script.append(f'foreach ip ${{all_ips}} {{ ') 
+  script.append(f'  set_property generate_synth_checkpoint true [get_files ${{ip}}.xci]')
+  script.append(f'  generate_target all [get_files ${{ip}}.xci]')
+  script.append(f'  catch {{ config_ip_cache -export [get_ips -all ${{ip}} ] }}') 
+  script.append(f'  export_ip_user_files -of_objects [get_files ${{ip}}.xci] -no_script -sync -force -quiet') 
+  script.append(f'  create_ip_run [get_files -of_objects [get_fileset sources_1] ${{ip}}.xci]') 
+  script.append(f'}}')
+
+  script.append(f'launch_runs synth_1 -jobs 56') 
+  script.append(f'wait_on_run synth_1') 
+  script.append(f'open_run synth_1 -name synth_1') 
+
+  # mark each IP instance as dont-touch to ensure netlist consistency 
+  script.append(f'set all_ips [get_ips *]') 
+  script.append(f'foreach ip ${{all_ips}} {{ ')
+  # note that variable expansion is not allowed inside {}
+  script.append(f'  set_property DONT_TOUCH 1 [get_cells -hierarchical -filter [list ORIG_REF_NAME == ${{ip}} ] ]')
+  script.append(f'}}')
+
+  script.append(f'write_checkpoint {synth_dir}/{slot_name}/{slot_name}_synth.dcp')
+  script.append(f'exec touch {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag')
+
+  return script
 
 
 def getSynthScript(
@@ -103,7 +157,7 @@ def setupSlotSynthesis():
     # createPBlockScript(hub, slot_name, output_path=dir)
 
     # create Vivado script for each slot
-    script = getSynthScript(fpga_part_name, 
+    script = getProjectBasedSynthScript(fpga_part_name, 
                           orig_rtl_path, 
                           slot_name)
     open(f'{synth_dir}/{slot_name}/{slot_name}_synth.tcl', 'w').write('\n'.join(script))
