@@ -49,8 +49,7 @@ class CreateSlotWrapper:
 
     edge_insts = []
     for e in e_list:
-      balance = self.rebalance.getLatencyofEdgeName(e.name)
-      pipeline_level = self.global_router.getPipelineLevelOfEdge(e)
+      pipeline_level = e.pipeline_level
 
       # note the difference between grace_period and edge latency
       # since we pipeline both the outbound signal and the inbound signal
@@ -59,7 +58,7 @@ class CreateSlotWrapper:
       grace_period = pipeline_level * 2 # round trip latency
       grace_period += 1 # additional pipelining of the full_n
       
-      inst = self.top_rtl_parser.getFIFOInstOfNewTemplate(e.name, e.width, e.depth + balance, grace_period, e.fifo_type)
+      inst = self.top_rtl_parser.getFIFOInstOfNewTemplate(e.name, e.width, e.depth + e.added_depth_for_rebalance, grace_period, e.fifo_type)
       edge_insts.append(inst)
     
     return edge_insts
