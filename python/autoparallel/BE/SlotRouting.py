@@ -311,7 +311,7 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
     vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source {script_name}'
     dir = f'{routing_dir}/{slot_name}/'
     
-    transfer = f'rsync -azhv --delete -r {dir} {user_name}@{main_server_name}:{dir}'
+    transfer = f'rsync_with_retry.sh --target-server {main_server_name} --user-name {user_name} --dir-to-sync {dir}'
 
     setup_rw = f'source {Constants.RWROUTE_SETUP_PATH}'
     target_dcp_path = f'{routing_dir}/{slot_name}/non_laguna_anchor_nets_unrouted/'

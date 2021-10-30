@@ -72,7 +72,7 @@ def generateParallelScript(hub, user_name, server_list):
     # broadcast the results to all servers
     transfer = []
     for server in server_list:
-      transfer.append(f'rsync -azhv --delete -r {init_place_dir}/{slot_name}/ {user_name}@{server}:{init_place_dir}/{slot_name}/')
+      transfer.append(f'rsync_with_retry.sh --target-server {server} --user-name {user_name} --dir-to-sync {init_place_dir}/{slot_name}/')
     transfer_str = " && ".join(transfer)
 
     command = f'{guard} && {cd} && {vivado} && {parse_timing_report} && {transfer_str}'

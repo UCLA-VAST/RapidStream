@@ -639,7 +639,7 @@ def setupAnchorPlacement(hub):
     
     transfer = []
     for server in server_list:
-      transfer.append(f'rsync -azhv --delete -r {anchor_placement_dir}/{pair_name}/ {user_name}@{server}:{anchor_placement_dir}/{pair_name}/')
+      transfer.append(f'rsync_with_retry.sh --target-server {server} --user-name {user_name} --dir-to-sync {anchor_placement_dir}/{pair_name}/')
     transfer_str = " && ".join(transfer)
 
     tasks.append(f'cd {anchor_placement_dir}/{pair_name} && {guard1} && {guard2} && {ilp_placement} && {touch_flag} && {transfer_str}')

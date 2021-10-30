@@ -1,12 +1,12 @@
 #!/bin/bash
 {
 
+export RAPID_STREAM_PATH="/home/einsx7/auto-parallel/src"
+source ${RAPID_STREAM_PATH}/bash/setup.sh
+
 # -------------------------------------------
-RW_BRIDGE_ROOT_DIR="/home/einsx7/auto-parallel/src"
 
 VIV_VER="2021.1"
-RW_STITCH_SETUP_PATH="/home/einsx7/rapidwright/rapidwright_07_30/rapidwright.sh"
-RW_ROUTE_SETUP_PATH="/home/einsx7/rapidwright/rapidwright_rwroute/rapidwright.sh"
 INVERT_ANCHOR_CLOCK=0
 TARGET_PERIOD=2.5
 USER_NAME="einsx7"
@@ -15,11 +15,9 @@ MAIN_SERVER="u5"
 BASELINE_ANCHOR_PLACEMENT=0
 RUN_RWROUTE_TEST=0
 OPT_ITER=0
+PYTHONPATH=/home/einsx7/.local/lib/python3.6/site-packages/
 
-export GUROBI_HOME="/home/einsx7/pr/solver/gurobi902/linux64"
-export PATH="${PATH}:${GUROBI_HOME}/bin"
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib"
-export GRB_LICENSE_FILE=/home/einsx7/gurobi.lic
+
 #----------------------------------------------
 
 POSITIONAL=()
@@ -34,11 +32,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --front-end-result)
       HUB=$(readlink -f "$2")
-      shift # past argument
-      shift # past value
-      ;;
-    --unique-synth-dcp-dir)
-      UNIQUE_SYNTH_DCP_DIR=$(readlink -f "$2")
       shift # past argument
       shift # past value
       ;;
@@ -58,6 +51,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --server-list)
       read -r -a SERVER_LIST <<< "$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --user-name)
+      USER_NAME=$("$2")
       shift # past argument
       shift # past value
       ;;
@@ -82,10 +80,6 @@ while [[ $# -gt 0 ]]; do
       SETUP_ONLY=1
       shift # past argument
       ;;
-    --skip-synthesis)
-      SKIP_SYNTHESIS="--skip_synthesis"
-      shift # past argument
-      ;;
     *)    # unknown option
       POSITIONAL+=("$1") # save it in an array for later
       echo "Unknown parameter: $1"
@@ -99,15 +93,14 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 
 echo "BASE_DIR                  = ${BASE_DIR}"
 echo "HUB                       = ${HUB}"
-echo "UNIQUE_SYNTH_DCP_DIR      = ${UNIQUE_SYNTH_DCP_DIR}"
 echo "INVERT_ANCHOR_CLOCK       = ${INVERT_ANCHOR_CLOCK}"
 echo "TARGET_PERIOD             = ${TARGET_PERIOD}"
 echo "VIVADO_ANCHOR_PLACEMENT   = ${VIVADO_ANCHOR_PLACEMENT}"
 echo "RANDOM_ANCHOR_PLACEMENT   = ${RANDOM_ANCHOR_PLACEMENT}"
 echo "VIV_VER                   = ${VIV_VER}"
 echo "SERVER_LIST               = ${SERVER_LIST[@]}"
+echo "USER_NAME                 = ${USER_NAME}"
 echo "SETUP_ONLY                = ${SETUP_ONLY[@]}"
-echo "SKIP_SYNTHESIS            = ${SKIP_SYNTHESIS}"
 echo "OPT_ITER                  = ${OPT_ITER}"
 
 if [[ -n $1 ]]; then
@@ -148,10 +141,8 @@ python3.6 -m autoparallel.BE.InitialSlotPlacement \
     --vivado_version ${VIV_VER} \
     --clock_period ${TARGET_PERIOD} \
     --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
-    --path_to_reuse_synth_dcp ${UNIQUE_SYNTH_DCP_DIR} \
     --user_name ${USER_NAME} \
-    --server_list_in_str "${SERVER_LIST[*]}" \
-    ${SKIP_SYNTHESIS}
+    --server_list_in_str "${SERVER_LIST[*]}"
 
 for iter in $(seq 0 ${OPT_ITER}); do
     # ILP anchor placement
@@ -288,7 +279,7 @@ for step in "${steps[@]}"; do
     SCRIPT=${SCRIPT_DIR}/distributed_run_${step}.sh
     
     for server in ${SERVER_LIST[*]} ; do
-        echo "ssh ${server} \"cd ${BASE_DIR}/${step}/ && parallel < parallel_${step}_${server}.txt\" >> ${BASE_DIR}/backend_${step}.log 2>&1 &" >> ${SCRIPT}
+        echo "ssh ${server} \"source ${RAPID_STREAM_PATH}/bash/setup.sh && cd ${BASE_DIR}/${step}/ && parallel < parallel_${step}_${server}.txt\" >> ${BASE_DIR}/backend_${step}.log 2>&1 &" >> ${SCRIPT}
     done
     echo "wait" >> ${SCRIPT}
     # at each server, create the done flag
@@ -299,7 +290,7 @@ for step in "${steps[@]}"; do
 
     TRANSFER_SCRIPT=${SCRIPT_DIR}/transfer_${step}.sh
     for server in ${SERVER_LIST[*]} ; do
-        echo "rsync -azh --delete -r ${BASE_DIR}/${step}/ einsx7@${server}:${BASE_DIR}/${step} &" >> ${TRANSFER_SCRIPT}
+        echo "rsync -azh --delete -r ${BASE_DIR}/${step}/ ${USER_NAME}@${server}:${BASE_DIR}/${step} &" >> ${TRANSFER_SCRIPT}
     done
     echo "wait" >> ${TRANSFER_SCRIPT}
     chmod +x ${TRANSFER_SCRIPT}
@@ -319,9 +310,9 @@ fi
 
 ########################################################
 
-echo "Distrube scripts to multiple servers..."
+echo "Distribute scripts to multiple servers..."
 for server in ${SERVER_LIST[*]} ; do
-    rsync -azh --delete -r ${BASE_DIR}/ einsx7@${server}:${BASE_DIR} &
+    rsync -azh --delete -r ${BASE_DIR}/ ${USER_NAME}@${server}:${BASE_DIR} &
 done
 wait
 
@@ -332,10 +323,10 @@ fi
 
 echo "Start system utilization trackers..."
 TRACKER=${RW_BRIDGE_ROOT_DIR}/utilities/system_utilization_tracker.py
-SETUP_PYTHON_ENV="export PYTHONPATH=/home/einsx7/.local/lib/python3.6/site-packages/"
+SETUP_PYTHON_ENV="export PYTHONPATH=/home/${USER_NAME}/.local/lib/python3.6/site-packages/"
 for server in ${SERVER_LIST[*]} ; do
     ssh ${server} \
-        PYTHONPATH=/home/einsx7/.local/lib/python3.6/site-packages/ \
+        PYTHONPATH=${PYTHONPATH} \
         python3.6 ${TRACKER} \
         --output_dir ${TRACKING_DIR} \
         --report_prefix ${server} \
@@ -346,9 +337,7 @@ done
 
 echo "Start running"
 
-if [ -z "${SKIP_SYNTHESIS}" ]; then
-    ${SCRIPT_DIR}/distributed_run_slot_synth.sh &
-fi
+${SCRIPT_DIR}/distributed_run_slot_synth.sh &
 
 ${SCRIPT_DIR}/distributed_run_init_slot_placement.sh &
 
@@ -377,20 +366,18 @@ ${SCRIPT_DIR}/distributed_run_slot_anchor_clock_routing.sh &
 ${SCRIPT_DIR}/distributed_run_slot_routing.sh &
 
 ####################################################################
-if [ -z "${SKIP_SYNTHESIS}" ]; then
-    while :
-    do
-        done_num=$(find ${BASE_DIR}/slot_synth -maxdepth 2 -type f -name *.dcp.done.flag | wc -w)
-        total_num=$(find ${BASE_DIR}/slot_synth -maxdepth 1 -type d -name CR* | wc -l)
-        echo "[$(date +"%T")] Synthesis: ${done_num}/${total_num} finished"
+while :
+do
+    done_num=$(find ${BASE_DIR}/slot_synth -maxdepth 2 -type f -name *.dcp.done.flag | wc -w)
+    total_num=$(find ${BASE_DIR}/slot_synth -maxdepth 1 -type d -name CR* | wc -l)
+    echo "[$(date +"%T")] Synthesis: ${done_num}/${total_num} finished"
 
-        if (( ${done_num} == ${total_num} )); then
-            break
-        fi
+    if (( ${done_num} == ${total_num} )); then
+        break
+    fi
 
-        sleep 30
-    done
-fi
+    sleep 30
+done
 
 while :
 do
