@@ -73,6 +73,9 @@ def getSynthScript(
   # synth
   script.append(f'synth_design -top "{slot_name}_ctrl_anchored" -part {fpga_part_name} -mode out_of_context')
 
+  # rename all IPs to avoid collision in the later stitching phase
+  script.append(f'rename_ref -prefix_all "{slot_name}_"')
+
   script.append(f'write_checkpoint {synth_dir}/{slot_name}/{slot_name}_synth.dcp')
   script.append(f'exec touch {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag')
 

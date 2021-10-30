@@ -457,21 +457,13 @@ do
     sleep 30
 done
 
-# only stitch if we are using renamed dcps, otherwise its meaningless
-if [ -n "${UNIQUE_SYNTH_DCP_DIR}" ]; then
-    # stitching
-    echo "Start SLR-level stitching..."
-    parallel < ${BASE_DIR}/SLR_level_stitch/vivado/parallel-route-slr.txt >> ${BASE_DIR}/backend_stitching_routing.log 2>&1 
+# stitching
+echo "Start SLR-level stitching..."
+parallel < ${BASE_DIR}/SLR_level_stitch/vivado/parallel-route-slr.txt >> ${BASE_DIR}/backend_stitching_routing.log 2>&1 
 
-    # top-level stitching
-    echo "Start Top-level stitching..."
-    bash ${BASE_DIR}/SLR_level_stitch/vivado/top_stitch/stitch.sh
-else
-    # prepare for uploading and renaming
-    cp -r ${BASE_DIR}/slot_synth ${BASE_DIR}/slot_synth_for_upload
-    find ${BASE_DIR}/slot_synth_for_upload -type f -not -name *.dcp -delete
-    find ${BASE_DIR}/slot_synth_for_upload -type d -empty -delete
-fi
+# top-level stitching
+echo "Start Top-level stitching..."
+bash ${BASE_DIR}/SLR_level_stitch/vivado/top_stitch/stitch.sh
 
 echo "Finished"
 echo $(date +"%T")
