@@ -252,8 +252,8 @@ def getParallelScript():
 
     transfer = []
     for server in server_list:
-      transfer.append(f'rsync -azh --delete -r {baseline_dir}/{pair_name}/ {user_name}@{server}:{baseline_dir}/{pair_name}/')
-    transfer_str = "&&".join(transfer)
+      transfer.append(f'rsync -azhv --delete -r {baseline_dir}/{pair_name}/ {user_name}@{server}:{baseline_dir}/{pair_name}/')
+    transfer_str = " && ".join(transfer)
 
     task.append(f'{cd} && {guard1} && {guard2} && {vivado} && {transfer_str}')
 

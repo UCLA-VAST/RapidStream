@@ -104,7 +104,7 @@ def generateParallelScript(hub, user_name, server_list):
     # broadcast the results
     transfer_list = []
     for server in server_list:
-      transfer_list.append(f'rsync -azh --delete -r {opt_dir}/{slot_name}/ {user_name}@{server}:{opt_dir}/{slot_name}/')
+      transfer_list.append(f'rsync -azhv --delete -r {opt_dir}/{slot_name}/ {user_name}@{server}:{opt_dir}/{slot_name}/')
     transfer = ' && '.join(transfer_list)
 
     command = f' {guards} && cd {opt_dir}/{slot_name} && {vivado} && {parse_timing_report_1} && {parse_timing_report_2} && {transfer}'

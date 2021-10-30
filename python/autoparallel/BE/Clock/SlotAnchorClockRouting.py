@@ -102,7 +102,7 @@ def getParallelScript():
 
     transfer = []
     for server in server_list:
-      transfer.append(f'rsync -azh --delete -r {slot_anchor_clock_routing_dir}/{slot_name}/ {user_name}@{server}:{slot_anchor_clock_routing_dir}/{slot_name}/')
+      transfer.append(f'rsync -azhv --delete -r {slot_anchor_clock_routing_dir}/{slot_name}/ {user_name}@{server}:{slot_anchor_clock_routing_dir}/{slot_name}/')
     transfer_str = ' && '.join(transfer)
 
     all_tasks.append(f'{cd} && {guards} && {vivado} && {touch_flag} && {transfer_str}')
