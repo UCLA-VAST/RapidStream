@@ -504,23 +504,33 @@ class ILPRouter:
       routing_usage_limit: float = 0.7,
       detour_path_limit: int = 4
   ) -> Dict[str, List[Slot]]:
-    m = Model()
 
-    bridge_to_paths = self._getBridgeToCandidatePaths(routing_usage_limit, detour_path_limit)
-    path_to_var = self._getPathToVar(m, bridge_to_paths)
-    routing_edge_to_paths = self._getRoutingEdgeToPassingPaths(bridge_to_paths)
+    while 1:
+      logging.info(f'Global routing attempt with routing usage limit {routing_usage_limit}')
 
-    logging.info(f'there are {len(bridge_to_paths)} dataflow edges')
-    logging.info(f'there are {len(path_to_var)} potential paths to select from')
+      m = Model()
 
-    self._constrOnePathForOneBridge(m, bridge_to_paths, path_to_var)
+      bridge_to_paths = self._getBridgeToCandidatePaths(routing_usage_limit, detour_path_limit)
+      path_to_var = self._getPathToVar(m, bridge_to_paths)
+      routing_edge_to_paths = self._getRoutingEdgeToPassingPaths(bridge_to_paths)
 
-    self._constrRoutingEdgeCapacity(m, path_to_var, routing_edge_to_paths)
+      logging.info(f'there are {len(bridge_to_paths)} dataflow edges')
+      logging.info(f'there are {len(path_to_var)} potential paths to select from')
 
-    self._minimizeTotalPathArea(m, bridge_to_paths, path_to_var)
+      self._constrOnePathForOneBridge(m, bridge_to_paths, path_to_var)
 
-    status = m.optimize()
-    assert status == OptimizationStatus.OPTIMAL
+      self._constrRoutingEdgeCapacity(m, path_to_var, routing_edge_to_paths)
+
+      self._minimizeTotalPathArea(m, bridge_to_paths, path_to_var)
+
+      status = m.optimize()
+
+      if status == OptimizationStatus.OPTIMAL:
+        logging.warning(f'Succeeded: global routing attempt with routing usage limit {routing_usage_limit}')
+        break
+      else:
+        logging.warning(f'Failed: global routing attempt with routing usage limit {routing_usage_limit}')
+        routing_usage_limit += 0.03
 
     # extract results
     bridge_to_selected_path, routing_edge_to_selected_paths = \
