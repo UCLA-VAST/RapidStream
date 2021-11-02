@@ -277,7 +277,8 @@ done
 
 for step in "${steps[@]}"; do
     SCRIPT=${SCRIPT_DIR}/distributed_run_${step}.sh
-    
+    echo "# Start distrubuted run: ${step}" >> ${SCRIPT}
+
     for server in ${SERVER_LIST[*]} ; do
         echo "ssh ${server} \"source ${RAPID_STREAM_PATH}/bash/setup.sh && cd ${BASE_DIR}/${step}/ && parallel < parallel_${step}_${server}.txt\" >> ${BASE_DIR}/backend_${step}.log 2>&1 &" >> ${SCRIPT}
     done
@@ -285,7 +286,10 @@ for step in "${steps[@]}"; do
     # at each server, create the done flag
     for server in ${SERVER_LIST[*]} ; do
         echo "ssh ${server} touch ${BASE_DIR}/${step}/done.flag" >> ${SCRIPT}
+        echo "echo \"ssh ${server} touch ${BASE_DIR}/${step}/done.flag. Status: \$?\"" >> ${SCRIPT}
     done
+
+    echo "# Finish distrubuted run: ${step}" >> ${SCRIPT}
     chmod +x ${SCRIPT}
 
     TRANSFER_SCRIPT=${SCRIPT_DIR}/transfer_${step}.sh
