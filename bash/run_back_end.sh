@@ -307,6 +307,11 @@ for server in ${SERVER_LIST[*]} ; do
 done
 chmod +x ${KILL_SCRIPT}
 
+CEPF_WARMUP_SCRIPT=${SCRIPT_DIR}/cepf_warmup_vivado.sh
+for server in ${SERVER_LIST[*]} ; do
+    echo "ssh ${server} VIV_VER=${VIV_VER} vivado -mode batch" >> ${CEPF_WARMUP_SCRIPT}
+done
+
 TRACKING_DIR=${BASE_DIR}/system_utilization_tracking
 if [ ! -d  ${TRACKING_DIR} ] ; then
     mkdir ${TRACKING_DIR}
@@ -336,6 +341,9 @@ for server in ${SERVER_LIST[*]} ; do
         --report_prefix ${server} \
         --time_out_hour 5 &
 done
+
+echo "Loading Vivado ${VIV_VER}..."
+parallel < ${CEPF_WARMUP_SCRIPT}
 
 ####################################################################
 

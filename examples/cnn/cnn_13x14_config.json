@@ -1,0 +1,13 @@
+{
+  "Board" : "U250",
+  "HLSProjectPath" : "/home/einsx7/auto-parallel/benchmark/cnn/13x14/kernel3_u250",
+  "HLSSolutionName" : "solution",
+  "TopName" : "kernel3",
+
+  "FloorplanMethod": "floorplanVHHvh",
+  "AreaUtilizationRatio" : 0.7,
+  "ResultReuse" : "./front_end_result_ref.json",
+
+  "PipelineStyle" : "INVERT_CLOCK",
+  "AnchorPlan" : 3
+}
