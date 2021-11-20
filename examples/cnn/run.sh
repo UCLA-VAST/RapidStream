@@ -1,17 +1,27 @@
-# source /curr/einsx7/.bashrc
-export GUROBI_HOME="/home/einsx7/pr/solver/gurobi902/linux64"
-export PATH="${PATH}:${GUROBI_HOME}/bin"
-export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib"
-export GRB_LICENSE_FILE=/home/einsx7/gurobi.lic
+RAPID_STREAM_PATH=/home/einsx7/auto-parallel/src
 
-TARGET_DIR=/expr/cnn/13x14_3FF_double_reg_rerun_11_18
+source ${RAPID_STREAM_PATH}/bash/setup.sh
 
+export HLS_PROJECT_PATH="./13x14/kernel3_u250"
+export SERVER_LIST=("u5" "u15" "u17" "u18")
+export USER_NAME=einsx7
+export RUN_DIR=/expr/cnn/13x14_3FF_double_reg_rerun_11_20
+
+################################################
+
+echo "[preparing] Unzip the pre-syntehsized HLS project..."
+unzip -q cnn_13x14.zip
+
+. ${RAPID_STREAM_PATH}/bash/prepare.sh
+
+echo "[front end] Running the front end (phase 1)..."
 python3.6 -m autoparallel.FE.Manager cnn_13x14_config.json
 
-/home/einsx7/auto-parallel/src/bash/run_back_end.sh \
-    --base-dir ${TARGET_DIR} \
+echo "[back end] Running the back end (phase 2 and 3)..."
+${RAPID_STREAM_PATH}/bash/run_back_end.sh \
+    --run-dir ${RUN_DIR} \
     --front-end-result ./front_end_result.json \
     --vivado-ver 2021.1 \
     --target-period 2.6 \
-    --server-list "u5 u14 u17 u18"
- 
+    --server-list "${SERVER_LIST[*]}" \
+    --user-name ${USER_NAME}

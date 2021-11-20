@@ -334,6 +334,9 @@ if [ -n "${SETUP_ONLY}" ]; then
     exit
 fi
 
+echo "Loading Vivado ${VIV_VER} on all servers. This may take a while if running for the first time..."
+parallel < ${CEPF_WARMUP_SCRIPT}
+
 echo "Start system utilization trackers..."
 TRACKER=${RW_BRIDGE_ROOT_DIR}/utilities/system_utilization_tracker.py
 SETUP_PYTHON_ENV="export PYTHONPATH=/home/${USER_NAME}/.local/lib/python3.6/site-packages/"
@@ -345,9 +348,6 @@ for server in ${SERVER_LIST[*]} ; do
         --report_prefix ${server} \
         --time_out_hour 5 &
 done
-
-echo "Loading Vivado ${VIV_VER}..."
-parallel < ${CEPF_WARMUP_SCRIPT}
 
 ####################################################################
 
