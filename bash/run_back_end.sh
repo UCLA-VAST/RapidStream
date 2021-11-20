@@ -25,8 +25,8 @@ while [[ $# -gt 0 ]]; do
   key="$1"
 
   case $key in
-    --base-dir)
-      BASE_DIR=$(readlink -f "$2")
+    --run-dir)
+      RUN_DIR=$(readlink -f "$2")
       shift # past argument
       shift # past value
       ;;
@@ -55,7 +55,7 @@ while [[ $# -gt 0 ]]; do
       shift # past value
       ;;
     --user-name)
-      USER_NAME=$("$2")
+      USER_NAME="$2"
       shift # past argument
       shift # past value
       ;;
@@ -91,7 +91,7 @@ done
 
 set -- "${POSITIONAL[@]}" # restore positional parameters
 
-echo "BASE_DIR                  = ${BASE_DIR}"
+echo "RUN_DIR                   = ${RUN_DIR}"
 echo "HUB                       = ${HUB}"
 echo "INVERT_ANCHOR_CLOCK       = ${INVERT_ANCHOR_CLOCK}"
 echo "TARGET_PERIOD             = ${TARGET_PERIOD}"
@@ -112,6 +112,7 @@ PAUSE=15
 echo "Waiting for ${PAUSE}s, please check..."
 sleep ${PAUSE}
 
+BASE_DIR=${RUN_DIR}/backend
 
 ####################################################################
 
@@ -132,7 +133,8 @@ python3.6 -m autoparallel.BE.SlotSynthesis \
     --invert_non_laguna_anchor_clock ${INVERT_ANCHOR_CLOCK} \
     --clock_period ${TARGET_PERIOD} \
     --user_name ${USER_NAME} \
-    --server_list_in_str "${SERVER_LIST[*]}"
+    --server_list_in_str "${SERVER_LIST[*]}" \
+    --orig_rtl_path ${RUN_DIR}/orig_rtl
 
 # init slot placement
 python3.6 -m autoparallel.BE.InitialSlotPlacement \
@@ -301,8 +303,10 @@ for step in "${steps[@]}"; do
 done
 
 KILL_SCRIPT=${SCRIPT_DIR}/kill.sh
+echo "echo \"WARNING: All process with ${VIV_VER} in name will be killed in 10 seconds!\"" >> ${KILL_SCRIPT}
+echo "sleep 10"  >> ${KILL_SCRIPT}
 for server in ${SERVER_LIST[*]} ; do
-    echo "ssh ${server} pkill -f vivado" >> ${KILL_SCRIPT}
+    echo "ssh ${server} pkill -f ${VIV_VER}" >> ${KILL_SCRIPT}
     echo "ssh ${server} pkill -f system_utilization_tracker" >> ${KILL_SCRIPT}
 done
 chmod +x ${KILL_SCRIPT}

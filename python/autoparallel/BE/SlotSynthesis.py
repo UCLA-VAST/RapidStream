@@ -87,8 +87,6 @@ def setupSlotSynthesis():
   generate scripts to place & route each slot independently
   """
   fpga_part_name = hub['FPGA_PART_NAME']
-  orig_rtl_path = hub['ORIG_RTL_PATH']
-  assert os.path.isdir(orig_rtl_path)
 
   xdc = createClockFromBUFGXDC(args.clock_period)
   open(f'{synth_dir}/clock.xdc', 'w').write('\n'.join(xdc))  
@@ -147,12 +145,15 @@ if __name__ == '__main__':
   parser.add_argument("--clock_period", type=float, required=True)
   parser.add_argument("--server_list_in_str", type=str, required=True, help="e.g., \"u5 u15 u17 u18\"")
   parser.add_argument("--user_name", type=str, required=True)
+  parser.add_argument("--orig_rtl_path", type=str, required=True)
   args = parser.parse_args()
 
   hub_path = args.hub_path
   base_dir = args.base_dir
   user_name = args.user_name
   server_list = args.server_list_in_str.split()
+  orig_rtl_path = args.orig_rtl_path
+  assert os.path.isdir(orig_rtl_path)
 
   if args.invert_non_laguna_anchor_clock:
     logging.info('invert clock mode is on!')
