@@ -7,7 +7,7 @@ for server in ${SERVER_LIST[*]} ; do
 done
 
 echo "[preparing] Distribute the source HLS project to all servers..."
-cp -r ${HLS_PROJECT_PATH}/solution/syn/verilog ${RUN_DIR}/orig_rtl
+cp -r ${HLS_PROJECT_PATH}/solution*/syn/verilog ${RUN_DIR}/orig_rtl
 for server in ${SERVER_LIST[*]} ; do
     rsync -azh --delete -r ${RUN_DIR}/ ${USER_NAME}@${server}:${RUN_DIR} &
 done

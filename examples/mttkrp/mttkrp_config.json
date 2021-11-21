@@ -1,0 +1,14 @@
+{
+  "Board" : "U250",
+  "HLSProjectPath" : "./mttkrp_prj1/hls_prj",
+  "HLSSolutionName" : "solution1",
+  "TopName" : "kernel0",
+  "ResultResue" : "floorplan_results_ref.json",
+
+  "FloorplanMethod": "floorplanVHHvh",
+  "AreaUtilizationRatio" : 0.7,
+
+  "PipelineStyle" : "INVERT_CLOCK",
+  "AnchorPlan" : 3
+
+}
