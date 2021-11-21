@@ -1,0 +1,24 @@
+{
+  "Board" : "U250",
+  "HLSProjectPath" : "./s3d2pt/16x4-split4/s3d25pt-16x4",
+  "HLSSolutionName" : "solution",
+  "TopName" : "s3d25pt_kernel",
+  "ResultReuse" : "./front_end_result_ref.json",
+
+  "FloorplanMethod": "floorplanVHHvh",
+  "AreaUtilizationRatio" : 0.7,
+
+  "PipelineStyle" : "DOUBLE_REG",
+  "AnchorPlan" : 3,
+
+  "Floorplan" : {
+    "CLOCKREGION_X2Y0:CLOCKREGION_X3Y1" : [
+      "s3d25pt_kernel_input_bank_0_m_axi_U"
+    ],
+    "CLOCKREGION_X4Y12:CLOCKREGION_X5Y13" : [
+      "s3d25pt_kernel_output_bank_0_m_axi_U"
+    ]
+
+    
+  }
+}
