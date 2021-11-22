@@ -1,0 +1,14 @@
+{
+  "ResultReuse": "./floorplan_results_ref.json",
+  "Board" : "U250",
+  "HLSProjectPath" : "./f2d81pt/unroll_16/f2d81pt_kernel",
+  "HLSSolutionName" : "solution",
+  "TopName" : "f2d81pt_kernel",
+
+  "FloorplanMethod": "floorplanVHHvh",
+  "AreaUtilizationRatio" : 0.65,
+  "PipelineStyle" : "INVERT_CLOCK",
+  "AnchorPlan" : 3
+
+
+}
