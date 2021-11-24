@@ -13,10 +13,10 @@ TOOL=vivado_hls
 # step 1: run hls
 ${TOOL} -f step1-run-hls.tcl
 
-# step 2: run autoparallel
-python3.6 -m autoparallel.FE.Manager systolic_2x2_config.json
+# step 2: run rapidstream
+python3.6 -m rapidstream.FE.Manager systolic_2x2_config.json
 if [ $? -ne 0 ]; then
-  echo "AutoParallel Front End Failed!"
+  echo "RapidStream Front End Failed!"
   exit 1
 fi
 rm -f parse*

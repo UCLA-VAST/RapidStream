@@ -1,4 +1,4 @@
-"""AutoParallel"""
+"""RapidStream"""
 
 from setuptools import find_packages, setup
 
@@ -8,10 +8,10 @@ with open('../README.md', encoding='utf-8') as f:
 setup(
     name='rapidstream',
     version='0.0.1',
-    description='AutoParallel',
+    description='RapidStream',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/Licheng-Guo/AutoParallel',
+    url='https://github.com/Licheng-Guo/RapidStream',
     author='Licheng Guo',
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',

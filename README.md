@@ -17,8 +17,8 @@
 - RapidStream
 
 ```
-git clone https://github.com/Licheng-Guo/AutoParallel.git
-python3 -m pip install --editable ./AutoParallel/python
+git clone https://github.com/Licheng-Guo/RapidStream.git
+python3 -m pip install --editable ./RapidStream/python
 ```
 
 - AutoBridge

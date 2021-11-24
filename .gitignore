@@ -5,7 +5,7 @@ parse*
 __py*
 *temp*
 *trash*
-/python/autoparallel.egg-info
+/python/rapidstream.egg-info
 /python/build/
 /python/dist/
 **/vitis_run*/
