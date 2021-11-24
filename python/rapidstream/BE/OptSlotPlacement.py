@@ -5,8 +5,8 @@ import sys
 import os
 import math
 
-from autoparallel.BE.Utilities import getAnchorTimingReportScript
-from autoparallel.BE.Utilities import loggingSetup
+from rapidstream.BE.Utilities import getAnchorTimingReportScript
+from rapidstream.BE.Utilities import loggingSetup
 
 loggingSetup()
 
@@ -89,8 +89,8 @@ def generateParallelScript(hub, user_name, server_list):
   """
   all_tasks = []
   slot_names = hub['SlotIO'].keys()
-  parse_timing_report_1 = f'python3.6 -m autoparallel.BE.TimingReportParser {anchor_source_dir}'
-  parse_timing_report_2 = f'python3.6 -m autoparallel.BE.TimingReportParser phys_opt_design_iter{args.which_iteration}'
+  parse_timing_report_1 = f'python3.6 -m rapidstream.BE.TimingReportParser {anchor_source_dir}'
+  parse_timing_report_2 = f'python3.6 -m rapidstream.BE.TimingReportParser phys_opt_design_iter{args.which_iteration}'
 
   for slot_name in slot_names:
     # wait until local anchors are ready

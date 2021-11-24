@@ -3,7 +3,7 @@ import logging
 from collections import defaultdict 
 
 from autobridge.Opt.DataflowGraph import Vertex, Edge
-from autoparallel.FE.ILPGlobalRouting import ILPRouter
+from rapidstream.FE.ILPGlobalRouting import ILPRouter
 
 
 class GlobalRouting:

@@ -2,7 +2,7 @@
 import logging
 from autobridge.HLSParser.vivado_hls.TopRTLParser import TopRTLParser
 from autobridge.Codegen.FIFOTemplate import fifo_template
-from autoparallel.FE.GlobalRouting import GlobalRouting
+from rapidstream.FE.GlobalRouting import GlobalRouting
 import re
 import collections
 

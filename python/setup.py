@@ -6,7 +6,7 @@ with open('../README.md', encoding='utf-8') as f:
   long_description = f.read()
 
 setup(
-    name='autoparallel',
+    name='rapidstream',
     version='0.0.1',
     description='AutoParallel',
     long_description=long_description,

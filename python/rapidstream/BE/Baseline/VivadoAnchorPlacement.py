@@ -6,9 +6,9 @@ import os
 import sys
 from typing import Set, Dict, Tuple
 
-from autoparallel.BE.GenAnchorConstraints import createAnchorPlacementExtractScript, __getBufferRegionSize
-from autoparallel.BE.Device import U250
-from autoparallel.BE.Utilities import loggingSetup
+from rapidstream.BE.GenAnchorConstraints import createAnchorPlacementExtractScript, __getBufferRegionSize
+from rapidstream.BE.Device import U250
+from rapidstream.BE.Utilities import loggingSetup
 
 loggingSetup()
 

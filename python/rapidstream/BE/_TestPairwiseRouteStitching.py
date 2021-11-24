@@ -1,7 +1,7 @@
 import sys
 import json
 import os
-from autoparallel.BE.SlotRouting import addAllAnchors, unrouteNonLagunaAnchorDPinQPinNets
+from rapidstream.BE.SlotRouting import addAllAnchors, unrouteNonLagunaAnchorDPinQPinNets
 
 
 def getVivadoScriptForSlotPair(pair_name):

@@ -15,7 +15,7 @@ unzip -q mm_16x12.zip
 . ${RAPID_STREAM_PATH}/bash/prepare.sh
 
 echo "[front end] Running the front end (phase 1)..."
-python3.6 -m autoparallel.FE.Manager mm_16x12_config.json
+python3.6 -m rapidstream.FE.Manager mm_16x12_config.json
 
 echo "[back end] Running the back end (phase 2 and 3)..."
 ${RAPID_STREAM_PATH}/bash/run_back_end.sh \

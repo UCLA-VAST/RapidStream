@@ -4,7 +4,7 @@ import logging
 import os
 import re
 
-from autoparallel.BE.Utilities import loggingSetup
+from rapidstream.BE.Utilities import loggingSetup
 
 loggingSetup()
 

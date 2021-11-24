@@ -8,8 +8,8 @@ from collections import defaultdict
 from typing import List, Tuple, Dict
 from mip import Model, minimize, CONTINUOUS, xsum, OptimizationStatus
 
-from autoparallel.BE.Utilities import isPairSLRCrossing
-from autoparallel.BE.Device.U250 import idx_of_left_side_slice_of_laguna_column
+from rapidstream.BE.Utilities import isPairSLRCrossing
+from rapidstream.BE.Device.U250 import idx_of_left_side_slice_of_laguna_column
 from autobridge.Device.DeviceManager import DeviceU250
 from autobridge.Opt.Slot import Slot
 

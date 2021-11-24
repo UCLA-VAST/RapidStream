@@ -4,8 +4,8 @@ import logging
 import math
 import os
 
-from autoparallel.BE.UniversalWrapperCreater import addAnchorToNonTopIOs
-from autoparallel.BE.Utilities import loggingSetup
+from rapidstream.BE.UniversalWrapperCreater import addAnchorToNonTopIOs
+from rapidstream.BE.Utilities import loggingSetup
 
 loggingSetup()
 

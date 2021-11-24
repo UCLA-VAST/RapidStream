@@ -4,9 +4,9 @@ import json
 import math
 import os
 
-from autoparallel.BE.Utilities import getAnchorTimingReportScript
-from autoparallel.BE.GenAnchorConstraints import getSlotInitPlacementPblock
-from autoparallel.BE.Utilities import loggingSetup
+from rapidstream.BE.Utilities import getAnchorTimingReportScript
+from rapidstream.BE.GenAnchorConstraints import getSlotInitPlacementPblock
+from rapidstream.BE.Utilities import loggingSetup
 
 loggingSetup()
 
@@ -62,7 +62,7 @@ def generateParallelScript(hub, user_name, server_list):
   place = []
   
   vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source place_slot.tcl'
-  parse_timing_report = 'python3.6 -m autoparallel.BE.TimingReportParser init_placement'
+  parse_timing_report = 'python3.6 -m rapidstream.BE.TimingReportParser init_placement'
 
   for slot_name in hub['SlotIO'].keys():
     cd = f'cd {init_place_dir}/{slot_name}/'

@@ -126,7 +126,7 @@ chmod -w $BASE_DIR/front_end_result.json
 {
 
 # slot synth
-python3.6 -m autoparallel.BE.SlotSynthesis \
+python3.6 -m rapidstream.BE.SlotSynthesis \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
@@ -137,7 +137,7 @@ python3.6 -m autoparallel.BE.SlotSynthesis \
     --orig_rtl_path ${RUN_DIR}/orig_rtl
 
 # init slot placement
-python3.6 -m autoparallel.BE.InitialSlotPlacement \
+python3.6 -m rapidstream.BE.InitialSlotPlacement \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
@@ -148,7 +148,7 @@ python3.6 -m autoparallel.BE.InitialSlotPlacement \
 
 for iter in $(seq 0 ${OPT_ITER}); do
     # ILP anchor placement
-    python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
+    python3.6 -m rapidstream.BE.PairwiseAnchorPlacement \
         --hub_path $HUB \
         --base_dir $BASE_DIR \
         --option SETUP \
@@ -158,7 +158,7 @@ for iter in $(seq 0 ${OPT_ITER}); do
         --server_list_in_str "${SERVER_LIST[*]}"
 
     # test random anchor placement
-    python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
+    python3.6 -m rapidstream.BE.PairwiseAnchorPlacement \
         --hub_path $HUB \
         --base_dir $BASE_DIR \
         --option SETUP \
@@ -168,7 +168,7 @@ for iter in $(seq 0 ${OPT_ITER}); do
         --server_list_in_str "${SERVER_LIST[*]}"
 
     # baseline: vivado anchor placement
-    python3.6 -m autoparallel.BE.Baseline.VivadoAnchorPlacement  \
+    python3.6 -m rapidstream.BE.Baseline.VivadoAnchorPlacement  \
         --hub_path ${HUB} \
         --base_dir ${BASE_DIR} \
         --vivado_version ${VIV_VER} \
@@ -179,7 +179,7 @@ for iter in $(seq 0 ${OPT_ITER}); do
         --server_list_in_str "${SERVER_LIST[*]}"
 
     # normal flow
-    python3.6 -m autoparallel.BE.OptSlotPlacement \
+    python3.6 -m rapidstream.BE.OptSlotPlacement \
         --hub_path ${HUB} \
         --base_dir ${BASE_DIR} \
         --vivado_version ${VIV_VER} \
@@ -190,7 +190,7 @@ for iter in $(seq 0 ${OPT_ITER}); do
         --server_list_in_str "${SERVER_LIST[*]}"
 
     # test vivado anchor placement
-    python3.6 -m autoparallel.BE.OptSlotPlacement \
+    python3.6 -m rapidstream.BE.OptSlotPlacement \
         --hub_path ${HUB} \
         --base_dir ${BASE_DIR} \
         --vivado_version ${VIV_VER} \
@@ -201,7 +201,7 @@ for iter in $(seq 0 ${OPT_ITER}); do
         --server_list_in_str "${SERVER_LIST[*]}"
 
     # test random anchor placement
-    python3.6 -m autoparallel.BE.OptSlotPlacement \
+    python3.6 -m rapidstream.BE.OptSlotPlacement \
         --hub_path ${HUB} \
         --base_dir ${BASE_DIR} \
         --vivado_version ${VIV_VER} \
@@ -212,7 +212,7 @@ for iter in $(seq 0 ${OPT_ITER}); do
         --server_list_in_str "${SERVER_LIST[*]}"
 done
 
-python3.6 -m autoparallel.BE.Clock.SlotAnchorClockRouting \
+python3.6 -m rapidstream.BE.Clock.SlotAnchorClockRouting \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
@@ -221,7 +221,7 @@ python3.6 -m autoparallel.BE.Clock.SlotAnchorClockRouting \
     --server_list_in_str "${SERVER_LIST[*]}"
 
 # normal flow
-python3.6 -m autoparallel.BE.SlotRouting \
+python3.6 -m rapidstream.BE.SlotRouting \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
@@ -230,7 +230,7 @@ python3.6 -m autoparallel.BE.SlotRouting \
     --main_server_name ${MAIN_SERVER}
 
 # baseline: no clock locking
-python3.6 -m autoparallel.BE.SlotRouting \
+python3.6 -m rapidstream.BE.SlotRouting \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
@@ -239,9 +239,9 @@ python3.6 -m autoparallel.BE.SlotRouting \
     --server_list_in_str "${SERVER_LIST[*]}" \
     --main_server_name ${MAIN_SERVER}  
 
-python3.6 -m autoparallel.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VIV_VER}
+python3.6 -m rapidstream.BE._TestPairwiseRouteStitching ${HUB} ${BASE_DIR} ${VIV_VER}
 
-python3.6 -m autoparallel.BE.SLRLevelStitch  \
+python3.6 -m rapidstream.BE.SLRLevelStitch  \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
@@ -250,7 +250,7 @@ python3.6 -m autoparallel.BE.SLRLevelStitch  \
     --rw_route_setup_path ${RW_ROUTE_SETUP_PATH}
 
 # baseline: vanilla vivado flow
-python3.6 -m autoparallel.BE.Baseline.VivadoOrigFlow \
+python3.6 -m rapidstream.BE.Baseline.VivadoOrigFlow \
     --hub_path ${HUB} \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER}

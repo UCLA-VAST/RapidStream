@@ -5,7 +5,7 @@ import os
 import json
 from typing import List
 
-from autoparallel.BE.Utilities import loggingSetup
+from rapidstream.BE.Utilities import loggingSetup
 
 loggingSetup()
 

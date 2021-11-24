@@ -6,7 +6,7 @@ import sys
 from typing import List, Dict
 from collections import OrderedDict, defaultdict
 
-from autoparallel.BE.Device import U250
+from rapidstream.BE.Device import U250
 
 
 class TimingReportParser:

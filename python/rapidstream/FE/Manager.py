@@ -12,13 +12,13 @@ from autobridge.Opt.Floorplan import Floorplanner
 from autobridge.Opt.SlotManager import SlotManager
 from autobridge.Opt.LatencyBalancing import LatencyBalancing
 
-from autoparallel.FE.GlobalRouting import GlobalRouting
-from autoparallel.FE.CreateSlotWrapper import CreateSlotWrapper
-from autoparallel.FE.CreateRoutingSlotWrapper import CreateRoutingSlotWrapper
-from autoparallel.FE.CreateCtrlSlotWrapper import CreateCtrlSlotWrapper
-from autoparallel.FE.CreateResultJson import CreateResultJson
-from autoparallel.FE.CreateTopRTLForCtrlWrappers import CreateTopRTLForCtrlWrappers
-from autoparallel.FE.FIFOCalibration import FIFOCalibration
+from rapidstream.FE.GlobalRouting import GlobalRouting
+from rapidstream.FE.CreateSlotWrapper import CreateSlotWrapper
+from rapidstream.FE.CreateRoutingSlotWrapper import CreateRoutingSlotWrapper
+from rapidstream.FE.CreateCtrlSlotWrapper import CreateCtrlSlotWrapper
+from rapidstream.FE.CreateResultJson import CreateResultJson
+from rapidstream.FE.CreateTopRTLForCtrlWrappers import CreateTopRTLForCtrlWrappers
+from rapidstream.FE.FIFOCalibration import FIFOCalibration
 
 
 class Manager:
@@ -129,9 +129,9 @@ class Manager:
     root.setLevel(logging.DEBUG)
     formatter = logging.Formatter("[%(levelname)s: %(funcName)s() %(filename)s:%(lineno)d] %(message)s")
     
-    debug_file_handler = logging.FileHandler(filename='autoparallel-debug.log', mode='w')
+    debug_file_handler = logging.FileHandler(filename='rapidstream-debug.log', mode='w')
     debug_file_handler.setLevel(logging.DEBUG)
-    info_file_handler = logging.FileHandler(filename='autoparallel-info.log', mode='w')
+    info_file_handler = logging.FileHandler(filename='rapidstream-info.log', mode='w')
     info_file_handler.setLevel(logging.INFO)
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(logging.INFO)

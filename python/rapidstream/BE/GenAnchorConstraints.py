@@ -3,8 +3,8 @@ import logging
 import json
 import re
 
-from autoparallel.BE.Device import U250
-from autoparallel.BE.Utilities import loggingSetup
+from rapidstream.BE.Device import U250
+from rapidstream.BE.Utilities import loggingSetup
 
 loggingSetup()
 

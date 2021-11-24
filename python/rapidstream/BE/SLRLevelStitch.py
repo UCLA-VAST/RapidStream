@@ -4,9 +4,9 @@ import json
 import re
 import os
 
-import autoparallel.BE.Constants as Constants
-from autoparallel.BE.SlotRouting import addSomeAnchors, removePlaceholderAnchors
-from autoparallel.BE.Utilities import getSlotsInSLRIndex, loggingSetup
+import rapidstream.BE.Constants as Constants
+from rapidstream.BE.SlotRouting import addSomeAnchors, removePlaceholderAnchors
+from rapidstream.BE.Utilities import getSlotsInSLRIndex, loggingSetup
 
 loggingSetup()
 

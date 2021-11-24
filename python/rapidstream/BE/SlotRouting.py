@@ -6,10 +6,10 @@ import re
 import math
 from typing import List
 
-import autoparallel.BE.Constants as Constants
-from autoparallel.BE.Device import U250
-from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
-from autoparallel.BE.Utilities import (
+import rapidstream.BE.Constants as Constants
+from rapidstream.BE.Device import U250
+from rapidstream.BE.GenAnchorConstraints import __getBufferRegionSize
+from rapidstream.BE.Utilities import (
   getAnchorTimingReportScript,
   loggingSetup,
   getSlotIndicesFromSlotName,
@@ -299,8 +299,8 @@ def getParallelTasks(hub, routing_dir, user_name, server_list, main_server_name)
   # generate the gnu parallel tasks
   all_tasks = []
 
-  parse_timing_report_1 = 'python3.6 -m autoparallel.BE.TimingReportParser ILP_anchor_placement_iter1'
-  parse_timing_report_2 = 'python3.6 -m autoparallel.BE.TimingReportParser phys_opt_routed/slot_routing_iter0'
+  parse_timing_report_1 = 'python3.6 -m rapidstream.BE.TimingReportParser ILP_anchor_placement_iter1'
+  parse_timing_report_2 = 'python3.6 -m rapidstream.BE.TimingReportParser phys_opt_routed/slot_routing_iter0'
 
   for slot_name in hub['SlotIO'].keys():
     guard1 = f'until [[ -f {anchor_clock_routing_dir}/{slot_name}/set_anchor_clock_route.tcl.done.flag ]] ; do sleep 5; done'

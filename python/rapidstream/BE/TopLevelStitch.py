@@ -1,6 +1,6 @@
 import os
-from autoparallel.BE.UniversalWrapperCreater import getWrapperOfSlots
-from autoparallel.BE.Utilities import getSlotsInSLRIndex
+from rapidstream.BE.UniversalWrapperCreater import getWrapperOfSlots
+from rapidstream.BE.Utilities import getSlotsInSLRIndex
 
 
 def getTopLevelWrapperForSLRSlots(top_stitch_dir, slr_name_2_dir_and_width_and_io_name):

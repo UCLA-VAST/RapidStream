@@ -13,11 +13,11 @@ from typing import List, Dict, Any
 from collections import defaultdict
 
 from mip import Model, minimize, CONTINUOUS, xsum, OptimizationStatus
-from autoparallel.BE.GenAnchorConstraints import __getBufferRegionSize
-from autoparallel.BE.Utilities import loggingSetup, getPairingLagunaTXOfRX, getSLRIndexOfLaguna
-from autoparallel.BE.Device import U250
-from autoparallel.BE.Utilities import isPairSLRCrossing, getDirectionOfSlotname, loggingSetup
-from autoparallel.BE.AnchorPlacement.PairwiseAnchorPlacementForSLRCrossing import placeLagunaAnchors
+from rapidstream.BE.GenAnchorConstraints import __getBufferRegionSize
+from rapidstream.BE.Utilities import loggingSetup, getPairingLagunaTXOfRX, getSLRIndexOfLaguna
+from rapidstream.BE.Device import U250
+from rapidstream.BE.Utilities import isPairSLRCrossing, getDirectionOfSlotname, loggingSetup
+from rapidstream.BE.AnchorPlacement.PairwiseAnchorPlacementForSLRCrossing import placeLagunaAnchors
 from autobridge.Device.DeviceManager import DeviceU250
 from autobridge.Opt.Slot import Slot
 
@@ -628,7 +628,7 @@ def setupAnchorPlacement(hub):
     guard1 = f'until [ -f {get_anchor_connection_path(slot1_name)}.done.flag ]; do sleep 10; done'
     guard2 = f'until [ -f {get_anchor_connection_path(slot2_name)}.done.flag ]; do sleep 10; done'
 
-    ilp_placement = f'python3.6 -m autoparallel.BE.PairwiseAnchorPlacement \
+    ilp_placement = f'python3.6 -m rapidstream.BE.PairwiseAnchorPlacement \
       --hub_path {hub_path} --base_dir {base_dir} --option RUN --which_iteration {iter} \
       --pair_name {pair_name} --test_random_anchor_placement {args.test_random_anchor_placement} \
       --user_name {args.user_name} --server_list_in_str "{args.server_list_in_str}"'
