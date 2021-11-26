@@ -59,4 +59,19 @@ There are 6 examples to demonstrate the flow. Each one includes:
 
 - A one-click script to run the whole flow. Note that you need to update the environment variables in the script.
 
-In order to reproduce the results as in the paper, we include a reference floorplanning result as this step is non-deterministic
+In order to reproduce the results as in the paper, we include a reference floorplanning result as this step is non-deterministic. To re-run the Phase 1 floorplanning process from scratch, delete the "ResultReuse" field in the JSON configuration file.
+
+
+# File Organizations
+
+- `examples` provide six benchmarks and one-click script to run RapidStream.
+
+- `python/rapidstream` contains the main implementation of RapidStream.
+  - `python/rapidstream/FE` corresponds to the front end transformation on the HLS-generated RTL (Phase 1 in the paper)
+  - `python/rapidstream/BE` corresponds to the back end parallel implementation (Phase 2, 3 in the paper)  
+
+- `java/` contains tools implemented in RapidWright, including the checkpoint stitcher for Phase 3 (`java/mergeDCP.java`
+)
+
+- `bash/` include scripts to glue together various part of the flow. 
+  - `bash/run_back_end.sh` is the main flow of Phase 2 and 3.
