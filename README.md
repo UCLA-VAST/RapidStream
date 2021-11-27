@@ -8,7 +8,15 @@
 - The key insight of RapidStream is to utilize the fact that we can additionally pipeline the FIFO connections, which create additional flexibility for split placement and routing without timing degradation.
 
 - More details could be found in our FPGA 2022 paper:
-    - RapidStream: Fast HLS-to-Bitstream Timing Closure throughParallelized and Physical-Integrated Compilation
+
+```
+@inproceedings{guo21rapidstream,
+  title={RapidStream: Fast HLS-to-Bitstream Timing Closure through Parallelized and Physical-Integrated Compilation},
+  author={Licheng Guo, Pongstorn Maidee, Yun Zhou, Chris Lavin, Jie Wang, Yuze Chi, Weikang Qiao, Alireza Kaviani, Zhiru Zhang, Jason Cong},
+  year={2022},
+  booktitle={Proceedings of the 2022 ACM/SIGDA International Symposium on Field-Programmable Gate Arrays (FPGA '22)}
+}
+```
 
 # Highlights
 
