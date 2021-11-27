@@ -9,9 +9,6 @@ source ${RAPID_STREAM_PATH}/bash/setup.sh
 VIV_VER="2021.1"
 INVERT_ANCHOR_CLOCK=0
 TARGET_PERIOD=2.5
-USER_NAME="einsx7"
-SERVER_LIST=("u5" "u15" "u17" "u18")
-MAIN_SERVER="u5"
 BASELINE_ANCHOR_PLACEMENT=0
 RUN_RWROUTE_TEST=0
 OPT_ITER=0
@@ -51,6 +48,11 @@ while [[ $# -gt 0 ]]; do
       ;;
     --server-list)
       read -r -a SERVER_LIST <<< "$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --main-server)
+      MAIN_SERVER="$2"
       shift # past argument
       shift # past value
       ;;
@@ -99,6 +101,7 @@ echo "VIVADO_ANCHOR_PLACEMENT   = ${VIVADO_ANCHOR_PLACEMENT}"
 echo "RANDOM_ANCHOR_PLACEMENT   = ${RANDOM_ANCHOR_PLACEMENT}"
 echo "VIV_VER                   = ${VIV_VER}"
 echo "SERVER_LIST               = ${SERVER_LIST[@]}"
+echo "MAIN_SERVER               = ${MAIN_SERVER}"
 echo "USER_NAME                 = ${USER_NAME}"
 echo "SETUP_ONLY                = ${SETUP_ONLY[@]}"
 echo "OPT_ITER                  = ${OPT_ITER}"

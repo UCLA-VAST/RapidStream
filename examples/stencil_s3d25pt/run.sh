@@ -4,7 +4,7 @@ source ${RAPID_STREAM_PATH}/bash/setup.sh
 
 export HLS_PROJECT_PATH="./s3d2pt/16x4-split4/s3d25pt-16x4"
 export SERVER_LIST=("u5" "u15" "u17" "u18")
-export USER_NAME=einsx7
+export MAIN_SERVER=$(whoami)
 export RUN_DIR=/expr/soda/s3d25pt_3FF_double_reg_rerun_11_21
 
 ################################################
@@ -24,4 +24,5 @@ ${RAPID_STREAM_PATH}/bash/run_back_end.sh \
     --vivado-ver 2021.1 \
     --target-period 2.5 \
     --server-list "${SERVER_LIST[*]}" \
-    --user-name ${USER_NAME}
+    --main-server ${MAIN_SERVER} \
+    --user-name $USER
