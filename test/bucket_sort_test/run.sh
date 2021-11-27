@@ -6,9 +6,6 @@ export GRB_LICENSE_FILE=/home/einsx7/gurobi.lic
 export VIV_VER=2019.2
 # export LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
 
-cd /home/einsx7/auto-parallel/Peregrine/ && source setup.sh
-cd -
-
 TOOL=vivado_hls
 
 # step 1: run hls

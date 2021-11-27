@@ -1,6 +1,6 @@
 RAPID_STREAM_PATH=/home/einsx7/auto-parallel/src
 
-source ${RAPID_STREAM_PATH}/bash/setup.sh
+source ${RAPID_STREAM_PATH}/rapidstream_setup.sh
 
 export HLS_PROJECT_PATH="./mttkrp_prj1/hls_prj"
 export SERVER_LIST=("u5" "u15" "u17" "u18")

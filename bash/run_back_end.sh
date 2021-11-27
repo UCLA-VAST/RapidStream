@@ -1,22 +1,9 @@
 #!/bin/bash
 {
 
-export RAPID_STREAM_PATH="/home/einsx7/auto-parallel/src"
-source ${RAPID_STREAM_PATH}/bash/setup.sh
+source ../rapidstream_setup.sh
 
-# -------------------------------------------
-
-VIV_VER="2021.1"
-INVERT_ANCHOR_CLOCK=0
-TARGET_PERIOD=2.5
-BASELINE_ANCHOR_PLACEMENT=0
-RUN_RWROUTE_TEST=0
-OPT_ITER=0
-PYTHONPATH=/home/einsx7/.local/lib/python3.6/site-packages/
-
-
-#----------------------------------------------
-
+# read arguments from command line
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -285,7 +272,7 @@ for step in "${steps[@]}"; do
     echo "# Start distrubuted run: ${step}" >> ${SCRIPT}
 
     for server in ${SERVER_LIST[*]} ; do
-        echo "ssh ${server} \"source ${RAPID_STREAM_PATH}/bash/setup.sh && cd ${BASE_DIR}/${step}/ && parallel < parallel_${step}_${server}.txt\" >> ${BASE_DIR}/backend_${step}.log 2>&1 &" >> ${SCRIPT}
+        echo "ssh ${server} \"source ${RAPID_STREAM_PATH}/rapidstream_setup.sh && cd ${BASE_DIR}/${step}/ && parallel < parallel_${step}_${server}.txt\" >> ${BASE_DIR}/backend_${step}.log 2>&1 &" >> ${SCRIPT}
     done
     echo "wait" >> ${SCRIPT}
     # at each server, create the done flag
@@ -341,7 +328,7 @@ echo "Loading Vivado ${VIV_VER} on all servers. This may take a while if running
 parallel < ${CEPF_WARMUP_SCRIPT}
 
 echo "Start system utilization trackers..."
-TRACKER=${RW_BRIDGE_ROOT_DIR}/utilities/system_utilization_tracker.py
+TRACKER=${RAPID_STREAM_PATH}/utilities/system_utilization_tracker.py
 SETUP_PYTHON_ENV="export PYTHONPATH=/home/${USER_NAME}/.local/lib/python3.6/site-packages/"
 for server in ${SERVER_LIST[*]} ; do
     ssh ${server} \

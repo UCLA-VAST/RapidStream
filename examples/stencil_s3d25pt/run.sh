@@ -1,6 +1,6 @@
 RAPID_STREAM_PATH=/home/einsx7/auto-parallel/src
 
-source ${RAPID_STREAM_PATH}/bash/setup.sh
+source ${RAPID_STREAM_PATH}/rapidstream_setup.sh
 
 export HLS_PROJECT_PATH="./s3d2pt/16x4-split4/s3d25pt-16x4"
 export SERVER_LIST=("u5" "u15" "u17" "u18")

@@ -79,7 +79,7 @@ sudo apt install iverilog
     - `export PATH="${PATH}:${GUROBI_HOME}/bin"`
     - `export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib"`
 
-- Update the environment variables in `RapidStream/bash/setup.sh` according to your installment specifics.
+- Update the environment variables in `RapidStream/rapidstream_setup.sh` according to your installment specifics.
 
 - Xilinx Vivado HLS 2019.2 or 2020.1
 
