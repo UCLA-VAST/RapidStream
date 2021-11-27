@@ -10,6 +10,30 @@
 - More details could be found in our FPGA 2022 paper:
     - RapidStream: Fast HLS-to-Bitstream Timing Closure throughParallelized and Physical-Integrated Compilation
 
+# Highlights
+
+- This figure shows (1) the number of active cores in a vanilla Vivado flow, (2) Vivado runtime V.S. the number of threads.
+<img src=https://user-images.githubusercontent.com/32432619/143661683-f79d0c68-f47e-44d1-a9c1-ac4b6ad960a1.png alt="alt text" width=400>
+
+- In comparison, this figure shows the statistics of RapidStream:
+<img src=https://user-images.githubusercontent.com/32432619/143661676-f44333c2-d3ae-4bdb-9309-b46dae88f370.png alt="alt text" width=400>
+
+- Here is the runtime and frequency comparison between RapidStream and Vivado:
+<img src=https://user-images.githubusercontent.com/32432619/143661688-4ec558cd-d812-4616-bb01-4034220ba517.png alt="alt text" width=375>
+
+- To achieve such improvement, RapidStream go through the following steps. 
+    - The key is to make good use of the pipelining flexibility of dataflow designs.
+
+![][image-steps]
+
+- This figure shows the input and output of each phase:
+    - Phase 1 floorplans and re-builds the hierarchy of the HLS-generated RTL, then adds pipelining.
+    - Phase 2 places and routes each island in parallel while ensuring the interface of neighbor islands align.
+    - Phase 3 stitch the islands together and route the inter-island nets
+
+![][image-three-phase]
+
+
 # Install
 
 - RapidStream
@@ -88,3 +112,14 @@ In order to reproduce the results as in the paper, we include a reference floorp
 - Currently RapidStream results cannot run on board as we are not compatible with the Vitis workflow. 
 
 - The next step is to develop a customized IO shell so that the RapidStream bitstream could communicate with the host.
+
+
+[image-vivado-cpu]:https://user-images.githubusercontent.com/32432619/143661683-f79d0c68-f47e-44d1-a9c1-ac4b6ad960a1.png
+
+[image-rapidstream-cpu]:https://user-images.githubusercontent.com/32432619/143661676-f44333c2-d3ae-4bdb-9309-b46dae88f370.png
+
+[image-comparison]:https://user-images.githubusercontent.com/32432619/143661688-4ec558cd-d812-4616-bb01-4034220ba517.png
+
+[image-steps]:https://user-images.githubusercontent.com/32432619/143661628-dfe9a02d-92e6-4a71-b738-96477a210202.png
+
+[image-three-phase]:https://user-images.githubusercontent.com/32432619/143661651-33aa492a-24c4-42c5-b72c-43d2a8fa8ecd.png
