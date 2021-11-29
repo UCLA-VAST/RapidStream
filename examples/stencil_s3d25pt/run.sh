@@ -4,7 +4,7 @@ source ${RAPID_STREAM_PATH}/rapidstream_setup.sh
 
 export HLS_PROJECT_PATH="./s3d2pt/16x4-split4/s3d25pt-16x4"
 export SERVER_LIST=("u5" "u15" "u17" "u18")
-export MAIN_SERVER=$(whoami)
+export MAIN_SERVER="u18"
 export RUN_DIR=/expr/soda/s3d25pt_3FF_double_reg_rerun_11_21
 
 ################################################

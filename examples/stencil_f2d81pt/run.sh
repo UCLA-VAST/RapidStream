@@ -4,7 +4,7 @@ source ${RAPID_STREAM_PATH}/rapidstream_setup.sh
 
 export HLS_PROJECT_PATH="./f2d81pt/unroll_16/f2d81pt_kernel"
 export SERVER_LIST=("u5" "u15" "u17" "u18")
-export MAIN_SERVER=$(whoami)
+export MAIN_SERVER="u18"
 export RUN_DIR=/expr/soda/f2d81pt_3FF_double_reg_rerun_11_21
 
 ################################################

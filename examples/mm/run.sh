@@ -4,7 +4,7 @@ source ${RAPID_STREAM_PATH}/rapidstream_setup.sh
 
 export HLS_PROJECT_PATH="./16x12/mm_16x12"
 export SERVER_LIST=("u5" "u15" "u17" "u18")
-export MAIN_SERVER=$(whoami)
+export MAIN_SERVER="u18"
 export RUN_DIR=/expr/mm/16x12_3FF_double_reg_rerun_11_20
 
 ################################################
