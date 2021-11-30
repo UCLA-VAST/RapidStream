@@ -53,6 +53,10 @@ while [[ $# -gt 0 ]]; do
       shift # past argument
       shift # past value
       ;;
+    --use-rwroute-to-stitch)
+      USE_RWROUTE_TO_STITCH=1
+      shift # past argument
+      ;;
     --test-vivado-anchor-placement)
       VIVADO_ANCHOR_PLACEMENT=1
       shift # past argument
@@ -92,6 +96,7 @@ echo "MAIN_SERVER               = ${MAIN_SERVER}"
 echo "USER_NAME                 = ${USER_NAME}"
 echo "SETUP_ONLY                = ${SETUP_ONLY[@]}"
 echo "OPT_ITER                  = ${OPT_ITER}"
+echo "USE_RWROUTE_TO_STITCH     = ${USE_RWROUTE_TO_STITCH}"
 
 if [[ -n $1 ]]; then
     echo "Last line of file specified as non-opt/last argument:"
@@ -452,11 +457,18 @@ done
 
 # stitching
 echo "Start SLR-level stitching..."
-parallel < ${BASE_DIR}/SLR_level_stitch/vivado/parallel-route-slr.txt >> ${BASE_DIR}/backend_stitching_routing.log 2>&1 
+if [ -z "${USE_RWROUTE_TO_STITCH}" ]; then
+    echo "By default, use Vivado to stitch the islands"
+    STITCH_TOOL=vivado
+else
+    echo "Use RWRoute to stitch the islands"
+    STITCH_TOOL=rwroute
+fi
+parallel < ${BASE_DIR}/SLR_level_stitch/${STITCH_TOOL}/parallel-route-slr.txt >> ${BASE_DIR}/backend_stitching_routing.log 2>&1 
 
 # top-level stitching
 echo "Start Top-level stitching..."
-bash ${BASE_DIR}/SLR_level_stitch/vivado/top_stitch/stitch.sh
+bash ${BASE_DIR}/SLR_level_stitch/${STITCH_TOOL}/top_stitch/stitch.sh
 
 echo "Finished"
 echo $(date +"%T")
