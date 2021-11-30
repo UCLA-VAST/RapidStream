@@ -21,12 +21,15 @@
 # Highlights
 
 - This figure shows (1) the number of active cores in a vanilla Vivado flow, (2) Vivado runtime V.S. the number of threads.
+
 <img src=https://user-images.githubusercontent.com/32432619/143661683-f79d0c68-f47e-44d1-a9c1-ac4b6ad960a1.png alt="alt text" width=400>
 
 - In comparison, this figure shows the statistics of RapidStream:
+
 <img src=https://user-images.githubusercontent.com/32432619/143661676-f44333c2-d3ae-4bdb-9309-b46dae88f370.png alt="alt text" width=400>
 
 - Here is the runtime and frequency comparison between RapidStream and Vivado:
+
 <img src=https://user-images.githubusercontent.com/32432619/143661688-4ec558cd-d812-4616-bb01-4034220ba517.png alt="alt text" width=375>
 
 - To achieve such improvement, RapidStream go through the following steps. 
@@ -98,7 +101,14 @@ There are 6 examples to demonstrate the flow. Each one includes:
 
 - Note that you need to update the environment variables in the script.
 
-In order to reproduce the results as in the paper, we include a reference floorplanning result as this step is non-deterministic. To re-run the Phase 1 floorplanning process from scratch, delete the "ResultReuse" field in the JSON configuration file.
+- You should edit the `SERVER_LIST` variable to include the IP address/acronym of your server fleet. You could use whatever number of servers you want. 
+
+  - If you only provide 1 server, then all parallel tasks will be performed on it, which will use lots of memory. We recommend that you should have at least 256 GB of memory to run everything on 1 server.
+
+  - In our experiments, we distribute the workloads to 4 servers, each with the 56-core Inter Xeon E5-2680 v4 CPU at 2.40GHz and 128 GB of memory. 
+
+- To help you reproduce the results as in the paper, we include a reference floorplanning result as this step is non-deterministic. 
+  - To re-run the Phase 1 floorplanning process from scratch, delete the "ResultReuse" field in the JSON configuration file.
 
 
 # File Organizations
