@@ -84,7 +84,7 @@ def getVivadoRouteParallelTasks():
     cd = f'cd {vivado_dir}'
     get_dcp_regexp = lambda slot_name: f'(.*{slot_name}.*non_laguna_anchor_nets_unrouted.dcp)'
     all_dcp_regexps = '|'.join([get_dcp_regexp(slot_name) for slot_name in slots])
-    rw_stitch = f'source {args.rw_stitch_setup_path} && java com.xilinx.rapidwright.examples.MergeDCP {slot_routing_dir} slr_{slr_index}.dcp "{all_dcp_regexps}"'
+    rw_stitch = f'java -cp {args.rapidwright_jar_path}:{args.rapidstream_home}/java/bin com.xilinx.rapidwright.examples.MergeDCP {slot_routing_dir} slr_{slr_index}.dcp "{all_dcp_regexps}"'
 
     vivado = f'VIV_VER={args.vivado_version} vivado -mode batch -source {vivado_dir}/route_slr.tcl'
 
@@ -110,7 +110,7 @@ def getRWRouteSetupParallelScript():
     cd = f'cd {rwroute_dir}'
     get_dcp_regexp = lambda slot_name: f'(.*{slot_name}.*phys_opt_routed.*.dcp)'
     all_dcp_regexps = '|'.join([get_dcp_regexp(slot_name) for slot_name in slots])
-    rw_stitch = f'source {args.rw_stitch_setup_path} && java com.xilinx.rapidwright.examples.MergeDCP {slot_routing_dir} slr_{slr_index}.dcp "{all_dcp_regexps}"'
+    rw_stitch = f'java -cp {args.rapidwright_jar_path}:{args.rapidstream_home}/java/bin com.xilinx.rapidwright.examples.MergeDCP {slot_routing_dir} slr_{slr_index}.dcp "{all_dcp_regexps}"'
 
     rw_route = f'source {args.rw_route_setup_path} && ' + Constants.RWROUTE.format(dcp=f'slr_{slr_index}.dcp', target_dir=f'{slr_stitch_dir}/rwroute/slr_{slr_index}/routed_checkpoint')
 
@@ -125,7 +125,7 @@ def setupTopStitch():
   os.mkdir(f'{slr_stitch_dir}/vivado/top_stitch')
   os.mkdir(f'{slr_stitch_dir}/rwroute/top_stitch')
 
-  get_cmd = lambda tool: f'source {args.rw_stitch_setup_path} && java -Xmx100g com.xilinx.rapidwright.examples.MergeDCP {slr_stitch_dir}/{tool} {slr_stitch_dir}/{tool}/top_stitch/top_stitch.dcp ".*routed_slr_\d.*dcp"'
+  get_cmd = lambda tool: f'java -cp {args.rapidwright_jar_path}:{args.rapidstream_home}/java/bin -Xmx100g com.xilinx.rapidwright.examples.MergeDCP {slr_stitch_dir}/{tool} {slr_stitch_dir}/{tool}/top_stitch/top_stitch.dcp ".*routed_slr_\d.*dcp"'
   open(f'{slr_stitch_dir}/vivado/top_stitch/stitch.sh', 'w').write(get_cmd('vivado'))
   open(f'{slr_stitch_dir}/rwroute/top_stitch/stitch.sh', 'w').write(get_cmd('rwroute'))
 
@@ -136,7 +136,8 @@ if __name__ == '__main__':
   parser.add_argument("--base_dir", type=str, required=True)
   parser.add_argument("--clock_period", type=float, required=True)
   parser.add_argument("--vivado_version", type=str, required=True)
-  parser.add_argument("--rw_stitch_setup_path", type=str, required=True)
+  parser.add_argument("--rapidstream_home", type=str, required=True)
+  parser.add_argument("--rapidwright_jar_path", type=str, required=True)
   parser.add_argument("--rw_route_setup_path", type=str, required=True)
   args = parser.parse_args()
 

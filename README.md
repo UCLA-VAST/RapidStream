@@ -47,42 +47,58 @@
 
 # Install
 
+```
+export RAPID_STREAM_PATH=[where to install]
+mkdir ${RAPID_STREAM_PATH}
+```
+
 - RapidStream
 
 ```
-git clone https://github.com/Licheng-Guo/RapidStream.git
-python3 -m pip install --editable ./RapidStream/python
+git clone https://github.com/Licheng-Guo/RapidStream.git ${RAPID_STREAM_PATH}
+python3 -m pip install --editable ${RAPID_STREAM_PATH}/python
 ```
 
 - AutoBridge
 ```
-git clone https://github.com/Licheng-Guo/AutoBridge.git
-python3 -m pip install --editable ./AutoBridge/in-develop/src
+mkdir ${RAPID_STREAM_PATH}/autobridge
+git clone https://github.com/Licheng-Guo/AutoBridge.git ${RAPID_STREAM_PATH}/autobridge
+
+cd ${RAPID_STREAM_PATH}/autobridge
+git checkout 91015d000
+cd -
+
+python3 -m pip install --editable ${RAPID_STREAM_PATH}/autobridge/in-develop/src
 ```
 
-- RapidWright
+- The Gurobi solver
+
 ```
-https://www.rapidwright.io/docs/Automatic_Install.html#automatic-install
+mkdir ${RAPID_STREAM_PATH}/gurobi
+wget https://packages.gurobi.com/9.5/gurobi9.5.0_linux64.tar.gz -P ${RAPID_STREAM_PATH}/gurobi
+tar -xvf ${RAPID_STREAM_PATH}/gurobi/* -C ${RAPID_STREAM_PATH}/gurobi/
 ```
-After installing, copy the checkpoint merger `java/mergeDCP.java` to `${RAPIDWRIGHT_HOME}/RapidWright/src/com/xilinx/rapidwright/examples/`, then compile the merger by `make` in the RapidWright home.
 
 - Iverilog
 ```
 sudo apt install iverilog
 ```
 
-- The Gurobi solver
+- Java
 
-  - Register and download the `Gurobi Optimizer` at https://www.gurobi.com/downloads/gurobi-optimizer-eula/
-  - Unzip the package to your desired directory
-  - Obtain an academic license at https://www.gurobi.com/downloads/end-user-license-agreement-academic/
-  - The environment variable `GUROBI_HOME` needs to point to the installation directory, so that Gurobi can be detected by AutoBridge.
-    - `export GUROBI_HOME= [ where you install ]`
-    - `export GRB_LICENSE_FILE= [ path to your license file ]`
-    - `export PATH="${PATH}:${GUROBI_HOME}/bin"`
-    - `export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib"`
+```
+sudo apt install default-jre
+sudo apt install default-jdk
+```
 
-- Update the environment variables in `RapidStream/rapidstream_setup.sh` according to your installment specifics.
+- Obtain a Gurobi license at https://www.gurobi.com/downloads/end-user-license-agreement-academic/
+    
+
+- Update the environment variables in `${RAPID_STREAM_PATH}/rapidstream_setup.sh`
+
+  - `export RAPID_STREAM_PATH = [ where to install ]`
+  - `export GRB_LICENSE_FILE  = [ path to your license file ]`
+  
 
 - Xilinx Vivado HLS 2019.2 or 2020.1
 

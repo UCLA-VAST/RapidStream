@@ -241,7 +241,8 @@ python3.6 -m rapidstream.BE.SLRLevelStitch  \
     --base_dir ${BASE_DIR} \
     --vivado_version ${VIV_VER} \
     --clock_period ${TARGET_PERIOD} \
-    --rw_stitch_setup_path ${RW_STITCH_SETUP_PATH} \
+    --rapidstream_home ${RAPID_STREAM_PATH} \
+    --rapidwright_jar_path ${RAPIDWRIGHT_JAR_PATH} \
     --rw_route_setup_path ${RW_ROUTE_SETUP_PATH}
 
 # baseline: vanilla vivado flow
