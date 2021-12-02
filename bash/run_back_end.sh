@@ -335,10 +335,8 @@ parallel < ${CEPF_WARMUP_SCRIPT}
 
 echo "Start system utilization trackers..."
 TRACKER=${RAPID_STREAM_PATH}/utilities/system_utilization_tracker.py
-SETUP_PYTHON_ENV="export PYTHONPATH=/home/${USER_NAME}/.local/lib/python3.6/site-packages/"
 for server in ${SERVER_LIST[*]} ; do
     ssh ${server} \
-        PYTHONPATH=${PYTHONPATH} \
         python3.6 ${TRACKER} \
         --output_dir ${TRACKING_DIR} \
         --report_prefix ${server} \

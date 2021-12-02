@@ -91,6 +91,12 @@ sudo apt install default-jre
 sudo apt install default-jdk
 ```
 
+- Psutil
+```
+Python3 -m pip install psutil
+```
+
+
 - Obtain a Gurobi license at https://www.gurobi.com/downloads/end-user-license-agreement-academic/
     
 

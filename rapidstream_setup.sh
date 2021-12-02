@@ -23,4 +23,3 @@ export TARGET_PERIOD=2.5
 export BASELINE_ANCHOR_PLACEMENT=0
 export RUN_RWROUTE_TEST=0
 export OPT_ITER=0
-export PYTHONPATH=/home/einsx7/.local/lib/python3.6/site-packages/
