@@ -10,7 +10,7 @@
 - More details could be found in our FPGA 2022 paper:
 
 ```
-@inproceedings{guo21rapidstream,
+@inproceedings{guo22rapidstream,
   title={RapidStream: Fast HLS-to-Bitstream Timing Closure through Parallelized and Physical-Integrated Compilation},
   author={Licheng Guo, Pongstorn Maidee, Yun Zhou, Chris Lavin, Jie Wang, Yuze Chi, Weikang Qiao, Alireza Kaviani, Zhiru Zhang, Jason Cong},
   year={2022},
@@ -65,10 +65,17 @@ mkdir ${RAPID_STREAM_PATH}/autobridge
 git clone https://github.com/Licheng-Guo/AutoBridge.git ${RAPID_STREAM_PATH}/autobridge
 
 cd ${RAPID_STREAM_PATH}/autobridge
-git checkout 91015d000
+AUTOBRIDGE_STABLE_VERSION=91015d000
+git checkout ${AUTOBRIDGE_STABLE_VERSION}
 cd -
 
 python3 -m pip install --editable ${RAPID_STREAM_PATH}/autobridge/in-develop/src
+```
+
+- RapidWright
+```
+RAPIDWRIGHT_JAR=https://github.com/Xilinx/RapidWright/releases/download/v2021.2.0-beta/rapidwright-2021.2.0-standalone-lin64.jar
+wget ${RAPIDWRIGHT_JAR} -P ${RAPID_STREAM_PATH}/java/bin
 ```
 
 - The Gurobi solver
