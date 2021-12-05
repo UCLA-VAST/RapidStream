@@ -1,14 +1,22 @@
-RAPID_STREAM_PATH=/home/einsx7/auto-parallel/src
-
-source ${RAPID_STREAM_PATH}/rapidstream_setup.sh
-
+export RUN_DIR=[where-to-run]
 export HLS_PROJECT_PATH="./16x12/mm_16x12"
-export SERVER_LIST=("u5" "u15" "u17" "u18")
-export MAIN_SERVER="u18"
-export RUN_DIR=/expr/mm/16x12_3FF_double_reg_rerun_11_20
+export SERVER_LIST=("IP_SERVER_1" "IP_SERVER_2" "IP_SERVER_3" "IP_SERVER_4")  # any number of servers will work
+export MAIN_SERVER="IP_SERVER_1"  # the one where you launch the run
 
 ################################################
 
+if [ -z "${RAPID_STREAM_PATH}" ]; then
+    echo "ERROR: need to export RAPID_STREAM_PATH first"
+    exit
+else
+    source ${RAPID_STREAM_PATH}/rapidstream_setup.sh
+fi
+
+if [ -d "${RUN_DIR}" ]; then
+    echo "ERROR: the RUN_DIR already exists: ${RUN_DIR}"
+    exit
+
+###############################################
 echo "[preparing] Unzip the pre-syntehsized HLS project..."
 unzip -q mm_16x12.zip
 
@@ -25,4 +33,6 @@ ${RAPID_STREAM_PATH}/bash/run_back_end.sh \
     --target-period 2.7 \
     --server-list "${SERVER_LIST[*]}" \
     --main-server ${MAIN_SERVER} \
-    --user-name $USER
+    --user-name $USER \
+    # --invert-anchor-clock \
+    # --use-rwroute-to-stitch
