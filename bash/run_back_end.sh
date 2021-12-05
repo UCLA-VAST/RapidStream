@@ -1,7 +1,8 @@
 #!/bin/bash
 {
 
-source ../rapidstream_setup.sh
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+source ${SCRIPT_DIR}/../rapidstream_setup.sh
 
 # read arguments from command line
 POSITIONAL=()
