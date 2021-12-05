@@ -47,85 +47,24 @@
 
 # Install
 
-```
-export RAPID_STREAM_PATH=[where to install]
-mkdir ${RAPID_STREAM_PATH}
-```
+- Python 3.6+ required.
 
-- RapidStream
+- Install on every server used for the distributed execution.
 
 ```
-git clone https://github.com/Licheng-Guo/RapidStream.git ${RAPID_STREAM_PATH}
-python3 -m pip install --editable ${RAPID_STREAM_PATH}/python
-```
-
-- AutoBridge
-```
-mkdir ${RAPID_STREAM_PATH}/autobridge
-git clone https://github.com/Licheng-Guo/AutoBridge.git ${RAPID_STREAM_PATH}/autobridge
-
-cd ${RAPID_STREAM_PATH}/autobridge
-AUTOBRIDGE_STABLE_VERSION=91015d000
-git checkout ${AUTOBRIDGE_STABLE_VERSION}
-cd -
-
-python3 -m pip install --editable ${RAPID_STREAM_PATH}/autobridge/in-develop/src
-```
-
-- RapidWright
-```
-RAPIDWRIGHT_JAR=https://github.com/Xilinx/RapidWright/releases/download/v2021.2.0-beta/rapidwright-2021.2.0-standalone-lin64.jar
-wget ${RAPIDWRIGHT_JAR} -P ${RAPID_STREAM_PATH}/java/bin
-```
-
-- The Gurobi solver
-
-```
-mkdir ${RAPID_STREAM_PATH}/gurobi
-wget https://packages.gurobi.com/9.5/gurobi9.5.0_linux64.tar.gz -P ${RAPID_STREAM_PATH}/gurobi
-tar -xvf ${RAPID_STREAM_PATH}/gurobi/* -C ${RAPID_STREAM_PATH}/gurobi/
-```
-
-- Rsync
-```
-sudo apt install rsync
-```
-
-- GNU Parallel
-```
-sudo apt install parallel
-```
-
-- Iverilog
-```
-sudo apt install iverilog
-```
-
-- Java
-
-```
-sudo apt install default-jre
-sudo apt install default-jdk
-```
-
-- Psutil
-```
-python3 -m pip install psutil
+bash install.sh
 ```
 
 
-- Obtain a Gurobi license at https://www.gurobi.com/downloads/end-user-license-agreement-academic/
+- Obtain an auto-issued Gurobi license at https://www.gurobi.com/downloads/end-user-license-agreement-academic/
     
 
-- Update the environment variables in `${RAPID_STREAM_PATH}/rapidstream_setup.sh`
+- Update `GRB_LICENSE_FILE` in `${RAPID_STREAM_PATH}/rapidstream_setup.sh` to point to your license file
 
-  - `export RAPID_STREAM_PATH = [ where to install ]`
-  - `export GRB_LICENSE_FILE  = [ path to your license file ]`
-  
 
-- Xilinx Vivado HLS 2019.2 or 2020.1
+- Install Xilinx Vivado HLS 2019.2 or 2020.1
 
-- Xilinx Vivado 2021.1
+- Install Xilinx Vivado
 
 
 # Examples

@@ -1,10 +1,17 @@
+# point to your Gubori license
+export GRB_LICENSE_FILE=""
+
+#####################################################################
 HOSTNAME=$(hostname)
 echo "Setting up on ${HOSTNAME}"
 
-export RAPID_STREAM_PATH="/home/einsx7/auto-parallel/src"
-export GRB_LICENSE_FILE=/home/einsx7/gurobi.lic
+if [ ! -f ${GRB_LICENSE_FILE} ]; then
+  echo "ERROR: Gurobi license not found"
+  exit
+fi
 
-#####################################################################
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+export RAPID_STREAM_PATH="${SCRIPT_DIR}"
 
 # gurobi 
 export GUROBI_HOME="${RAPID_STREAM_PATH}/gurobi/gurobi950/linux64"

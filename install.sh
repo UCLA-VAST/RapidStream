@@ -1,13 +1,7 @@
-export RAPID_STREAM_PATH=""
-
-if [ -z "${RAPID_STREAM_PATH}" ]; then
-  echo "ERROR: need to set RAPID_STREAM_PATH first"
-  exit
-
-mkdir ${RAPID_STREAM_PATH}
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+RAPID_STREAM_PATH=${SCRIPT_DIR}
 
 # rapidstream
-git clone https://github.com/Licheng-Guo/RapidStream.git ${RAPID_STREAM_PATH}
 python3 -m pip install --editable ${RAPID_STREAM_PATH}/python
 
 # autobridge
