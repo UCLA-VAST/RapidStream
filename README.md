@@ -86,6 +86,16 @@ wget https://packages.gurobi.com/9.5/gurobi9.5.0_linux64.tar.gz -P ${RAPID_STREA
 tar -xvf ${RAPID_STREAM_PATH}/gurobi/* -C ${RAPID_STREAM_PATH}/gurobi/
 ```
 
+- Rsync
+```
+sudo apt install rsync
+```
+
+- GNU Parallel
+```
+sudo apt install parallel
+```
+
 - Iverilog
 ```
 sudo apt install iverilog
@@ -100,7 +110,7 @@ sudo apt install default-jdk
 
 - Psutil
 ```
-Python3 -m pip install psutil
+python3 -m pip install psutil
 ```
 
 
