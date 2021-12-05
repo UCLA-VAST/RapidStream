@@ -4,12 +4,14 @@ set -e
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 RAPID_STREAM_PATH=${SCRIPT_DIR}
 
+sudo apt install git
+sudo apt install python3-pip
+
 # rapidstream
 python3 -m pip install --editable ${RAPID_STREAM_PATH}/python
 
 # autobridge
 mkdir ${RAPID_STREAM_PATH}/autobridge
-sudo apt install git
 git clone https://github.com/Licheng-Guo/AutoBridge.git ${RAPID_STREAM_PATH}/autobridge
 
 cd ${RAPID_STREAM_PATH}/autobridge
