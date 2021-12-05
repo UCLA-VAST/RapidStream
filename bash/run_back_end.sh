@@ -456,7 +456,7 @@ do
 done
 
 # stitching
-echo "Start SLR-level stitching..."
+echo "[$(date +"%T")] Start SLR-level stitching..."
 if [ -z "${USE_RWROUTE_TO_STITCH}" ]; then
     echo "By default, use Vivado to stitch the islands"
     STITCH_TOOL=vivado
@@ -467,11 +467,10 @@ fi
 parallel < ${BASE_DIR}/SLR_level_stitch/${STITCH_TOOL}/parallel-route-slr.txt >> ${BASE_DIR}/backend_stitching_routing.log 2>&1 
 
 # top-level stitching
-echo "Start Top-level stitching..."
+echo "[$(date +"%T")] Start Top-level stitching..."
 bash ${BASE_DIR}/SLR_level_stitch/${STITCH_TOOL}/top_stitch/stitch.sh
 
-echo "Finished"
-echo $(date +"%T")
+echo "[$(date +"%T")] Finished"
 
 # copy the remote tracking results back
 for server in ${SERVER_LIST[*]} ; do
