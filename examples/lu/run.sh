@@ -20,7 +20,7 @@ fi
 ###############################################
 
 echo "[preparing] Unzip the pre-syntehsized HLS project..."
-unzip -q lu_32x32.zip
+unzip -qn lu_32x32.zip
 
 . ${RAPID_STREAM_PATH}/bash/prepare.sh
 

@@ -20,7 +20,7 @@ fi
 ###############################################
 
 echo "[preparing] Unzip the pre-syntehsized HLS project..."
-unzip -q f2d81pt-unroll-16.zip
+unzip -qn f2d81pt-unroll-16.zip
 
 . ${RAPID_STREAM_PATH}/bash/prepare.sh
 

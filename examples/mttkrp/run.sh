@@ -20,7 +20,7 @@ fi
 ###############################################
 
 echo "[preparing] Unzip the pre-syntehsized HLS project..."
-unzip -q mttkrp.zip
+unzip -qn mttkrp.zip
 
 . ${RAPID_STREAM_PATH}/bash/prepare.sh
 

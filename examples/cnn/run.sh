@@ -20,7 +20,7 @@ fi
 ###############################################
 
 echo "[preparing] Unzip the pre-syntehsized HLS project..."
-unzip -q cnn_13x14.zip
+unzip -qn cnn_13x14.zip
 
 . ${RAPID_STREAM_PATH}/bash/prepare.sh
 

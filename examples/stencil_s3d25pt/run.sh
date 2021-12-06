@@ -20,7 +20,7 @@ fi
 ###############################################
 
 echo "[preparing] Unzip the pre-syntehsized HLS project..."
-unzip -q s3d25pt_16x4.zip
+unzip -qn s3d25pt_16x4.zip
 
 . ${RAPID_STREAM_PATH}/bash/prepare.sh
 
