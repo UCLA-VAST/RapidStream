@@ -15,6 +15,7 @@ fi
 if [ -d "${RUN_DIR}" ]; then
     echo "ERROR: the RUN_DIR already exists: ${RUN_DIR}"
     exit
+fi
 
 ###############################################
 echo "[preparing] Unzip the pre-syntehsized HLS project..."
