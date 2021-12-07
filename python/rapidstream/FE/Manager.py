@@ -47,7 +47,8 @@ class Manager:
     # extract patterns to facilitate floorplanning
     # pattern_insts = getPatternBasedGrouping(graph, self.peregrine_home)
     pattern_insts = []
-    floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager, 
+    floorplan = self.runFloorplanning(graph, user_constraint_s2v, slot_manager, hls_prj_manager,
+                                      max_search_time=180,
                                       grouping_hints=pattern_insts, 
                                       grouping_constraints=grouping_constraints)
     open('floorplan_results.json', 'w').write(json.dumps({"FloorplanVertex":floorplan.getSlotNameToVertexNames()}, indent=2))
