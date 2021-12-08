@@ -162,10 +162,11 @@ class Manager:
 
     return user_constraint_s2v
 
-  def runFloorplanning(self, graph, user_constraint_s2v, slot_manager, hls_prj_manager, grouping_hints, grouping_constraints):
+  def runFloorplanning(self, graph, user_constraint_s2v, slot_manager, hls_prj_manager, max_search_time, grouping_hints, grouping_constraints):
     floorplan = Floorplanner(
       graph, 
-      user_constraint_s2v, 
+      user_constraint_s2v,
+      max_search_time=max_search_time,
       slot_manager=slot_manager, 
       total_usage=hls_prj_manager.getTotalArea(), 
       board=self.device_manager.getBoard(),
