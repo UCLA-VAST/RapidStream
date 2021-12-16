@@ -47,9 +47,11 @@
 
 # Install
 
+- The script has been tested on ubuntu 18.04.
+
 - Python 3.6+ required.
 
-- Install on every server used for the distributed execution.
+- Please install on EVERY server that will be used for the distributed execution.
 
 ```
 bash install.sh
@@ -66,14 +68,16 @@ bash install.sh
 
 - Install Xilinx Vivado
 
+- source `${RAPID_STREAM_PATH}/rapidstream_setup.sh`
+
 
 # Examples
 
 There are 6 examples to demonstrate the flow. Each one includes:
 
-- The HLS source code and the HLS synthesis project
+- The HLS source code and the HLS synthesis project.
 
-- A reference configuration file
+- A reference configuration file.
 
 - A one-click script to run the whole flow. 
 
