@@ -1,7 +1,6 @@
 {
-  "ResultReuse": "floorplan_results_ref.json",
   "Board" : "U250",
-  "HLSProjectPath" : "/home/einsx7/auto-parallel/benchmark/lu/32x32/lu_32x32",
+  "HLSProjectPath" : "./32x32/lu_32x32",
   "HLSSolutionName" : "solution",
   "TopName" : "kernel0",
 
