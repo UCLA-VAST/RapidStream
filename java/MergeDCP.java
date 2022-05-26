@@ -1,13 +1,13 @@
 /*
- * 
- * Copyright (c) 2021 Xilinx, Inc. 
+ *
+ * Copyright (c) 2021 Xilinx, Inc.
  * All rights reserved.
  *
  * Author: Chris Lavin, Xilinx Research Labs.
- * 
+ *
  */
 /**
- * 
+ *
  */
 package com.xilinx.rapidwright.examples;
 
@@ -46,15 +46,15 @@ import com.xilinx.rapidwright.tests.CodePerfTracker;
  */
 public class MergeDCP {
 
-    private static Set<String> cellTypesToSkip; 
-    
+    private static Set<String> cellTypesToSkip;
+
     static {
         cellTypesToSkip = new HashSet<>();
         cellTypesToSkip.add("VCC");
         cellTypesToSkip.add("GND");
         cellTypesToSkip.add("BUFGCE");
     }
-    
+
     private static EDIFPortInst getOtherPortInst(EDIFPortInst portInst) {
         EDIFNet net = portInst.getNet();
         for(EDIFPortInst otherPortInst : net.getPortInsts()) {
@@ -63,13 +63,13 @@ public class MergeDCP {
         }
         return null;
     }
-    
+
     private static void mergeNet(Net dest, Net src) {
         Set<PIP> pips = new HashSet<>(dest.getPIPs());
         pips.addAll(src.getPIPs());
         dest.setPIPs(pips);
     }
-    
+
     private static void mergeSiteInsts(SiteInst dst, SiteInst src) {
         Design design0 = dst.getDesign();
         boolean modifiedSite = false;
@@ -88,17 +88,17 @@ public class MergeDCP {
             dst.routeSite();
         }
     }
-    
+
     public static Design mergeDCP(Design design0, Design design1) {
         // Move logical cells (except anchor register duplicates
         EDIFCell design0Top = design0.getTopEDIFCell();
         EDIFCell design1Top = design1.getTopEDIFCell();
-        
+
         design0.getNetlist().migrateCellAndSubCells(design1Top, true);
         EDIFNet vcc = EDIFTools.getStaticNet(NetType.VCC, design0Top, design0.getNetlist());
         EDIFNet gnd = EDIFTools.getStaticNet(NetType.GND, design0Top, design0.getNetlist());
         EDIFNet clk = design0Top.getNet("ap_clk");
-        
+
         // Add cell instances (except duplicates)
         List<String> duplicates = new ArrayList<>();
         for(EDIFCellInst inst : design1Top.getCellInsts()) {
@@ -130,7 +130,7 @@ public class MergeDCP {
                         System.err.println("ERROR: " + inst + " missing connection on port C");
                         c = clk.createPortInst(inst.getPort("C"));
                     } else {
-                        clk.addPortInst(c);                        
+                        clk.addPortInst(c);
                     }
                 }else {
                     // slot instance
@@ -138,7 +138,7 @@ public class MergeDCP {
                 }
             }
         }
-        
+
         // Handle duplicates
         Set<String> netsNotToCopy = new HashSet<>();
         netsNotToCopy.add(vcc.getName());
@@ -153,8 +153,8 @@ public class MergeDCP {
             EDIFPortInst qPort = anchorRegInst.getPortInst("Q");
             EDIFPortInst connectedToD = getOtherPortInst(dPort);
             EDIFPortInst connectedToQ = getOtherPortInst(qPort);
-            
-            EDIFPortInst topPortInst = connectedToQ.isTopLevelPort() ? connectedToQ : 
+
+            EDIFPortInst topPortInst = connectedToQ.isTopLevelPort() ? connectedToQ :
                                       (connectedToD.isTopLevelPort() ? connectedToD : null);
             if(topPortInst == null) {
                 throw new RuntimeException("ERROR: Duplicate anchor not connected to top level port");
@@ -181,13 +181,13 @@ public class MergeDCP {
                 mergeNet(design0.getNet(net.getName()), physNet);
             }
         }
-        
+
         // Add ports except those connected to duplicates
         for(EDIFPort port : design1Top.getPorts()) {
             if(portsNotToCopy.contains(port.getName())) continue;
             design0Top.addPort(port);
         }
-        
+
         // Add nets except those connected to duplicates
         for(EDIFNet net : design1Top.getNets()) {
             if(netsNotToCopy.contains(net.getName())) continue;
@@ -209,23 +209,23 @@ public class MergeDCP {
                                 destNet.addPortInst(portInst);
                             }
                         }
-                    }                        
+                    }
                 }
             }else {
-                design0Top.addNet(net);                    
+                design0Top.addNet(net);
             }
         }
-        
+
         // Stitch physical netlist
         for(SiteInst siteInst : design1.getSiteInsts()) {
-            SiteInst dstSiteInst = design0.getSiteInstFromSite(siteInst.getSite()); 
+            SiteInst dstSiteInst = design0.getSiteInstFromSite(siteInst.getSite());
             if(dstSiteInst != null) {
                 mergeSiteInsts(dstSiteInst, siteInst);
                 continue;
             }
             design0.addSiteInst(siteInst);
         }
-        
+
         for(Net net : design1.getNets()) {
             if(netsNotToCopy.contains(net.getName())) continue;
             if(net.isStaticNet()) continue;
@@ -234,17 +234,17 @@ public class MergeDCP {
         mergeNet(design0.getNet("ap_clk"), design1.getNet("ap_clk"));
         mergeNet(design0.getGndNet(), design1.getGndNet());
         mergeNet(design0.getVccNet(), design1.getVccNet());
-        
+
         // Merge encrypted cells
         List<String> encryptedCells = design1.getNetlist().getEncryptedCells();
         if(encryptedCells != null && encryptedCells.size() > 0) {
             design0.getNetlist().addEncryptedCells(encryptedCells);
-        }          
+        }
 
         design0.getNetlist().removeUnusedCellsFromAllWorkLibraries();
         return design0;
     }
-    
+
     public static Design mergeDCP(Design...designs) {
         Design result = null;
         for(Design design : designs) {
@@ -254,12 +254,12 @@ public class MergeDCP {
                 result = mergeDCP(result, design);
             }
         }
-        
+
         result.getNetlist().resetParentNetMap();
         DesignTools.makePhysNetNamesConsistent(result);
         return result;
     }
-    
+
     public static void main(String[] args) throws InterruptedException {
         if(args.length != 2 && args.length != 3) {
             System.out.println("Usage: <dir with DCPs> <merged output DCP filename> [dcp regex]");
@@ -267,7 +267,7 @@ public class MergeDCP {
         }
         String dcpRegex = args.length == 3 ? args[2] : ".*\\.dcp"; //"^.*CR_X2Y[0-9]+_To_CR_X[0-9]+Y[0-9]+/.*_unique.dcp$"
         CodePerfTracker t = new CodePerfTracker("Merge DCP");
-  
+
         Path start = Paths.get(args[0]);
         List<File> dcps = null;
         try (Stream<Path> stream = Files.walk(start, Integer.MAX_VALUE)) {
@@ -282,14 +282,14 @@ public class MergeDCP {
         for(File f : dcps) {
             System.out.println("  " + f.getAbsolutePath());
         }
-        
+
         Design[] designs = new Design[dcps.size()];
         for(int i=0; i < designs.length; i++) {
             t.start("Read DCP " + i);
             designs[i] = Design.readCheckpoint(dcps.get(i).toPath(), CodePerfTracker.SILENT);
             t.stop();
         }
-        
+
         t.start("Merge DCPs");
         Design merged = mergeDCP(designs);
         t.stop().start("Write DCP");
