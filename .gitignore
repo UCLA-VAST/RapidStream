@@ -1,7 +1,8 @@
 *.log
 *.lp
 *.v
-parse*
+parser.out
+parsetab.py
 __py*
 *temp*
 *trash*
