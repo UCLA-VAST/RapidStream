@@ -104,7 +104,14 @@ def get_group_port_wire_map(
 
     for stream, ports in props['port_wire_map']['stream_ports'].items():
       if stream in external_streams:
-        port_wire_map['stream_ports'][stream] = ports
+        # When we create a wrapper, the port name changes
+        # Suppose in the original vertex, there is a port foo connecting to the wire bar
+        # If we create a wrapper around the vertex
+        # the wrapper will have a port bar that connects to a wire also named bar
+        # in other words, we name the newly created logical port by the name of the wire
+        port_wire_map['stream_ports'][stream] = {
+          argname: argname for argname in ports.values()
+        }
 
   return port_wire_map
 
@@ -181,7 +188,8 @@ def group_vertices(
   # remove the inner wires from the external wire list
   # must be before internal streams are removed
   inner_wires = get_group_inner_wire_name_to_width(internal_streams, config)
-  config['wire_decl'] = [w for w in config['wire_decl'] if w not in inner_wires]
+  for w in inner_wires.keys():
+    config['wire_decl'].pop(w)
 
   # remove the vertices to be grouped
   config['vertices'] = {
