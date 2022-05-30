@@ -2,7 +2,7 @@ import click
 import json
 from pyverilog.vparser.parser import parse
 
-from rapidstream.tapa_parser import parse_tapa_output_rtl
+from rapidstream.parser.tapa_parser import parse_tapa_output_rtl
 from rapidstream.util import setup_logging
 
 @click.command()
