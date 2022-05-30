@@ -52,7 +52,7 @@ def get_group_vertex_props(
 
 
 
-def group_inbound_edges(
+def group_inbound_streams(
   config: Dict,
   target_vertex: str,
 ) -> None:

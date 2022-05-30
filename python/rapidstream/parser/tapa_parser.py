@@ -206,16 +206,14 @@ def check_rtl_format(node: ast.Node) -> None:
 
 def collect_in_out_streams(config: Dict) -> None:
   """Collect the inbound and outbound streams for each vertex"""
+  for vertex, props in config['vertices'].items():
+    props['inbound_streams'] = []
+    props['outbound_streams'] = []
+
   for edge, props in config['edges'].items():
     if props['category'] == 'FIFO_EDGE':
       src = props['produced_by']
       dst = props['consumed_by']
-
-      if 'outbound_streams' not in config['vertices'][src]:
-        config['vertices'][src]['outbound_streams'] = []
-      if 'inbound_streams' not in config['vertices'][dst]:
-        config['vertices'][dst]['inbound_streams'] = []
-
       config['vertices'][src]['outbound_streams'].append(edge)
       config['vertices'][dst]['inbound_streams'].append(edge)
 

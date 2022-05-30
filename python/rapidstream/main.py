@@ -2,6 +2,8 @@ import click
 import json
 from pyverilog.vparser.parser import parse
 
+from rapidstream.hierarchy_rebuild.group_vertices import group_vertices
+from rapidstream.hierarchy_rebuild.group_inbound_streams import group_inbound_streams
 from rapidstream.parser.tapa_parser import parse_tapa_output_rtl
 from rapidstream.util import setup_logging
 
@@ -28,6 +30,8 @@ def main(
   ast_root, directives = parse([top_rtl_path])
 
   parse_tapa_output_rtl(config, ast_root)
+
+  group_vertices(config, ['TASK_VERTEX_Add_0', 'TASK_VERTEX_Mmap2Stream_1'], 'CR_X4Y4_To_CR_X7Y7')
 
   # open('test.json', 'w').write(json.dumps(config, indent=2))
 

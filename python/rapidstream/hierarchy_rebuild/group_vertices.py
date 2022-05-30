@@ -10,12 +10,12 @@ _logger = logging.getLogger().getChild(__name__)
 def check_can_be_grouped(inst_name_to_props: Dict):
   """check if all vertices are floorplanned to the same slot"""
   regions = [props['floorplan_region'] for props in inst_name_to_props.values()]
-  if not all(regions[i] == regions[0] for i in len(regions)):
+  if not all(regions[i] == regions[0] for i in range(len(regions))):
     _logger.error('trying to group vertices assigned to different regions')
     exit(1)
 
   slrs = [props['SLR'] for props in inst_name_to_props.values()]
-  if not all(slrs[i] == slrs[0] for i in len(slrs)):
+  if not all(slrs[i] == slrs[0] for i in range(len(slrs))):
     _logger.error('trying to group vertices assigned to different SLRs')
     exit(1)
 
@@ -45,13 +45,12 @@ def get_group_io_streams(
   inst_name_to_props: Dict,
 ) -> Tuple[List[str], List[str]]:
   """Get the inbound/outbound streams of the group vertex"""
-
-  in_streams_of_all_vertices = [props['inbound_streams'] for props in inst_name_to_props]
+  in_streams_of_all_vertices = [props['inbound_streams'] for props in inst_name_to_props.values()]
   all_potential_in_streams = list(
     chain(*in_streams_of_all_vertices)
   )
 
-  out_streams_of_all_vertices = [props['outbound_streams'] for props in inst_name_to_props]
+  out_streams_of_all_vertices = [props['outbound_streams'] for props in inst_name_to_props.values()]
   all_potential_out_streams = list(
     chain(*out_streams_of_all_vertices)
   )
@@ -69,8 +68,8 @@ def get_group_inner_wire_name_to_width(
   """Get the internal wires of the group vertex"""
   inner_wire_names = []
   for stream in internal_streams:
-    inner_wire_names += config['edges'][stream]['port_wire_map']['inbound']
-    inner_wire_names += config['edges'][stream]['port_wire_map']['outbound']
+    inner_wire_names += config['edges'][stream]['port_wire_map']['inbound'].values()
+    inner_wire_names += config['edges'][stream]['port_wire_map']['outbound'].values()
 
   inner_wire_name_to_width = {
     name: config['wire_decl'][name] for name in inner_wire_names
@@ -109,6 +108,14 @@ def get_group_port_wire_map(
   return port_wire_map
 
 
+def get_accumulated_area(inst_name_to_props: Dict) -> Dict[str, int]:
+  areas = [props['area'] for props in inst_name_to_props.values()]
+  acc_area = Counter()
+  for i in range(len(areas)):
+    acc_area += Counter(areas[i])
+  return dict(acc_area)
+
+
 def get_group_vertex_props(
   config: Dict,
   inst_name_to_props: Dict,
@@ -119,11 +126,11 @@ def get_group_vertex_props(
   group_props = {}
   group_props['module'] = None
   group_props['instance'] = None
-  group_props['area'] = dict(sum(map(Counter, inst_name_to_props.values()), start=Counter()))
+  group_props['area'] = get_accumulated_area(inst_name_to_props)
   group_props['category'] = 'GROUP_VERTEX',
 
   # assume all vertices are floorplaned to the same region
-  any_inst = inst_name_to_props.keys()[0]
+  any_inst = next(iter(inst_name_to_props.keys()))
   group_props['floorplan_region'] = inst_name_to_props[any_inst]['floorplan_region']
   group_props['SLR'] = inst_name_to_props[any_inst]['SLR']
 
@@ -138,12 +145,12 @@ def get_group_vertex_props(
   group_props['wire_decl'] = get_group_inner_wire_name_to_width(internal_streams, config)
 
   # get the new port/wire map for the group vertex
-  group_props['port_wire_map'] = get_group_port_wire_map(config, external_streams)
+  group_props['port_wire_map'] = get_group_port_wire_map(inst_name_to_props, external_streams)
 
   return group_props
 
 
-def group_instances(
+def group_vertices(
   config: Dict,
   instances: List[str],
   group_name: str,
@@ -161,6 +168,16 @@ def group_instances(
     config, instances
   )
 
+  # add the new group vertex to config
+  config['vertices'][group_name] = get_group_vertex_props(
+    config, inst_name_to_props, internal_streams, external_streams
+  )
+
+  # remove the inner wires from the external wire list
+  # must be before internal streams are removed
+  inner_wires = get_group_inner_wire_name_to_width(internal_streams, config)
+  config['wire_decl'] = [w for w in config['wire_decl'] if w not in inner_wires]
+
   # remove the vertices to be grouped
   config['vertices'] = {
     name: props for name, props in config['vertices'].items()
@@ -168,17 +185,8 @@ def group_instances(
   }
 
   # remove the internal streams in the group
-  config['edges'] = {e: props for e, props in config['edge'].items
+  config['edges'] = {e: props for e, props in config['edges'].items()
     if e not in internal_streams
   }
-
-  # remove the inner wires from the external wire list
-  inner_wires = get_group_inner_wire_name_to_width(internal_streams, config)
-  config['wire_decl'] = [w for w in config['wire_decl'] if w not in inner_wires]
-
-  # add the new group vertex to config
-  config['vertices'][group_name] = get_group_vertex_props(
-    config, inst_name_to_props, internal_streams, external_streams
-  )
 
   return
