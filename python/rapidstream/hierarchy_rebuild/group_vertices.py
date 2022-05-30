@@ -1,7 +1,8 @@
 import logging
 from typing import Dict, List, Tuple
-from collections import Counter
 from itertools import chain
+
+from rapidstream.const import RESOURCE_TYPES
 
 _logger = logging.getLogger().getChild(__name__)
 
@@ -110,10 +111,14 @@ def get_group_port_wire_map(
 
 def get_accumulated_area(inst_name_to_props: Dict) -> Dict[str, int]:
   areas = [props['area'] for props in inst_name_to_props.values()]
-  acc_area = Counter()
+
+  # do not use Counter in case all vertices don't have some of them (e.g., URAM)
+  # make sure the final acc has all types even if the usage is 0
+  acc_area = {r: 0 for r in RESOURCE_TYPES}
   for i in range(len(areas)):
-    acc_area += Counter(areas[i])
-  return dict(acc_area)
+    for r in RESOURCE_TYPES:
+      acc_area[r] += areas[i][r]
+  return acc_area
 
 
 def get_group_vertex_props(

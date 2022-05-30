@@ -63,3 +63,11 @@ S_AXI_LITE_BASIC = (
   'ACLK_EN',
   'interrupt',
 )
+
+RESOURCE_TYPES = (
+  'BRAM',
+  'DSP',
+  'FF',
+  'LUT',
+  'URAM',
+)
