@@ -23,10 +23,35 @@ def get_group_inner_wire_name_to_width(
   return inner_wire_name_to_width
 
 
-def get_group_port_wire_map(
+def get_group_port_width_map(
   config: Dict,
   vertex_props: Dict,
 ) -> Dict[str, str]:
+  """Must be executed before get_group_port_wire_map"""
+  port_width_map = {}
+
+  for portname, argname in vertex_props['port_wire_map']['axi_ports'].items():
+    width = vertex_props['port_width_map'][portname]
+    port_width_map[argname] = width
+
+  for stream in vertex_props['outbound_streams']:
+    for portname, argname in vertex_props['port_wire_map']['stream_ports'][stream].items():
+      if portname.endswith(('_dout', '_din')):
+        port_width_map[argname] = vertex_props['port_width_map'][portname]
+
+  for stream in vertex_props['inbound_streams']:
+    stream_width_int = config['edges'][stream]['width']
+    inbound_side_wires = config['edges'][stream]['port_wire_map']['inbound']
+
+    for wire in inbound_side_wires:
+      if wire.endswith(('_dout', '_din')):
+        port_width_map[wire] = f'[{stream_width_int-1}:0]'
+
+
+def get_group_port_wire_map(
+  config: Dict,
+  vertex_props: Dict,
+) -> Dict:
   """vertex_props: the original property of the vertex to be wrapped"""
   port_wire_map = {
     'axi_ports': {
@@ -83,6 +108,7 @@ def get_group_vertex_props(
   group_props['wire_decl'] = get_group_inner_wire_name_to_width(group_props['sub_streams'], config)
 
   # get the new port/wire map for the group vertex
+  group_props['port_width_map'] = get_group_port_width_map(config, config['vertices'][target_vertex])
   group_props['port_wire_map'] = get_group_port_wire_map(config, config['vertices'][target_vertex])
 
   return group_props

@@ -79,10 +79,44 @@ def get_group_inner_wire_name_to_width(
   return inner_wire_name_to_width
 
 
+def get_group_port_width_map(
+  inst_name_to_props: Dict,
+  external_streams: List[str],
+) -> Dict[str, str]:
+  """When we create a wrapper around some vertices
+     We need to update the port-width map
+     New ports will be created and named after the wires on the wrapper module
+     This function must runs before get_group_port_wire_map
+  """
+  port_width_map = {}
+
+  for inst, props in inst_name_to_props.items():
+    for portname, argname in props['port_wire_map']['axi_ports'].items():
+      width = props['port_width_map'][portname]
+
+      # safety check
+      if argname in port_width_map and port_width_map[argname] != width:
+        _logger.error('overriding the width for the new port %s', argname)
+        exit(1)
+
+      port_width_map[argname] = width
+
+  for inst, props in inst_name_to_props.items():
+    for stream, ports in props['port_wire_map']['stream_ports'].items():
+      if stream in external_streams:
+        for portname, argname in ports.items():
+          if portname.endswith(('_dout', '_din')):
+            width = props['port_width_map'][portname]
+            port_width_map[argname] = width
+
+  return port_width_map
+
+
 def get_group_port_wire_map(
   inst_name_to_props: Dict,
   external_streams: List[str],
-):
+) -> Dict:
+  """This must be run after the port-width map has been updated"""
   port_wire_map = {
     'axi_ports': {},  # for top level AXI connection
     'ctrl_ports': {},  # for ap signals
@@ -159,6 +193,7 @@ def get_group_vertex_props(
   group_props['wire_decl'] = get_group_inner_wire_name_to_width(internal_streams, config)
 
   # get the new port/wire map for the group vertex
+  group_props['port_width_map'] = get_group_port_width_map(inst_name_to_props, external_streams)
   group_props['port_wire_map'] = get_group_port_wire_map(inst_name_to_props, external_streams)
 
   return group_props
