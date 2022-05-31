@@ -222,6 +222,42 @@ def collect_in_out_streams(config: Dict) -> None:
       config['vertices'][dst]['inbound_streams'].append(edge)
 
 
+def annotate_width_to_port_wire_map(config: Dict) -> None:
+  """Annotate the width info to the port-wire map of every vertex
+     Assume non-existing ports are of width 1
+  """
+  for v_name, props in config['vertices'].items():
+    if props['category'] in ('PORT_VERTEX', 'CTRL_VERTEX'):
+      continue
+
+    port_wire_map = props['port_wire_map']
+    port_width_map = {}
+
+    # axi ports
+    for axi_port_name, axi_arg_name in port_wire_map['axi_ports'].items():
+      port_width_map[axi_port_name] = config['input_decl'][f'm_axi_{axi_arg_name}_RDATA']
+
+    # constant scalar ports
+    for scalar_name, scalar_wire_name in port_wire_map['constant_ports'].items():
+      # assume the axi address space is 64-bit
+      if scalar_name.endswith('_offset'):
+        port_width_map[scalar_name] = '[63:0]'
+      else:
+        # the wire passing constants will be named in f'{scalar_name}_slr_0'
+        port_width_map[scalar_name] = config['wire_decl'][f'{scalar_name}_slr_0']
+
+    # stream ports
+    for stream_name, _port_wire_map in port_wire_map['stream_ports'].items():
+      data_width_int = config['edges'][stream_name]['width']
+      for portname, wirename in _port_wire_map.items():
+        if portname.endswith('_din') or portname.endswith('_dout'):
+          port_width_map[portname] = f'[{data_width_int-1}:0]'
+
+    # all ctrl ports have the width 1
+
+    props['port_width_map'] = port_width_map
+
+
 def parse_tapa_output_rtl(
   config: Dict,
   root: ast.Source,
@@ -244,5 +280,8 @@ def parse_tapa_output_rtl(
 
   # get the info related to vertices
   visitor(root, get_vertex_info, config, wire_to_stream)
+
+  # add width info into the properties of each vertex
+  annotate_width_to_port_wire_map(config)
 
   return config
