@@ -36,6 +36,14 @@ OTHER_STREAM_PORTS = (
   'if_read_ce',
   'if_write_ce',
 )
+STREAM_SUFFIX = (
+  '_din',
+  '_full_n',
+  '_write',
+  '_dout',
+  '_empty_n',
+  '_read',
+)
 
 S_AXI_LITE_SUFFIX = (
   'AWVALID',

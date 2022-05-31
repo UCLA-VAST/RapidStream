@@ -27,7 +27,14 @@ def _get_width(node: ast.Node) -> str:
 def get_wire_info(node: ast.Node, config: Dict):
   """Collect all Wire declarations"""
   if isinstance(node, ast.Wire):
-    config['wire_decl'][node.name] = _get_width(node)
+    # collect two types of wires
+    # 1. the data wires connecting to all streams
+    # 2. the wires connecting to the s_axi_control
+    # since tapa duplicates the s_axi_control to each SLR
+    # we only collect one ctrl instance by checking the '_slr_0' suffix
+    if any(node.name.endswith(suffix) for suffix in STREAM_SUFFIX) or \
+       node.name.endswith('_slr_0'):
+      config['wire_decl'][node.name] = _get_width(node)
 
 
 def get_input_info(node: ast.Node, config: Dict):
@@ -115,14 +122,11 @@ def _get_task_vertex_info(
       assert len(portname_split) == 4 and portname_split[-1].isupper()
       assert len(argname_split) == 4 and argname_split[-1].isupper()
 
-      axi_name_task_side = portname_split[2]
-      axi_name_top_side = argname_split[2]
+      axi_name_port_side = portname_split[2]
+      axi_name_arg_side = argname_split[2]
 
-      if axi_name_task_side not in port_wire_map['axi_ports']:
-        port_wire_map['axi_ports'][axi_name_task_side] = {
-          'axi_name_task_side': axi_name_task_side,
-          'axi_name_top_side': axi_name_top_side,
-        }
+      if axi_name_port_side not in port_wire_map['axi_ports']:
+        port_wire_map['axi_ports'][axi_name_port_side] = axi_name_arg_side
 
     elif argname in wire_to_stream:
       stream_name = wire_to_stream[argname]

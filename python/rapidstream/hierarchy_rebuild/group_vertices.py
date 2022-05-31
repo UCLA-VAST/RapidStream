@@ -91,7 +91,9 @@ def get_group_port_wire_map(
   }
 
   for inst, props in inst_name_to_props.items():
-    port_wire_map['axi_ports'].update(props['port_wire_map']['axi_ports'])
+    port_wire_map['axi_ports'].update(
+      {argname: argname for argname in props['port_wire_map']['axi_ports'].values()}
+    )
     port_wire_map['ctrl_ports'] = {
       "ap_clk": None,
       "ap_rst_n": None,

@@ -29,7 +29,9 @@ def get_group_port_wire_map(
 ) -> Dict[str, str]:
   """vertex_props: the original property of the vertex to be wrapped"""
   port_wire_map = {
-    'axi_ports': vertex_props['port_wire_map']['axi_ports'],  # for top level AXI connection
+    'axi_ports': {
+      argname: argname for argname in vertex_props['port_wire_map']['axi_ports'].values()
+    },  # for top level AXI connection
     'ctrl_ports': vertex_props['port_wire_map']['ctrl_ports'],  # for ap signals
     'constant_ports': vertex_props['port_wire_map']['constant_ports'],  # for scalar arguments from s_axi_control,
     'stream_ports': {},  # connect to FIFOs
