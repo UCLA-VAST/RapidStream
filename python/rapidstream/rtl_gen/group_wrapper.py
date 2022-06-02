@@ -49,16 +49,53 @@ def get_io_section(props: Dict) -> List[str]:
 
 
 def get_wire_decls(props: Dict) -> List[str]:
+  """Instantiate the wires between instances and the control signals"""
   wire = [f'  wire {width} {name};'
             for name, width in props['wire_decl'].items()]
   return wire
+
+
+def get_ctrl_signals(props: Dict) -> List[str]:
+  decl = []
+
+  # distribute ap_start
+  decl.append(f'(* keep = "true" *) reg ap_start_q0;')
+  decl.append('always @ (posedge ap_clk) ap_start_q0 <= ap_start;')
+  for v_props in props['sub_vertices'].values():
+    decl.append(f'(* keep = "true" *) reg ap_start_{v_props["instance"]};')
+    decl.append(f'always @ (posedge ap_clk) ap_start_{v_props["instance"]} <= ap_start_q0;')
+
+  # collect ap_done
+  # each vertex will only assert ap_done for one cycle, so we need to hold the value
+  # after all vertices have finished, reset the ap_done hold registers
+  # FIXME: need to exclude detached vertices
+  decl.append(f'(* keep = "true" *) reg ap_done_final_q0;')
+  decl.append(f'(* keep = "true" *) reg ap_done_final;')
+  for v_props in props['sub_vertices'].values():
+    decl.append(f'wire ap_done_{v_props["instance"]};')
+    decl.append(f'(* keep = "true" *) reg ap_done_{v_props["instance"]}_q0;')
+    decl.append(f'always @ (posedge ap_clk) begin')
+    decl.append(f'  if (ap_done_final) ap_done_{v_props["instance"]} <= 0;')
+    decl.append(f'  else ap_done_{v_props["instance"]}_q0 <= ap_done_{v_props["instance"]}_q0 | ap_done_{v_props["instance"]}')
+    decl.append(f'end')
+
+  decl.append('always @ (posedge ap_clk) ap_done_final_q0 <= ' +
+                ' & '.join(f'ap_done_{v_props["instance"]}_q0'
+                  for v_props in props['sub_vertices'].values()) + ';'
+             )
+  decl.append('always @ (posedge ap_clk) ap_done_final <= ap_done_final_q0;')
+  decl.append('assign ap_done = ap_done_final;')
+
+  decl.append('')
+
+  return decl
 
 
 def get_sub_vertex_insts(props: Dict) -> List[str]:
   insts = []
 
   for v_name, v_props in props['sub_vertices'].items():
-    insts.append(f'{v_name} {v_name}_0 (')
+    insts.append(f'{v_props["module"]} {v_props["module"]}_0 (')
 
     pw_map = v_props['port_wire_map']
     for const_port, const_wire in pw_map['constant_ports'].items():
@@ -72,10 +109,10 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
       for suffix, props in AXI_INTERFACE.items():
         insts.append(f'  .m_axi_{axi_port_name}_{suffix}(m_axi_{axi_wire_name}_{suffix}),')
 
-    insts.append('  .ap_start(ap_start),')
-    insts.append('  .ap_done(ap_done),')
-    insts.append('  .ap_idle(ap_idle),')
-    insts.append('  .ap_ready(ap_ready),')
+    insts.append(f'  .ap_start(ap_start_{v_props["module"]}),')
+    insts.append(f'  .ap_done(ap_done_{v_props["module"]}),')
+    insts.append('  .ap_idle(),')
+    insts.append('  .ap_ready(),')
     insts.append('  .ap_clk(ap_clk),')
     insts.append('  .ap_rst_n(ap_rst_n)')
     insts.append(');')
@@ -124,7 +161,7 @@ def get_sub_stream_insts(props: Dict) -> List[str]:
 
 
 def get_ending() -> List[str]:
-  return 'endmodule'
+  return ['endmodule']
 
 
 def get_group_wrapper(
@@ -135,6 +172,7 @@ def get_group_wrapper(
   wrapper = []
   wrapper += get_io_section(props)
   wrapper += get_wire_decls(props)
+  wrapper += get_ctrl_signals(props)
   wrapper += get_sub_vertex_insts(props)
   wrapper += get_sub_stream_insts(props)
   wrapper += get_ending()
