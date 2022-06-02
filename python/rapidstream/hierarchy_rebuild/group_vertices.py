@@ -192,7 +192,9 @@ def get_group_vertex_props(
   group_props['SLR'] = inst_name_to_props[any_inst]['SLR']
 
   group_props['sub_vertices'] = inst_name_to_props
-  group_props['sub_streams'] = internal_streams
+  group_props['sub_streams'] = {
+    name: config['edges'][name] for name in  internal_streams
+  }
 
   group_props['inbound_streams'], group_props['outbound_streams'] = get_group_io_streams(
     external_streams, inst_name_to_props,
