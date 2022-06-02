@@ -80,43 +80,55 @@ RESOURCE_TYPES = (
   'URAM',
 )
 
-def get_axi_io_section(data_width: str):
+AXI_INTERFACE = {
+  "ARADDR"  : ("output ", "[63:0]        "),
+  "ARBURST" : ("output ", "[1:0]         "),
+  "ARCACHE" : ("output ", "[3:0]         "),
+  "ARID"    : ("output ", "[0:0]         "),
+  "ARLEN"   : ("output ", "[7:0]         "),
+  "ARLOCK"  : ("output ", "              "),
+  "ARPROT"  : ("output ", "[2:0]         "),
+  "ARQOS"   : ("output ", "[3:0]         "),
+  "ARREADY" : ("input  ", "              "),
+  "ARSIZE"  : ("output ", "[2:0]         "),
+  "ARVALID" : ("output ", "              "),
+  "AWADDR"  : ("output ", "[63:0]        "),
+  "AWBURST" : ("output ", "[1:0]         "),
+  "AWCACHE" : ("output ", "[3:0]         "),
+  "AWID"    : ("output ", "[0:0]         "),
+  "AWLEN"   : ("output ", "[7:0]         "),
+  "AWLOCK"  : ("output ", "              "),
+  "AWPROT"  : ("output ", "[2:0]         "),
+  "AWQOS"   : ("output ", "[3:0]         "),
+  "AWREADY" : ("input  ", "              "),
+  "AWSIZE"  : ("output ", "[2:0]         "),
+  "AWVALID" : ("output ", "              "),
+  "BID"     : ("input  ", "[0:0]         "),
+  "BREADY"  : ("output ", "              "),
+  "BRESP"   : ("input  ", "[1:0]         "),
+  "BVALID"  : ("input  ", "              "),
+  "RDATA"   : ("input  ", "{data_width}  "),
+  "RID"     : ("input  ", "[0:0]         "),
+  "RLAST"   : ("input  ", "              "),
+  "RREADY"  : ("output ", "              "),
+  "RRESP"   : ("input  ", "{data_width}  "),
+  "RVALID"  : ("input  ", "              "),
+  "WDATA"   : ("output ", "[31:0]        "),
+  "WLAST"   : ("output ", "              "),
+  "WREADY"  : ("input  ", "              "),
+  "WSTRB"   : ("output ", "[3:0]         "),
+  "WVALID"  : ("output ", "              "),
+}
+
+
+def get_axi_io_section(data_width: str, axi_port_name: str):
   """The data_width is in the format of f'[{width-1}:0]' """
-  AXI_IO = f'''output [63:0] m_axi_a_ARADDR,
-output [1:0] m_axi_a_ARBURST,
-output [3:0] m_axi_a_ARCACHE,
-output [0:0] m_axi_a_ARID,
-output [7:0] m_axi_a_ARLEN,
-output m_axi_a_ARLOCK,
-output [2:0] m_axi_a_ARPROT,
-output [3:0] m_axi_a_ARQOS,
-input m_axi_a_ARREADY,
-output [2:0] m_axi_a_ARSIZE,
-output m_axi_a_ARVALID,
-output [63:0] m_axi_a_AWADDR,
-output [1:0] m_axi_a_AWBURST,
-output [3:0] m_axi_a_AWCACHE,
-output [0:0] m_axi_a_AWID,
-output [7:0] m_axi_a_AWLEN,
-output m_axi_a_AWLOCK,
-output [2:0] m_axi_a_AWPROT,
-output [3:0] m_axi_a_AWQOS,
-input m_axi_a_AWREADY,
-output [2:0] m_axi_a_AWSIZE,
-output m_axi_a_AWVALID,
-input [0:0] m_axi_a_BID,
-output m_axi_a_BREADY,
-input [1:0] m_axi_a_BRESP,
-input m_axi_a_BVALID,
-input {data_width} m_axi_a_RDATA,
-input [0:0] m_axi_a_RID,
-input m_axi_a_RLAST,
-output m_axi_a_RREADY,
-input {data_width} m_axi_a_RRESP,
-input m_axi_a_RVALID,
-output [31:0] m_axi_a_WDATA,
-output m_axi_a_WLAST,
-input m_axi_a_WREADY,
-output [3:0] m_axi_a_WSTRB,
-output m_axi_a_WVALID,'''
-  return AXI_IO.split('\n')
+  io = []
+  for suffix, props in AXI_INTERFACE.items():
+    direction = props[0]
+    width = props[1].format(data_width=data_width)
+    portname = f'm_axi_{axi_port_name}_{suffix}'
+
+    io.append(f'{direction} {width} {portname},')
+
+  return io
