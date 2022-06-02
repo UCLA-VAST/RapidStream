@@ -109,6 +109,11 @@ def get_group_port_width_map(
             width = props['port_width_map'][portname]
             port_width_map[argname] = width
 
+  for inst, props in inst_name_to_props.items():
+    for portname, argname in props['port_wire_map']['constant_ports'].items():
+      width = props['port_width_map'][portname]
+      port_width_map[argname] = width
+
   return port_width_map
 
 
@@ -136,7 +141,11 @@ def get_group_port_wire_map(
       "ap_idle": None,
       "ap_ready": None,
     }
-    port_wire_map['constant_ports'].update(props['port_wire_map']['constant_ports'])
+    port_wire_map['constant_ports'].update(
+      {argname: argname for portname, argname in
+        props['port_wire_map']['constant_ports'].items()
+      }
+    )
 
     for stream, ports in props['port_wire_map']['stream_ports'].items():
       if stream in external_streams:
