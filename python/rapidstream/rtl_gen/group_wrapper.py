@@ -58,6 +58,11 @@ def get_wire_decls(props: Dict) -> List[str]:
 def get_ctrl_signals(props: Dict) -> List[str]:
   decl = []
 
+  # distribute ap_rst_n
+  for v_props in props['sub_vertices'].values():
+    decl.append(f'(* keep = "true" *) reg ap_rst_n_{v_props["instance"]};')
+    decl.append(f'always @ (posedge ap_clk) ap_rst_n_{v_props["instance"]} <= ap_rst_n;')
+
   # distribute ap_start
   decl.append(f'(* keep = "true" *) reg ap_start_q0;')
   decl.append('always @ (posedge ap_clk) ap_start_q0 <= ap_start;')
@@ -114,7 +119,7 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
     insts.append('  .ap_idle(),')
     insts.append('  .ap_ready(),')
     insts.append('  .ap_clk(ap_clk),')
-    insts.append('  .ap_rst_n(ap_rst_n)')
+    insts.append(f'  .ap_rst_n(ap_rst_n_{v_props["module"]})')
     insts.append(');')
     insts.append('')
 
