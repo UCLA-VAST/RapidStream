@@ -49,9 +49,16 @@ def get_output_info(node: ast.Node, config: Dict):
     config['output_decl'][node.name] = _get_width(node)
 
 
+def get_params(node: ast.Node, config: Dict):
+  """Collect all parameters at the top level"""
+  if isinstance(node, ast.Parameter):
+    config['parameter_decl'][node.name] = codegen.ASTCodeGenerator().visit(node.value)
+
+
 def get_decl_info(root: ast.Source, config: Dict):
-  for target in ('wire', 'input', 'output'):
+  for target in ('wire', 'input', 'output', 'parameter'):
     config[f'{target}_decl'] = {}
+  visitor(root, get_params, config)
   visitor(root, get_wire_info, config)
   visitor(root, get_input_info, config)
   visitor(root, get_output_info, config)
@@ -125,6 +132,7 @@ def _get_task_vertex_info(
       axi_name_port_side = portname_split[2]
       axi_name_arg_side = argname_split[2]
 
+      # FIXME: collect readonly/writeonly info here
       if axi_name_port_side not in port_wire_map['axi_ports']:
         port_wire_map['axi_ports'][axi_name_port_side] = axi_name_arg_side
 
