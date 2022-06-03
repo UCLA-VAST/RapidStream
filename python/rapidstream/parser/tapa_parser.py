@@ -163,6 +163,10 @@ def _get_ctrl_vertex_info(
       'constant_ports': {},  # for scalar arguments from s_axi_control,
     }
 
+    param_map = {}
+    for param_arg in instance.parameterlist:
+      param_map[param_arg.paramname] = param_arg.argname.name
+
     for port_arg in instance.portlist:
       portname = str(port_arg.portname)
       argname = str(port_arg.argname)
@@ -192,6 +196,7 @@ def _get_ctrl_vertex_info(
       },
       'category': 'CTRL_VERTEX',
       'port_wire_map': port_wire_map,
+      'param_map': param_map,
     }
 
 
