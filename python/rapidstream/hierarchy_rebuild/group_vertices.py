@@ -178,11 +178,12 @@ def get_group_vertex_props(
   inst_name_to_props: Dict,
   internal_streams: List[str],
   external_streams: List[str],
+  group_name: str,
 ) -> Dict:
   # add the new vertex for the group
   group_props = {}
-  group_props['module'] = None
-  group_props['instance'] = None
+  group_props['module'] = group_name
+  group_props['instance'] = f'{group_name}_0'
   group_props['area'] = get_accumulated_area(inst_name_to_props)
   group_props['category'] = 'GROUP_VERTEX',
 
@@ -230,7 +231,7 @@ def group_vertices(
 
   # add the new group vertex to config
   config['vertices'][group_name] = get_group_vertex_props(
-    config, inst_name_to_props, internal_streams, external_streams
+    config, inst_name_to_props, internal_streams, external_streams, group_name
   )
 
   # remove the inner wires from the external wire list

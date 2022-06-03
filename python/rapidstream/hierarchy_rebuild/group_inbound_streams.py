@@ -93,11 +93,12 @@ def get_group_port_wire_map(
 def get_group_vertex_props(
   config: Dict,
   target_vertex: str,
+  group_name: str,
 ) -> Dict:
   """Get the new group vertex including all inbound streams"""
   group_props = {}
-  group_props['module'] = None
-  group_props['instance'] = None
+  group_props['module'] = group_name
+  group_props['instance'] = f'{group_name}_0'
   group_props['area'] = config['vertices'][target_vertex]['area']
   group_props['category'] = 'INBOUND_STREAM_GROUP_VERTEX',
 
@@ -140,8 +141,9 @@ def group_inbound_streams(
   props = config['vertices'][target_vertex]
   in_streams = {name: config['edges'][name] for name in props['inbound_streams']}
 
-  config['vertices'][f'WRAPPER_VERTEX_{target_vertex}'] = get_group_vertex_props(
-    config, target_vertex
+  group_name = f'WRAPPER_VERTEX_{target_vertex}'
+  config['vertices'][group_name] = get_group_vertex_props(
+    config, target_vertex, group_name
   )
 
   # remove the current vertex
