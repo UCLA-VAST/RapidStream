@@ -7,15 +7,27 @@ _logger = logging.getLogger().getChild(__name__)
 
 
 def get_ctrl_inst(config: Dict) -> List[str]:
+  """the s_axi_control instance"""
   inst = []
+
+  # additional decl for signals used by the ctrl instance
+  inst.append('reg ap_rst_ctrl_s_axi;')
+  inst.append('always @ (posedge ap_clk) ap_rst_ctrl_s_axi <= ~ap_rst_n;')
+  inst.append('wire ap_start_orig;')
+  inst.append('wire ap_idle_final;')
+  inst.append('wire ap_ready_final;')
+  inst.append('assign ap_idle_final = ap_done_final;')
+  inst.append('assign ap_ready_final = ap_done_final;')
 
   v_props = config['vertices']['CTRL_VERTEX_control_s_axi']
   inst.append(f'{v_props["module"]} #(')
 
+  # parameters of the instance
   for paramname, argname in v_props['param_map'].items():
     inst.append(f'  .{paramname}({argname}),')
   inst[-1] = inst[-1].strip(',')
 
+  # ports of the instance
   inst.append(f') {v_props["module"]}_0 (')
 
   for portname in v_props['port_wire_map']['axi_ports'].keys():
@@ -43,6 +55,7 @@ def get_ctrl_inst(config: Dict) -> List[str]:
 
 
 def get_slot_inst(v_props: Dict) -> List[str]:
+  """the instance for each slot"""
   inst = []
   pw_map = v_props['port_wire_map']
 
@@ -61,9 +74,9 @@ def get_slot_inst(v_props: Dict) -> List[str]:
       inst.append(f'  .{argname}({wirename}),')
 
   inst.append(f'  .ap_clk(ap_clk),')
-  inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["module"]}),')
-  inst.append(f'  .ap_start(ap_start_{v_props["module"]}),')
-  inst.append(f'  .ap_done(ap_done_{v_props["module"]}),')
+  inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["module"]}_0),')
+  inst.append(f'  .ap_start(ap_start_{v_props["module"]}_0),')
+  inst.append(f'  .ap_done(ap_done_{v_props["module"]}_0),')
   inst.append(f'  .ap_ready(),')
   inst.append(f'  .ap_idle()')
   inst.append(f');')
@@ -71,7 +84,8 @@ def get_slot_inst(v_props: Dict) -> List[str]:
   return inst
 
 
-def get_vertex_insts(config: Dict) -> List[str]:
+def get_task_vertex_insts(config: Dict) -> List[str]:
+  """Skip ctrl vertex and other conceptual vertices like port vertices"""
   insts = []
 
   for v_name, v_props in config['vertices'].items():
@@ -82,7 +96,7 @@ def get_vertex_insts(config: Dict) -> List[str]:
       continue
 
     else:
-      insts += get_slot_inst(v_props)
+      insts += get_slot_inst(v_props) + ['']
 
   return insts
 
@@ -96,6 +110,7 @@ def get_wire_decl(config: Dict) -> List[str]:
 
 
 def get_ctrl_signals(config: Dict) -> List[str]:
+  """Broadcast ap_start and reduce ap_done"""
   decl = []
 
   decl.append('// declare control signals')
@@ -134,7 +149,7 @@ def get_ctrl_signals(config: Dict) -> List[str]:
     decl.append(f'wire ap_done_{v_props["instance"]};')
     decl.append(f'(* keep = "true" *) reg ap_done_{v_props["instance"]}_q0;')
     decl.append(f'always @ (posedge ap_clk) begin')
-    decl.append(f'  if (ap_done_final) ap_done_{v_props["instance"]} <= 0;')
+    decl.append(f'  if (ap_done_final) ap_done_{v_props["instance"]}_q0 <= 0;')
     decl.append(f'  else ap_done_{v_props["instance"]}_q0 <= ap_done_{v_props["instance"]}_q0 | ap_done_{v_props["instance"]}')
     decl.append(f'end')
 
@@ -153,28 +168,30 @@ def get_ctrl_signals(config: Dict) -> List[str]:
   return decl
 
 
-def get_param_decl(config: Dict) -> List[str]:
-  param_sec = []
-
-  for name, val in config['parameter_decl'].items():
-    param_sec.append(f'parameter {name} = {val};')
-
-  return param_sec
-
-
 def get_io_section(config: Dict) -> List[str]:
+  """Get the top-level IOs"""
   io = []
 
   io.append('module top (')
-
   for name, width in config['input_decl'].items():
-    io.append(f'  input {width} {name},')
+    io.append(f'  {name},')
 
   for name, width in config['output_decl'].items():
-    io.append(f'  output {width} {name},')
+    io.append(f'  {name},')
 
   io[-1] = io[-1].strip(',')
   io.append(');')
+  io.append('')
+
+  for name, val in config['parameter_decl'].items():
+    io.append(f'parameter {name} = {val};')
+  io.append('')
+
+  for name, width in config['input_decl'].items():
+    io.append(f'input {width} {name};')
+
+  for name, width in config['output_decl'].items():
+    io.append(f'output {width} {name};')
 
   return io
 
@@ -183,15 +200,29 @@ def get_ending() -> List[str]:
   return ['endmodule']
 
 
-def get_top(config: Dict) -> List[str]:
+def sort_rtl(top: List[str]) -> List[str]:
+  """Move all wire and reg declaration to the front"""
+  decl = []
+  other = []
 
+  for line in top:
+    if 'wire ' in line or 'reg ' in line:
+      decl.append(line)
+    else:
+      other.append(line)
+
+  return decl + other
+
+
+def get_top(config: Dict) -> List[str]:
   top = []
-  top += get_io_section(config) + ['']
-  top += get_param_decl(config) + ['']
   top += get_wire_decl(config) + ['']
   top += get_ctrl_signals(config) + ['']
   top += get_ctrl_inst(config) + ['']
-  top += get_vertex_insts(config) + ['']
+  top += get_task_vertex_insts(config) + ['']
   top += get_ending() + ['']
+  top_sorted = sort_rtl(top)
+
+  top = get_io_section(config) + [''] + top_sorted + ['']
 
   return top
