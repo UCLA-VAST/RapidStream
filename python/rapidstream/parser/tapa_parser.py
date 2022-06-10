@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Callable, Dict
 
 import pyverilog.vparser.ast as ast
@@ -32,9 +33,7 @@ def get_wire_info(node: ast.Node, config: Dict):
     # 2. the wires connecting to the s_axi_control
     # since tapa duplicates the s_axi_control to each SLR
     # we only collect one ctrl instance by checking the '_slr_0' suffix
-    if any(node.name.endswith(suffix) for suffix in STREAM_SUFFIX) or \
-       node.name.endswith('_slr_0'):
-      config['wire_decl'][node.name] = _get_width(node)
+    config['wire_decl'][node.name] = _get_width(node)
 
 
 def get_input_info(node: ast.Node, config: Dict):
@@ -149,8 +148,10 @@ def _get_task_vertex_info(
       if argname is None:
         continue
 
+    # constant arg
     else:
-      port_wire_map['constant_ports'][portname] = argname
+      orig_wirename = re.search(f'{instance.name}___(\S+)__q\d+', argname).group(1)
+      port_wire_map['constant_ports'][portname] = orig_wirename
 
   config['vertices'][task_name]['port_wire_map'] = port_wire_map
 
@@ -220,6 +221,11 @@ def check_rtl_format(node: ast.Node) -> None:
   if isinstance(node, ast.InstanceList):
     assert len(node.instances) == 1
 
+  if isinstance(node, ast.Wire):
+    if node.name.endswith('_slr_0'):
+      _logger.error('Please disable the s_axi_ctrl duplication in tapa')
+      exit(1)
+
 
 def collect_in_out_streams(config: Dict) -> None:
   """Collect the inbound and outbound streams for each vertex"""
@@ -256,8 +262,7 @@ def annotate_width_to_port_wire_map(config: Dict) -> None:
       if scalar_name.endswith('_offset'):
         port_width_map[scalar_name] = '[63:0]'
       else:
-        # the wire passing constants will be named in f'{scalar_name}_slr_0'
-        port_width_map[scalar_name] = config['wire_decl'][f'{scalar_name}_slr_0']
+        port_width_map[scalar_name] = config['wire_decl'][scalar_name]
 
     # stream ports
     for stream_name, _port_wire_map in port_wire_map['stream_ports'].items():
