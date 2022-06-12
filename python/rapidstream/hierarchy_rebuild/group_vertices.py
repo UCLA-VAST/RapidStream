@@ -215,7 +215,7 @@ def group_vertices(
   config: Dict,
   instances: List[str],
   group_name: str,
-) -> None:
+) -> Dict:
   """Update the config to group a list of vertices into one vertex"""
   if not instances:
     _logger.warning('No instances to group')
@@ -251,4 +251,4 @@ def group_vertices(
     if e not in internal_streams
   }
 
-  return
+  return config['vertices'][group_name]

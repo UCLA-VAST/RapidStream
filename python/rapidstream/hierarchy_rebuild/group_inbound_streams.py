@@ -132,7 +132,8 @@ def get_group_vertex_props(
 def group_inbound_streams(
   config: Dict,
   target_vertex: str,
-) -> None:
+  group_name: str,
+) -> Dict:
   """Create a wrapper to include all inbound streams of an vertex"""
   if target_vertex not in config['vertices']:
     _logger.error('vertex not existing in config')
@@ -141,7 +142,6 @@ def group_inbound_streams(
   props = config['vertices'][target_vertex]
   in_streams = {name: config['edges'][name] for name in props['inbound_streams']}
 
-  group_name = f'WRAPPER_VERTEX_{target_vertex}'
   config['vertices'][group_name] = get_group_vertex_props(
     config, target_vertex, group_name
   )
@@ -160,4 +160,4 @@ def group_inbound_streams(
       target_wires[wire] = config['wire_decl'][wire]
       config['wire_decl'].pop(wire)
 
-  return
+  return config['vertices'][group_name]
