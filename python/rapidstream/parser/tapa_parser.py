@@ -33,6 +33,9 @@ def get_wire_info(node: ast.Node, config: Dict):
     # 2. the wires connecting to the s_axi_control
     # since tapa duplicates the s_axi_control to each SLR
     # we only collect one ctrl instance by checking the '_slr_0' suffix
+    if any(ap in node.name for ap in CTRL_SIGNALS + ('__rst__', '__is_done__')):
+      return
+
     config['wire_decl'][node.name] = _get_width(node)
 
 
@@ -276,6 +279,31 @@ def annotate_width_to_port_wire_map(config: Dict) -> None:
     props['port_width_map'] = port_width_map
 
 
+def remove_unused_peek_ports(config):
+  """If the _peek_read port is not connected, remove the _peek_empty_n and _peek_dout ports"""
+  for v_name, props in config['vertices'].items():
+    if props['category'] in ('PORT_VERTEX', 'CTRL_VERTEX'):
+      continue
+
+    stream_port_info = props['port_wire_map']['stream_ports']
+
+    # if xxx_peek_dout exists, check if xxx_peek_read exists.
+    # if not, then prune the port
+    # tapa-generated RTL will leave xxx_peek_read() float if peek is not used
+    for stream_name, orig_port_wire_map in stream_port_info.items():
+      filter_unused_peek = {}
+      for portname, argname in orig_port_wire_map.items():
+        if portname.endswith(('_peek_dout', '_peek_empty_n')):
+          base_name = portname.split('_peek_')[0]
+          if f'{base_name}_peek_read' not in orig_port_wire_map:
+            _logger.info('prune unused peek port %s from %s', portname, v_name)
+            continue
+        else:
+          filter_unused_peek[portname] = argname
+
+      stream_port_info[stream_name] = filter_unused_peek
+
+
 def parse_tapa_output_rtl(
   config: Dict,
   root: ast.Source,
@@ -301,5 +329,7 @@ def parse_tapa_output_rtl(
 
   # add width info into the properties of each vertex
   annotate_width_to_port_wire_map(config)
+
+  remove_unused_peek_ports(config)
 
   return config
