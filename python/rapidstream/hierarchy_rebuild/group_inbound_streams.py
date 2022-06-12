@@ -114,8 +114,8 @@ def get_group_vertex_props(
 
   # we have included all inbound streams inside the vertex
   # now the vertex will connect to other vertices through pure wire
-  # for now let's make the inbound_streams property empty
-  group_props['inbound_streams'] = []
+  # but we keep the info here because we need the direction information of the streams
+  group_props['inbound_streams'] = config['vertices'][target_vertex]['inbound_streams']
 
   group_props['outbound_streams'] = config['vertices'][target_vertex]['outbound_streams']
 

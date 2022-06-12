@@ -9,6 +9,8 @@ _logger = logging.getLogger().getChild(__name__)
 
 def get_io_section(props: Dict) -> List[str]:
   """Get the Input/Output part"""
+  _logger.info('generating RTL for %s', props['module'])
+
   io = []
 
   port_wire_map = props['port_wire_map']
@@ -18,13 +20,47 @@ def get_io_section(props: Dict) -> List[str]:
     io.append(f'input {const_width} {const_io},')
 
   for stream_name, _port_wire_map in port_wire_map['stream_ports'].items():
+    if stream_name in props['inbound_streams']:
+      _logger.debug('%s is an inbound stream', stream_name)
+      stream_dir = 'INBOUND'
+    elif stream_name in props['outbound_streams']:
+      _logger.debug('%s is an outbound stream', stream_name)
+      stream_dir = 'OUTBOUND'
+    else:
+      stream_dir = 'OUTBOUND'
+      _logger.error('direction of stream %s is unknown', stream_name)
+      exit(1)
+
     for port in _port_wire_map.keys():
       port_width = props['port_width_map'].get(port, '')
 
-      if port.endswith(('_din', '_write', 'empty_n')):
-        direction = 'output'
-      elif port.endswith(('_dout', '_read', 'full_n')):
-        direction = 'input'
+      # the direction of the ports are determined by if the FIFO is inside
+      # or outside the wrapper
+      if port.endswith(('_din', '_write', '_full_n')):
+        if stream_dir == 'OUTBOUND':
+          if port.endswith(('_din', '_write')):
+            direction = 'output'
+          else:
+            direction = 'input'
+        else:
+          if port.endswith(('_din', '_write')):
+            direction = 'input'
+          else:
+            direction = 'output'
+
+      elif port.endswith(('_dout', '_read', '_empty_n')):
+        if stream_dir == 'OUTBOUND':
+          if port.endswith(('_dout', '_empty_n')):
+            direction = 'output'
+          else:
+            direction = 'input'
+        else:
+          if port.endswith(('_dout', '_empty_n')):
+            direction = 'input'
+          else:
+            direction = 'output'
+      else:
+        assert False
 
       io.append(f'{direction} {port_width} {port},')
 
