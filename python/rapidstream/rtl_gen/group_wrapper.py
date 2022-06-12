@@ -41,7 +41,7 @@ def get_io_section(props: Dict) -> List[str]:
   io.append(f'output ap_ready') # the last IO, no "," at the end
 
   io = ['  ' + line for line in io]
-  io = [f'{props["module"]} {props["module"]}_0 ('] + io
+  io = [f'module {props["module"]} ('] + io
   io = ['`timescale 1 ns / 1 ps'] + io
   io += [');']
 
@@ -81,7 +81,7 @@ def get_ctrl_signals(props: Dict) -> List[str]:
     decl.append(f'(* keep = "true" *) reg ap_done_{v_props["instance"]}_q0;')
     decl.append(f'always @ (posedge ap_clk) begin')
     decl.append(f'  if (ap_done_final) ap_done_{v_props["instance"]} <= 0;')
-    decl.append(f'  else ap_done_{v_props["instance"]}_q0 <= ap_done_{v_props["instance"]}_q0 | ap_done_{v_props["instance"]}')
+    decl.append(f'  else ap_done_{v_props["instance"]}_q0 <= ap_done_{v_props["instance"]}_q0 | ap_done_{v_props["instance"]};')
     decl.append(f'end')
 
   decl.append('always @ (posedge ap_clk) ap_done_final_q0 <= ' +
@@ -114,12 +114,13 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
       for suffix, props in AXI_INTERFACE.items():
         insts.append(f'  .m_axi_{axi_port_name}_{suffix}(m_axi_{axi_wire_name}_{suffix}),')
 
-    insts.append(f'  .ap_start(ap_start_{v_props["module"]}),')
-    insts.append(f'  .ap_done(ap_done_{v_props["module"]}),')
-    insts.append('  .ap_idle(),')
-    insts.append('  .ap_ready(),')
-    insts.append('  .ap_clk(ap_clk),')
-    insts.append(f'  .ap_rst_n(ap_rst_n_{v_props["module"]})')
+    insts.append(f'  .ap_start(ap_start_{v_props["instance"]}),')
+    insts.append(f'  .ap_done(ap_done_{v_props["instance"]}),')
+    insts.append(f'  .ap_idle(),')
+    insts.append(f'  .ap_ready(),')
+    insts.append(f'  .ap_clk(ap_clk),')
+    insts.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}),')
+    insts.append(f'  .ap_local_deadlock()')
     insts.append(');')
     insts.append('')
 
@@ -170,16 +171,16 @@ def get_ending() -> List[str]:
 
 
 def get_group_wrapper(
-  props: Dict,
+  group_vertex_props: Dict,
 ) -> List[str]:
   """Create the RTL for the specified Vertex"""
 
   wrapper = []
-  wrapper += get_io_section(props)
-  wrapper += get_wire_decls(props)
-  wrapper += get_ctrl_signals(props)
-  wrapper += get_sub_vertex_insts(props)
-  wrapper += get_sub_stream_insts(props)
+  wrapper += get_io_section(group_vertex_props)
+  wrapper += get_wire_decls(group_vertex_props)
+  wrapper += get_ctrl_signals(group_vertex_props)
+  wrapper += get_sub_vertex_insts(group_vertex_props)
+  wrapper += get_sub_stream_insts(group_vertex_props)
   wrapper += get_ending()
 
   return wrapper

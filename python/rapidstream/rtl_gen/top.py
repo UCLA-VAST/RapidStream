@@ -31,7 +31,7 @@ def get_ctrl_inst(config: Dict) -> List[str]:
   inst.append(f') {v_props["module"]}_0 (')
 
   for portname in v_props['port_wire_map']['axi_ports'].keys():
-    inst.append(f'  .{portname}(s_axi_control_{portname})')
+    inst.append(f'  .{portname}(s_axi_control_{portname}),')
 
   for portname, argname in v_props['port_wire_map']['constant_ports'].items():
     inst.append(f'  .{portname}({argname}),')
@@ -47,6 +47,8 @@ def get_ctrl_inst(config: Dict) -> List[str]:
   inst.append(f'  .ap_done(ap_done_final),')
   inst.append(f'  .ap_idle(ap_idle_final),')
   inst.append(f'  .ap_ready(ap_ready_final),')
+
+  inst.append(f'  .ap_local_deadlock(),')
 
   inst[-1] = inst[-1].strip(',')
   inst.append(');')
@@ -150,7 +152,7 @@ def get_ctrl_signals(config: Dict) -> List[str]:
     decl.append(f'(* keep = "true" *) reg ap_done_{v_props["instance"]}_q0;')
     decl.append(f'always @ (posedge ap_clk) begin')
     decl.append(f'  if (ap_done_final) ap_done_{v_props["instance"]}_q0 <= 0;')
-    decl.append(f'  else ap_done_{v_props["instance"]}_q0 <= ap_done_{v_props["instance"]}_q0 | ap_done_{v_props["instance"]}')
+    decl.append(f'  else ap_done_{v_props["instance"]}_q0 <= ap_done_{v_props["instance"]}_q0 | ap_done_{v_props["instance"]};')
     decl.append(f'end')
 
   reduce = 'always @ (posedge ap_clk) ap_done_final_q0 <= 1\'b1'
@@ -171,6 +173,8 @@ def get_ctrl_signals(config: Dict) -> List[str]:
 def get_io_section(config: Dict) -> List[str]:
   """Get the top-level IOs"""
   io = []
+  io.append('`timescale 1 ns / 1 ps')
+  io.append('')
 
   io.append('module top (')
   for name, width in config['input_decl'].items():
