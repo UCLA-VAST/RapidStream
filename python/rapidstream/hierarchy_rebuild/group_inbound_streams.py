@@ -30,11 +30,6 @@ def get_group_port_width_map(
   """Must be executed before get_group_port_wire_map"""
   port_width_map = {}
 
-  # axi ports
-  for portname, argname in vertex_props['port_wire_map']['axi_ports'].items():
-    width = vertex_props['port_width_map'][portname]
-    port_width_map[argname] = width
-
   # outbound stream ports
   for stream in vertex_props['outbound_streams']:
     for portname, argname in vertex_props['port_wire_map']['stream_ports'][stream].items():
@@ -64,13 +59,24 @@ def get_group_port_wire_map(
 ) -> Dict:
   """vertex_props: the original property of the vertex to be wrapped"""
   port_wire_map = {
-    'axi_ports': {
-      argname: argname for argname in vertex_props['port_wire_map']['axi_ports'].values()
-    },  # for top level AXI connection
+    'axi_ports': [],
     'ctrl_ports': vertex_props['port_wire_map']['ctrl_ports'],  # for ap signals
     'constant_ports': vertex_props['port_wire_map']['constant_ports'],  # for scalar arguments from s_axi_control,
     'stream_ports': {},  # connect to FIFOs
   }
+
+  for axi_entry in vertex_props['port_wire_map']['axi_ports']:
+    width = axi_entry['data_width']
+    argname = axi_entry['argname']
+    portname = axi_entry['portname']
+
+    port_wire_map['axi_ports'].append(
+      {
+        'portname': argname,
+        'argname': argname,
+        'data_width': width,
+      }
+    )
 
   # ports associated with outbound streams remain the same
   for stream in vertex_props['outbound_streams']:

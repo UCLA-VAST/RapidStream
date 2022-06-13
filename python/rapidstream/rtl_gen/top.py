@@ -48,8 +48,6 @@ def get_ctrl_inst(config: Dict) -> List[str]:
   inst.append(f'  .ap_idle(ap_idle_final),')
   inst.append(f'  .ap_ready(ap_ready_final),')
 
-  inst.append(f'  .ap_local_deadlock(),')
-
   inst[-1] = inst[-1].strip(',')
   inst.append(');')
 
@@ -64,9 +62,11 @@ def get_slot_inst(v_props: Dict) -> List[str]:
   inst.append(f'{v_props["module"]} {v_props["module"]}_0(')
 
   # FIXME: consider readonly/writeonly cases
-  for argname, wirename in pw_map['axi_ports'].items():
+  for axi_entry in pw_map['axi_ports']:
+    axi_port_name = axi_entry['portname']
+    wirename = axi_entry['argname']
     for suffix in AXI_INTERFACE.keys():
-      inst.append(f'  .m_axi_{argname}_{suffix}(m_axi_{wirename}_{suffix}),')
+      inst.append(f'  .m_axi_{axi_port_name}_{suffix}(m_axi_{wirename}_{suffix}),')
 
   for argname, wirename in pw_map['constant_ports'].items():
     inst.append(f'  .{argname}({wirename}),')

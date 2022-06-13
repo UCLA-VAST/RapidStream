@@ -91,28 +91,19 @@ def get_group_port_width_map(
   port_width_map = {}
 
   for inst, props in inst_name_to_props.items():
-    for portname, argname in props['port_wire_map']['axi_ports'].items():
-      width = props['port_width_map'][portname]
-
-      # safety check
-      if argname in port_width_map and port_width_map[argname] != width:
-        _logger.error('overriding the width for the new port %s', argname)
-        exit(1)
-
-      port_width_map[argname] = width
-
-  for inst, props in inst_name_to_props.items():
     for stream, ports in props['port_wire_map']['stream_ports'].items():
       if stream in external_streams:
         for portname, argname in ports.items():
           if portname.endswith(('_dout', '_din')):
             width = props['port_width_map'][portname]
             port_width_map[argname] = width
+            _logger.debug('stream port %s is recorded to have data width %s', argname, width)
 
   for inst, props in inst_name_to_props.items():
     for portname, argname in props['port_wire_map']['constant_ports'].items():
       width = props['port_width_map'][portname]
       port_width_map[argname] = width
+      _logger.debug('constant port %s is recorded to have data width %s', argname, width)
 
   return port_width_map
 
@@ -123,16 +114,27 @@ def get_group_port_wire_map(
 ) -> Dict:
   """This must be run after the port-width map has been updated"""
   port_wire_map = {
-    'axi_ports': {},  # for top level AXI connection
+    'axi_ports': [],  # for top level AXI connection
     'ctrl_ports': {},  # for ap signals
     'constant_ports': {},  # for scalar arguments from s_axi_control,
     'stream_ports': {},  # connect to FIFOs
   }
 
   for inst, props in inst_name_to_props.items():
-    port_wire_map['axi_ports'].update(
-      {argname: argname for argname in props['port_wire_map']['axi_ports'].values()}
-    )
+    for axi_entry in props['port_wire_map']['axi_ports']:
+      width = axi_entry['data_width']
+      argname = axi_entry['argname']
+      portname = axi_entry['portname']
+
+      # we name the new ports after the wire being split up
+      port_wire_map['axi_ports'].append(
+        {
+          'portname': argname,
+          'argname': argname,
+          'data_width': width,
+        }
+      )
+
     port_wire_map['ctrl_ports'] = {
       "ap_clk": None,
       "ap_rst_n": None,

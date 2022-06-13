@@ -64,8 +64,9 @@ def get_io_section(props: Dict) -> List[str]:
 
       io.append(f'{direction} {port_width} {port},')
 
-  for axi_port_name, axi_wire_name in port_wire_map['axi_ports'].items():
-    axi_data_width = props['port_width_map'][axi_port_name]
+  for axi_entry in port_wire_map['axi_ports']:
+    axi_data_width = axi_entry['data_width']
+    axi_port_name = axi_entry['portname']
     io += get_axi_io_section(axi_data_width, axi_port_name)
 
   # ctrl signals
@@ -146,7 +147,9 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
       for stream_port, stream_wire in stream_props.items():
         insts.append(f'  .{stream_port}({stream_wire}),')
 
-    for axi_port_name, axi_wire_name in pw_map['axi_ports'].items():
+    for axi_entry in pw_map['axi_ports']:
+      axi_port_name = axi_entry['portname']
+      axi_wire_name = axi_entry['argname']
       for suffix, props in AXI_INTERFACE.items():
         insts.append(f'  .m_axi_{axi_port_name}_{suffix}(m_axi_{axi_wire_name}_{suffix}),')
 
@@ -155,8 +158,7 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
     insts.append(f'  .ap_idle(),')
     insts.append(f'  .ap_ready(),')
     insts.append(f'  .ap_clk(ap_clk),')
-    insts.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}),')
-    insts.append(f'  .ap_local_deadlock()')
+    insts.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]})')
     insts.append(');')
     insts.append('')
 

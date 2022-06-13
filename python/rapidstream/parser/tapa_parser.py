@@ -96,6 +96,8 @@ def get_stream_info(node: ast.Node, config: Dict, wire_to_stream: Dict):
 
       config['edges'][edge_name]['port_wire_map'] = port_wire_map
 
+# track which axi interfaces we have already recorded
+axi_visited = set()
 
 def _get_task_vertex_info(
   node: ast.InstanceList,
@@ -108,7 +110,7 @@ def _get_task_vertex_info(
     return
 
   port_wire_map = {
-    'axi_ports': {},  # for top level AXI connection
+    'axi_ports': [],  # for top level AXI connection
     'ctrl_ports': {},  # for ap signals
     'constant_ports': {},  # for scalar arguments from s_axi_control,
     'stream_ports': {},  # connect to FIFOs
@@ -135,8 +137,16 @@ def _get_task_vertex_info(
       axi_name_arg_side = argname_split[2]
 
       # FIXME: collect readonly/writeonly info here
-      if axi_name_port_side not in port_wire_map['axi_ports']:
-        port_wire_map['axi_ports'][axi_name_port_side] = axi_name_arg_side
+      # axi ports. Use the data width to represent the width for the interface
+      # input_decl stores the port name -> width mapping
+      if (axi_name_port_side, axi_name_arg_side) not in axi_visited:
+        entry = {
+          'portname': axi_name_port_side,
+          'argname': axi_name_arg_side,
+          'data_width': config['input_decl'][f'm_axi_{axi_name_arg_side}_RDATA'],
+        }
+        port_wire_map['axi_ports'].append(entry)
+      axi_visited.add((axi_name_port_side, axi_name_arg_side))
 
     elif argname in wire_to_stream:
       stream_name = wire_to_stream[argname]
@@ -254,10 +264,6 @@ def annotate_width_to_port_wire_map(config: Dict) -> None:
 
     port_wire_map = props['port_wire_map']
     port_width_map = {}
-
-    # axi ports
-    for axi_port_name, axi_arg_name in port_wire_map['axi_ports'].items():
-      port_width_map[axi_port_name] = config['input_decl'][f'm_axi_{axi_arg_name}_RDATA']
 
     # constant scalar ports
     for scalar_name, scalar_wire_name in port_wire_map['constant_ports'].items():
