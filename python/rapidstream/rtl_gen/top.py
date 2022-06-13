@@ -151,7 +151,8 @@ def get_ctrl_signals(config: Dict) -> List[str]:
     decl.append(f'wire ap_done_{v_props["instance"]};')
     decl.append(f'(* keep = "true" *) reg ap_done_{v_props["instance"]}_q0;')
     decl.append(f'always @ (posedge ap_clk) begin')
-    decl.append(f'  if (ap_done_final) ap_done_{v_props["instance"]}_q0 <= 0;')
+    decl.append(f'  if (~ap_rst_n_{v_props["instance"]}) ap_done_{v_props["instance"]}_q0 <= 0;')
+    decl.append(f'  else if (ap_done_final) ap_done_{v_props["instance"]}_q0 <= 0;')
     decl.append(f'  else ap_done_{v_props["instance"]}_q0 <= ap_done_{v_props["instance"]}_q0 | ap_done_{v_props["instance"]};')
     decl.append(f'end')
 
@@ -163,20 +164,27 @@ def get_ctrl_signals(config: Dict) -> List[str]:
   reduce += ';'
   decl.append(reduce)
 
-  decl.append('always @ (posedge ap_clk) ap_done_final <= ap_done_final_q0;')
+  decl.append(f'(* keep = "true" *) reg ap_rst_n_q0;')
+  decl.append(f'always @ (posedge ap_clk) ap_rst_n_q0 <= ap_rst_n;')
+
+  decl.append(f'always @ (posedge ap_clk) begin')
+  decl.append(f'  if (~ap_rst_n_q0) ap_done_final <= 0;')
+  decl.append(f'  else ap_done_final <= ap_done_final_q0;')
+  decl.append(f'end')
+  decl.append('assign ap_done = ap_done_final;')
 
   decl.append('')
 
   return decl
 
 
-def get_io_section(config: Dict) -> List[str]:
+def get_io_section(config: Dict, top_name: str) -> List[str]:
   """Get the top-level IOs"""
   io = []
   io.append('`timescale 1 ns / 1 ps')
   io.append('')
 
-  io.append('module top (')
+  io.append(f'module {top_name} (')
   for name, width in config['input_decl'].items():
     io.append(f'  {name},')
 
@@ -218,7 +226,7 @@ def sort_rtl(top: List[str]) -> List[str]:
   return decl + other
 
 
-def get_top(config: Dict) -> List[str]:
+def get_top(config: Dict, top_name: str) -> List[str]:
   top = []
   top += get_wire_decl(config) + ['']
   top += get_ctrl_signals(config) + ['']
@@ -227,6 +235,6 @@ def get_top(config: Dict) -> List[str]:
   top += get_ending() + ['']
   top_sorted = sort_rtl(top)
 
-  top = get_io_section(config) + [''] + top_sorted + ['']
+  top = get_io_section(config, top_name) + [''] + top_sorted + ['']
 
   return top

@@ -99,6 +99,9 @@ def get_ctrl_signals(props: Dict) -> List[str]:
   for v_props in props['sub_vertices'].values():
     decl.append(f'(* keep = "true" *) reg ap_rst_n_{v_props["instance"]};')
     decl.append(f'always @ (posedge ap_clk) ap_rst_n_{v_props["instance"]} <= ap_rst_n;')
+  for s_name in props['sub_streams'].keys():
+    decl.append(f'(* keep = "true" *) reg ap_rst_n_{s_name};')
+    decl.append(f'always @ (posedge ap_clk) ap_rst_n_{s_name} <= ap_rst_n;')
 
   # distribute ap_start
   decl.append(f'(* keep = "true" *) reg ap_start_q0;')
@@ -114,18 +117,28 @@ def get_ctrl_signals(props: Dict) -> List[str]:
   decl.append(f'(* keep = "true" *) reg ap_done_final_q0;')
   decl.append(f'(* keep = "true" *) reg ap_done_final;')
   for v_props in props['sub_vertices'].values():
+    done_signal = f'ap_done_{v_props["instance"]}_q0'
+
     decl.append(f'wire ap_done_{v_props["instance"]};')
-    decl.append(f'(* keep = "true" *) reg ap_done_{v_props["instance"]}_q0;')
+    decl.append(f'(* keep = "true" *) reg {done_signal};')
     decl.append(f'always @ (posedge ap_clk) begin')
-    decl.append(f'  if (ap_done_final) ap_done_{v_props["instance"]} <= 0;')
-    decl.append(f'  else ap_done_{v_props["instance"]}_q0 <= ap_done_{v_props["instance"]}_q0 | ap_done_{v_props["instance"]};')
+    decl.append(f'  if (~ap_rst_n_{v_props["instance"]}) {done_signal} <= 0;')
+    decl.append(f'  else if (ap_done_final) {done_signal} <= 0;')
+    decl.append(f'  else {done_signal} <= {done_signal} | ap_done_{v_props["instance"]};')
     decl.append(f'end')
 
   decl.append('always @ (posedge ap_clk) ap_done_final_q0 <= ' +
                 ' & '.join(f'ap_done_{v_props["instance"]}_q0'
                   for v_props in props['sub_vertices'].values()) + ';'
              )
-  decl.append('always @ (posedge ap_clk) ap_done_final <= ap_done_final_q0;')
+
+  decl.append(f'(* keep = "true" *) reg ap_rst_n_q0;')
+  decl.append(f'always @ (posedge ap_clk) ap_rst_n_q0 <= ap_rst_n;')
+
+  decl.append(f'always @ (posedge ap_clk) begin')
+  decl.append(f'  if (~ap_rst_n_q0) ap_done_final <= 0;')
+  decl.append(f'  else ap_done_final <= ap_done_final_q0;')
+  decl.append(f'end')
   decl.append('assign ap_done = ap_done_final;')
 
   decl.append('')
@@ -190,7 +203,7 @@ def get_sub_stream_insts(props: Dict) -> List[str]:
 
     insts.append(f') {s_name} (')
     insts.append(f'  .clk(ap_clk),')
-    insts.append(f'  .reset(ap_rst_n),')
+    insts.append(f'  .reset(~ap_rst_n_{s_name}),')
 
     for portname, wirename in s_props['port_wire_map']['inbound'].items():
       insts.append(f'  .{portname}({wirename}),')

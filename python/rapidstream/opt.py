@@ -10,7 +10,7 @@ from rapidstream.rtl_gen.group_wrapper import get_group_wrapper
 from rapidstream.rtl_gen.top import get_top
 
 
-def islandize_vertices(config: Dict, output_dir: str):
+def islandize_vertices(config: Dict, output_dir: str, top_name: str):
   """Restructure the RTL to form island hierarchies"""
   slot_to_vertices = defaultdict(list)
 
@@ -33,5 +33,5 @@ def islandize_vertices(config: Dict, output_dir: str):
     group_top = get_group_wrapper(group_vertex_props)
     open(f'{output_dir}/{group_name}.v', 'w').write('\n'.join(group_top))
 
-  top = get_top(config)
-  open(f'{output_dir}/top.v', 'w').write('\n'.join(top))
+  top = get_top(config, top_name)
+  open(f'{output_dir}/{top_name}.v', 'w').write('\n'.join(top))
