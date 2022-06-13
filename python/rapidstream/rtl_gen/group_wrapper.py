@@ -150,7 +150,7 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
   insts = []
 
   for v_name, v_props in props['sub_vertices'].items():
-    insts.append(f'{v_props["module"]} {v_props["module"]}_0 (')
+    insts.append(f'{v_props["module"]} {v_props["instance"]} (')
 
     pw_map = v_props['port_wire_map']
     for const_port, const_wire in pw_map['constant_ports'].items():
