@@ -112,6 +112,8 @@ def get_wire_decls(props: Dict) -> List[str]:
 
 def get_passing_wire_pipelines(props: Dict) -> List[str]:
   pp = []
+  pp.append('')
+  pp.append('// handle passing streams')
 
   passing_streams = props['port_wire_map'].get('passing_streams', {})
   for name, props in passing_streams.items():
@@ -120,30 +122,31 @@ def get_passing_wire_pipelines(props: Dict) -> List[str]:
     pp_level = props['pipeline_level']
     for wire_name, width in props['wire_to_width'].items():
       for i in range(pp_level):
-        pp.append(f'  reg {width} {wire_name}_pipeline_q{i};')
+        pp.append(f'reg {width} {wire_name}_pipeline_q{i};')
 
       # declare the pipeline
       for i in range(1, pp_level):
-        pp.append(f'  always @ (posedge ap_clk) {wire_name}_pipeline_q{i} <= {wire_name}_pipeline_q{i-1}')
+        pp.append(f'always @ (posedge ap_clk) {wire_name}_pipeline_q{i} <= {wire_name}_pipeline_q{i-1};')
 
       # handle the head and tail
       if pp_level > 0:
         if wire_name.endswith(('_din', '_write')):
-          pp.append(f'  always @ (posedge ap_clk) {wire_name}_pipeline_q0 <= {wire_name}_{s_in}')
-          pp.append(f'  assign {wire_name}_{s_out} = {wire_name}_pipeline_q{pp_level-1}')
+          pp.append(f'always @ (posedge ap_clk) {wire_name}_pipeline_q0 <= {wire_name}_{s_in};')
+          pp.append(f'assign {wire_name}_{s_out} = {wire_name}_pipeline_q{pp_level-1};')
         elif wire_name.endswith('_full_n'):
-          pp.append(f'  always @ (posedge ap_clk) {wire_name}_pipeline_q0 <= {wire_name}_{s_out}')
-          pp.append(f'  assign {wire_name}_{s_in} = {wire_name}_pipeline_q{pp_level-1}')
+          pp.append(f'always @ (posedge ap_clk) {wire_name}_pipeline_q0 <= {wire_name}_{s_out};')
+          pp.append(f'assign {wire_name}_{s_in} = {wire_name}_pipeline_q{pp_level-1};')
         else:
           assert False
       else:
         if wire_name.endswith(('_din', '_write')):
-          pp.append(f'  assign {wire_name}_{s_out} = {wire_name}_{s_in}')
+          pp.append(f'assign {wire_name}_{s_out} = {wire_name}_{s_in};')
         elif wire_name.endswith('_full_n'):
-          pp.append(f'  assign {wire_name}_{s_in} = {wire_name}_{s_out}')
+          pp.append(f'assign {wire_name}_{s_in} = {wire_name}_{s_out};')
         else:
           assert False
 
+  pp.append('')
   return pp
 
 
