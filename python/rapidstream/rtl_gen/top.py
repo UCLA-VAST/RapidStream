@@ -75,6 +75,15 @@ def get_slot_inst(v_props: Dict) -> List[str]:
     for argname, wirename in stream_pw_map.items():
       inst.append(f'  .{argname}({wirename}),')
 
+  # passing wires
+  passing_streams = pw_map.get('passing_streams', {})
+  for name, props in passing_streams.items():
+    s1 = props['inbound_side_suffix']
+    s2 = props['outbound_side_suffix']
+    for wire_name in props['wire_to_width'].keys():
+      inst.append(f'  .{wire_name}_{s1}({wire_name}_{s1}),')
+      inst.append(f'  .{wire_name}_{s2}({wire_name}_{s2}),')
+
   inst.append(f'  .ap_clk(ap_clk),')
   inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}),')
   inst.append(f'  .ap_start(ap_start_{v_props["instance"]}),')

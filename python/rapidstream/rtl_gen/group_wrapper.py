@@ -69,6 +69,24 @@ def get_io_section(props: Dict) -> List[str]:
     axi_port_name = axi_entry['portname']
     io += get_axi_io_section(axi_data_width, axi_port_name)
 
+  # passing streams
+  passing_streams = port_wire_map.get('passing_streams', {})
+  if not passing_streams:
+    _logger.debug(f'no passing streams found for this vertex')
+
+  for stream_name, stream_props in passing_streams.items():
+    s_in = stream_props['inbound_side_suffix']
+    s_out = stream_props['outbound_side_suffix']
+    for wire_name, width in stream_props['wire_to_width'].items():
+      if wire_name.endswith(('_din', '_write')):
+        io.append(f'input {width} {wire_name}_{s_in},')
+        io.append(f'output {width} {wire_name}_{s_out},')
+      elif wire_name.endswith('_full_n'):
+        io.append(f'output {width} {wire_name}_{s_in},')
+        io.append(f'input {width} {wire_name}_{s_out},')
+      else:
+        assert False
+
   # ctrl signals
   io.append(f'input ap_clk,')
   io.append(f'input ap_rst_n,')
@@ -90,6 +108,43 @@ def get_wire_decls(props: Dict) -> List[str]:
   wire = [f'  wire {width} {name};'
             for name, width in props['wire_decl'].items()]
   return wire
+
+
+def get_passing_wire_pipelines(props: Dict) -> List[str]:
+  pp = []
+
+  passing_streams = props['port_wire_map'].get('passing_streams', {})
+  for name, props in passing_streams.items():
+    s_in = props['inbound_side_suffix']
+    s_out = props['outbound_side_suffix']
+    pp_level = props['pipeline_level']
+    for wire_name, width in props['wire_to_width'].items():
+      for i in range(pp_level):
+        pp.append(f'  reg {width} {wire_name}_pipeline_q{i};')
+
+      # declare the pipeline
+      for i in range(1, pp_level):
+        pp.append(f'  always @ (posedge ap_clk) {wire_name}_pipeline_q{i} <= {wire_name}_pipeline_q{i-1}')
+
+      # handle the head and tail
+      if pp_level > 0:
+        if wire_name.endswith(('_din', '_write')):
+          pp.append(f'  always @ (posedge ap_clk) {wire_name}_pipeline_q0 <= {wire_name}_{s_in}')
+          pp.append(f'  assign {wire_name}_{s_out} = {wire_name}_pipeline_q{pp_level-1}')
+        elif wire_name.endswith('_full_n'):
+          pp.append(f'  always @ (posedge ap_clk) {wire_name}_pipeline_q0 <= {wire_name}_{s_out}')
+          pp.append(f'  assign {wire_name}_{s_in} = {wire_name}_pipeline_q{pp_level-1}')
+        else:
+          assert False
+      else:
+        if wire_name.endswith(('_din', '_write')):
+          pp.append(f'  assign {wire_name}_{s_out} = {wire_name}_{s_in}')
+        elif wire_name.endswith('_full_n'):
+          pp.append(f'  assign {wire_name}_{s_in} = {wire_name}_{s_out}')
+        else:
+          assert False
+
+  return pp
 
 
 def get_ctrl_signals(props: Dict) -> List[str]:
@@ -166,6 +221,14 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
       for suffix, props in AXI_INTERFACE.items():
         insts.append(f'  .m_axi_{axi_port_name}_{suffix}(m_axi_{axi_wire_name}_{suffix}),')
 
+    passing_streams = pw_map.get('passing_streams', {})
+    for name, props in passing_streams.items():
+      s1 = props['inbound_side_suffix']
+      s2 = props['outbound_side_suffix']
+      for wire_name in props['wire_to_width'].keys():
+        insts.append(f'  .{wire_name}_{s1}({wire_name}_{s1}),')
+        insts.append(f'  .{wire_name}_{s2}({wire_name}_{s2}),')
+
     insts.append(f'  .ap_start(ap_start_{v_props["instance"]}),')
     insts.append(f'  .ap_done(ap_done_{v_props["instance"]}),')
     insts.append(f'  .ap_idle(),')
@@ -229,6 +292,7 @@ def get_group_wrapper(
   wrapper = []
   wrapper += get_io_section(group_vertex_props)
   wrapper += get_wire_decls(group_vertex_props)
+  wrapper += get_passing_wire_pipelines(group_vertex_props)
   wrapper += get_ctrl_signals(group_vertex_props)
   wrapper += get_sub_vertex_insts(group_vertex_props)
   wrapper += get_sub_stream_insts(group_vertex_props)
