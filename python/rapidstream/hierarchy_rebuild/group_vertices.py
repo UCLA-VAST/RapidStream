@@ -187,7 +187,7 @@ def get_group_vertex_props(
   group_props['module'] = group_name
   group_props['instance'] = f'{group_name}_0'
   group_props['area'] = get_accumulated_area(inst_name_to_props)
-  group_props['category'] = 'GROUP_VERTEX',
+  group_props['category'] = 'GROUP_VERTEX'
 
   # assume all vertices are floorplaned to the same region
   any_inst = next(iter(inst_name_to_props.keys()))

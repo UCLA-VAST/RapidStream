@@ -106,7 +106,7 @@ def get_group_vertex_props(
   group_props['module'] = group_name
   group_props['instance'] = f'{group_name}_0'
   group_props['area'] = config['vertices'][target_vertex]['area']
-  group_props['category'] = 'INBOUND_STREAM_GROUP_VERTEX',
+  group_props['category'] = 'INBOUND_STREAM_GROUP_VERTEX'
 
   group_props['floorplan_region'] = config['vertices'][target_vertex]['floorplan_region']
   group_props['SLR'] = config['vertices'][target_vertex]['SLR']
