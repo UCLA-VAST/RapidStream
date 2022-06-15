@@ -39,13 +39,16 @@ def embed_stream(config: Dict, stream_name: str, stream_props: Dict, pipeline_le
   assert stream_name in consumer_props['sub_streams']
   stream_ports = consumer_props['port_wire_map']['stream_ports']
 
-  seg_id = len(slot_path) - 1
+  # if the path length is n, then there are n-2 intermediate slots
+  # we need to divide the wire into n-1 segments
+  # starting from 0, the last segment has id n-2
+  seg_id = len(slot_path) - 2
   stream_ports[stream_name] = {k: f'{v}_q{seg_id}' for k, v in stream_ports[stream_name].items()}
 
   # update the port wire mapping of the producer island
   producer_props = config['vertices'][slot_path[0]]
   assert stream_name in producer_props['outbound_streams']
-  stream_ports = consumer_props['port_wire_map']['stream_ports']
+  stream_ports = producer_props['port_wire_map']['stream_ports']
 
   seg_id = 0
   stream_ports[stream_name] = {k: f'{v}_q{seg_id}' for k, v in stream_ports[stream_name].items()}
@@ -62,8 +65,8 @@ def embed_stream(config: Dict, stream_name: str, stream_props: Dict, pipeline_le
     passing_slot_props['port_wire_map']['passing_streams'] = {
       stream_name: {
         'wire_to_width': wire_to_width,
-        'inbound_side_suffix': f'_q{i-1}',
-        'outbound_side_suffix': f'_q{i}',
+        'inbound_side_suffix': f'q{i-1}',
+        'outbound_side_suffix': f'q{i}',
         'pipeline_level': pipeline_level,
       }
     }
