@@ -45,25 +45,25 @@ STREAM_SUFFIX = (
   '_read',
 )
 
-S_AXI_LITE_SUFFIX = (
-  'AWVALID',
-  'AWREADY',
-  'AWADDR',
-  'WVALID',
-  'WREADY',
-  'WDATA',
-  'WSTRB',
-  'ARVALID',
-  'ARREADY',
-  'ARADDR',
-  'RVALID',
-  'RREADY',
-  'RDATA',
-  'RRESP',
-  'BVALID',
-  'BREADY',
-  'BRESP',
-)
+S_AXI_LITE_INTERFACE = {
+  'AWADDR':  ('input ', '[C_S_AXI_ADDR_WIDTH-1:0]  '),
+  'AWVALID': ('input ', '                          '),
+  'AWREADY': ('output', '                          '),
+  'WDATA':   ('input ', '[C_S_AXI_DATA_WIDTH-1:0]  '),
+  'WSTRB':   ('input ', '[C_S_AXI_DATA_WIDTH/8-1:0]'),
+  'WVALID':  ('input ', '                          '),
+  'WREADY':  ('output', '                          '),
+  'BRESP':   ('output', '[1:0]                     '),
+  'BVALID':  ('output', '                          '),
+  'BREADY':  ('input ', '                          '),
+  'ARADDR':  ('input ', '[C_S_AXI_ADDR_WIDTH-1:0]  '),
+  'ARVALID': ('input ', '                          '),
+  'ARREADY': ('output', '                          '),
+  'RDATA':   ('output', '[C_S_AXI_DATA_WIDTH-1:0]  '),
+  'RRESP':   ('output', '[1:0]                     '),
+  'RVALID':  ('output', '                          '),
+  'RREADY':  ('input ', '                          '),
+}
 
 S_AXI_LITE_BASIC = (
   'ACLK',
@@ -80,7 +80,7 @@ RESOURCE_TYPES = (
   'URAM',
 )
 
-AXI_INTERFACE = {
+M_AXI_INTERFACE = {
   "ARADDR"  : ("output ", "[63:0]        "),
   "ARBURST" : ("output ", "[1:0]         "),
   "ARCACHE" : ("output ", "[3:0]         "),
@@ -124,7 +124,7 @@ AXI_INTERFACE = {
 def get_axi_io_section(data_width: str, axi_port_name: str):
   """The data_width is in the format of f'[{width-1}:0]' """
   io = []
-  for suffix, props in AXI_INTERFACE.items():
+  for suffix, props in M_AXI_INTERFACE.items():
     direction = props[0]
     width = props[1].format(data_width=data_width)
     portname = f'm_axi_{axi_port_name}_{suffix}'

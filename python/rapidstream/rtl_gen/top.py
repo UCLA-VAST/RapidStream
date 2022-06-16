@@ -30,8 +30,9 @@ def get_ctrl_inst(config: Dict) -> List[str]:
   # ports of the instance
   inst.append(f') {v_props["module"]}_0 (')
 
-  for portname in v_props['port_wire_map']['axi_ports'].keys():
-    inst.append(f'  .{portname}(s_axi_control_{portname}),')
+  # FIXME: hard code s_axi_control interface
+  for suffix in M_AXI_INTERFACE.keys():
+    inst.append(f'  .{suffix}(s_axi_control_{suffix}),')
 
   for portname, argname in v_props['port_wire_map']['constant_ports'].items():
     inst.append(f'  .{portname}({argname}),')
@@ -65,7 +66,7 @@ def get_slot_inst(v_props: Dict) -> List[str]:
   for axi_entry in pw_map['axi_ports']:
     axi_port_name = axi_entry['portname']
     wirename = axi_entry['argname']
-    for suffix in AXI_INTERFACE.keys():
+    for suffix in M_AXI_INTERFACE.keys():
       inst.append(f'  .m_axi_{axi_port_name}_{suffix}(m_axi_{wirename}_{suffix}),')
 
   for argname, wirename in pw_map['constant_ports'].items():

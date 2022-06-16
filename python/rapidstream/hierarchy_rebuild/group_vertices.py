@@ -132,6 +132,7 @@ def get_group_port_wire_map(
           'portname': argname,
           'argname': argname,
           'data_width': width,
+          'axi_type': axi_entry['axi_type'],
         }
       )
 

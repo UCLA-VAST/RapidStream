@@ -208,7 +208,16 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
   insts = []
 
   for v_name, v_props in props['sub_vertices'].items():
-    insts.append(f'{v_props["module"]} {v_props["instance"]} (')
+    insts.append(f'{v_props["module"]}')
+
+    if 'param_map' in v_props:
+      insts.append(f'#(')
+      for param, val in v_props['param_map'].items():
+        insts.append(f'  .{param}({val}),')
+      insts[-1] = insts[-1].strip(',')
+      insts.append(')')
+
+    insts.append(f'{v_props["instance"]} (')
 
     pw_map = v_props['port_wire_map']
     for const_port, const_wire in pw_map['constant_ports'].items():
@@ -221,7 +230,10 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
     for axi_entry in pw_map['axi_ports']:
       axi_port_name = axi_entry['portname']
       axi_wire_name = axi_entry['argname']
-      for suffix, props in AXI_INTERFACE.items():
+
+      assert axi_entry['axi_type'] == 'M_AXI'
+      for suffix, props in M_AXI_INTERFACE.items():
+        # e.g., ".m_axi_mmap_ARADDR(m_axi_a_ARADDR),"
         insts.append(f'  .m_axi_{axi_port_name}_{suffix}(m_axi_{axi_wire_name}_{suffix}),')
 
     passing_streams = pw_map.get('passing_streams', {})

@@ -144,6 +144,7 @@ def _get_task_vertex_info(
           'portname': axi_name_port_side,
           'argname': axi_name_arg_side,
           'data_width': config['input_decl'][f'm_axi_{axi_name_arg_side}_RDATA'],
+          'axi_type': 'M_AXI',
         }
         port_wire_map['axi_ports'].append(entry)
       axi_visited.add((axi_name_port_side, axi_name_arg_side))
@@ -179,7 +180,14 @@ def _get_ctrl_vertex_info(
       return
 
     port_wire_map = {
-      'axi_ports': {},  # for top level AXI connection
+      'axi_ports': [
+        {
+          'portname': '',
+          'argname': 's_axi_control',
+          'data_width': '[31:0]',
+          'axi_type': 'S_AXI_LITE'
+        }
+      ],
       'ctrl_ports': {},  # for ap signals
       'basic_ports': {},  # clk, reset
       'constant_ports': {},  # for scalar arguments from s_axi_control,
@@ -198,8 +206,9 @@ def _get_ctrl_vertex_info(
 
       if portname in CTRL_SIGNALS:
         port_wire_map['ctrl_ports'][portname] = argname
-      elif portname in S_AXI_LITE_SUFFIX:
-        port_wire_map['axi_ports'][portname] = argname
+      # FIXME: have hard code the axi info
+      elif portname in S_AXI_LITE_INTERFACE:
+        continue
       elif portname in S_AXI_LITE_BASIC:
         port_wire_map['basic_ports'][portname] = argname
       else:
@@ -259,7 +268,7 @@ def annotate_width_to_port_wire_map(config: Dict) -> None:
      Assume non-existing ports are of width 1
   """
   for v_name, props in config['vertices'].items():
-    if props['category'] in ('PORT_VERTEX', 'CTRL_VERTEX'):
+    if props['category'] in ('PORT_VERTEX'):
       continue
 
     port_wire_map = props['port_wire_map']
@@ -274,7 +283,7 @@ def annotate_width_to_port_wire_map(config: Dict) -> None:
         port_width_map[scalar_name] = config['wire_decl'][scalar_name]
 
     # stream ports
-    for stream_name, _port_wire_map in port_wire_map['stream_ports'].items():
+    for stream_name, _port_wire_map in port_wire_map.get('stream_ports', {}).items():
       data_width_int = config['edges'][stream_name]['width']
       for portname, wirename in _port_wire_map.items():
         if portname.endswith('_din') or portname.endswith('_dout'):
