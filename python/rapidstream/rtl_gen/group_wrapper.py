@@ -255,6 +255,9 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
   insts = []
 
   for v_name, v_props in props['sub_vertices'].items():
+    if v_props['category'] in ('PORT_VERTEX', 'CTRL_VERTEX'):
+      continue
+
     insts.append(f'{v_props["module"]}')
 
     if 'param_map' in v_props:
@@ -270,7 +273,7 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
     for const_port, const_wire in pw_map['constant_ports'].items():
       insts.append(f'  .{const_port}({const_wire}),')
 
-    for stream_props in pw_map['stream_ports'].values():
+    for stream_props in pw_map.get('stream_ports', {}).values():
       for stream_port, stream_wire in stream_props.items():
         insts.append(f'  .{stream_port}({stream_wire}),')
 

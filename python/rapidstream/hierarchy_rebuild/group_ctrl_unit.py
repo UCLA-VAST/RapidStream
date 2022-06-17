@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple
 _logger = logging.getLogger().getChild(__name__)
 
 
-def embed_ctrl_unit(config: Dict, target_vertex: str, ctrl_vertex: str) -> None:
+def embed_ctrl_unit(config: Dict, target_vertex: str, ctrl_vertex: str) -> Dict:
   """Create a new vertex that includes the ctrl vertex and one slot vertex"""
   assert target_vertex in config['vertices']
   assert ctrl_vertex in config['vertices']
@@ -28,7 +28,7 @@ def embed_ctrl_unit(config: Dict, target_vertex: str, ctrl_vertex: str) -> None:
     'sub_streams': {},
     'inbound_streams': target_props['inbound_streams'],
     'outbound_streams': target_props['outbound_streams'],
-
+    'wire_decl': {**target_props.get('wire_decl', {}), **ctrl_props.get('wire_decl', {})},
     'port_width_map': {**target_props['port_width_map'], **ctrl_props['port_width_map']},
     'port_wire_map': {
       'axi_ports': ctrl_props['port_wire_map']['axi_ports'] + target_props['port_wire_map'].get('axi_ports', []),
@@ -54,4 +54,19 @@ def embed_ctrl_unit(config: Dict, target_vertex: str, ctrl_vertex: str) -> None:
   # send out constants
   ctrl_wrapper_props['port_wire_map']['constant_out'] = ctrl_props['port_wire_map']['constant_ports']
 
+  # update the port wire map of the ctrl vertex
+  ctrl_props['port_wire_map']['ctrl_ports']['ap_start'] = 'ap_start_orig'
+  ctrl_props['port_wire_map']['ctrl_ports']['ap_done'] = 'ap_done_final'
+  ctrl_props['port_wire_map']['ctrl_ports']['ap_idle'] = 'ap_done_final'
+  ctrl_props['port_wire_map']['ctrl_ports']['ap_ready'] = 'ap_done_final'
+  ctrl_props['port_wire_map']['ctrl_ports']['ap_local_deadlock'] = ''
+  ctrl_wrapper_props['wire_decl']['ap_start_orig'] = ''
+  ctrl_wrapper_props['wire_decl']['ap_done_final'] = ''
+
+  # udpate the port wire map of the wrapper vertex
+  ctrl_wrapper_props['wrapper_sub_vertex'] = target_vertex
+  ctrl_wrapper_props['ctrl_sub_vertex'] = ctrl_vertex
+
   config['vertices'][module_name] = ctrl_wrapper_props
+
+  return ctrl_wrapper_props

@@ -45,24 +45,27 @@ STREAM_SUFFIX = (
   '_read',
 )
 
+C_S_AXI_DATA_WIDTH = 32
+C_S_AXI_ADDR_WIDTH = 16
+
 S_AXI_LITE_INTERFACE = {
-  'AWADDR':  ('input ', '[C_S_AXI_ADDR_WIDTH-1:0]  '),
-  'AWVALID': ('input ', '                          '),
-  'AWREADY': ('output', '                          '),
-  'WDATA':   ('input ', '[C_S_AXI_DATA_WIDTH-1:0]  '),
-  'WSTRB':   ('input ', '[C_S_AXI_DATA_WIDTH/8-1:0]'),
-  'WVALID':  ('input ', '                          '),
-  'WREADY':  ('output', '                          '),
-  'BRESP':   ('output', '[1:0]                     '),
-  'BVALID':  ('output', '                          '),
-  'BREADY':  ('input ', '                          '),
-  'ARADDR':  ('input ', '[C_S_AXI_ADDR_WIDTH-1:0]  '),
-  'ARVALID': ('input ', '                          '),
-  'ARREADY': ('output', '                          '),
-  'RDATA':   ('output', '[C_S_AXI_DATA_WIDTH-1:0]  '),
-  'RRESP':   ('output', '[1:0]                     '),
-  'RVALID':  ('output', '                          '),
-  'RREADY':  ('input ', '                          '),
+  'AWADDR':  ('input ', f'[{C_S_AXI_ADDR_WIDTH}-1:0]  '),
+  'AWVALID': ('input ', f'                          '),
+  'AWREADY': ('output', f'                          '),
+  'WDATA':   ('input ', f'[{C_S_AXI_DATA_WIDTH}-1:0]  '),
+  'WSTRB':   ('input ', f'[{C_S_AXI_DATA_WIDTH}/8-1:0]'),
+  'WVALID':  ('input ', f'                          '),
+  'WREADY':  ('output', f'                          '),
+  'BRESP':   ('output', f'[1:0]                     '),
+  'BVALID':  ('output', f'                          '),
+  'BREADY':  ('input ', f'                          '),
+  'ARADDR':  ('input ', f'[{C_S_AXI_ADDR_WIDTH}-1:0]  '),
+  'ARVALID': ('input ', f'                          '),
+  'ARREADY': ('output', f'                          '),
+  'RDATA':   ('output', f'[{C_S_AXI_DATA_WIDTH}-1:0]  '),
+  'RRESP':   ('output', f'[1:0]                     '),
+  'RVALID':  ('output', f'                          '),
+  'RREADY':  ('input ', f'                          '),
 }
 
 S_AXI_LITE_BASIC = (
