@@ -1,4 +1,5 @@
 import logging
+import re
 from math import log2
 from typing import Dict, List
 
@@ -49,28 +50,35 @@ def get_stream_io(props: Dict) -> List[str]:
     for port in _port_wire_map.keys():
       port_width = props['port_width_map'].get(port, '')
 
+      # for passing streams, the port may have suffix _q\d+
+      port_sanitize = port
+      match = re.search('(.+)_q\d+$', port)
+      if match:
+        port_sanitize = match.group(1)
+        _logger.debug('port name is sanitized from %s to %s', port, port_sanitize)
+
       # the direction of the ports are determined by if the FIFO is inside
       # or outside the wrapper
-      if port.endswith(('_din', '_write', '_full_n')):
+      if port_sanitize.endswith(('_din', '_write', '_full_n')):
         if stream_dir == 'OUTBOUND':
-          if port.endswith(('_din', '_write')):
+          if port_sanitize.endswith(('_din', '_write')):
             direction = 'output'
           else:
             direction = 'input'
         else:
-          if port.endswith(('_din', '_write')):
+          if port_sanitize.endswith(('_din', '_write')):
             direction = 'input'
           else:
             direction = 'output'
 
-      elif port.endswith(('_dout', '_read', '_empty_n')):
+      elif port_sanitize.endswith(('_dout', '_read', '_empty_n')):
         if stream_dir == 'OUTBOUND':
-          if port.endswith(('_dout', '_empty_n')):
+          if port_sanitize.endswith(('_dout', '_empty_n')):
             direction = 'output'
           else:
             direction = 'input'
         else:
-          if port.endswith(('_dout', '_empty_n')):
+          if port_sanitize.endswith(('_dout', '_empty_n')):
             direction = 'input'
           else:
             direction = 'output'
