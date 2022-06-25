@@ -60,7 +60,7 @@ def get_slot_inst(v_props: Dict) -> List[str]:
   inst = []
   pw_map = v_props['port_wire_map']
 
-  inst.append(f'{v_props["module"]} {v_props["instance"]}(')
+  inst.append(f'{v_props["module"]} {v_props["module"]}(')
 
   # FIXME: consider readonly/writeonly cases
   for axi_entry in pw_map['axi_ports']:
@@ -86,9 +86,9 @@ def get_slot_inst(v_props: Dict) -> List[str]:
       inst.append(f'  .{wire_name}_{s2}({wire_name}_{s2}),')
 
   inst.append(f'  .ap_clk(ap_clk),')
-  inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}),')
-  inst.append(f'  .ap_start(ap_start_{v_props["instance"]}),')
-  inst.append(f'  .ap_done(ap_done_{v_props["instance"]}),')
+  inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["module"]}),')
+  inst.append(f'  .ap_start(ap_start_{v_props["module"]}),')
+  inst.append(f'  .ap_done(ap_done_{v_props["module"]}),')
   inst.append(f'  .ap_ready(),')
   inst.append(f'  .ap_idle()')
   inst.append(f');')
@@ -132,11 +132,11 @@ def get_ctrl_signals(config: Dict) -> List[str]:
     if cat == 'PORT_VERTEX':
       continue
     elif cat == 'CTRL_VERTEX':
-      decl.append(f'(* keep = "true" *) reg ap_rst_{v_props["instance"]};')
-      decl.append(f'always @ (posedge ap_clk) ap_rst_{v_props["instance"]} <= ~ap_rst_n;')
+      decl.append(f'(* keep = "true" *) reg ap_rst_{v_props["module"]};')
+      decl.append(f'always @ (posedge ap_clk) ap_rst_{v_props["module"]} <= ~ap_rst_n;')
     else:
-      decl.append(f'(* keep = "true" *) reg ap_rst_n_{v_props["instance"]};')
-      decl.append(f'always @ (posedge ap_clk) ap_rst_n_{v_props["instance"]} <= ap_rst_n;')
+      decl.append(f'(* keep = "true" *) reg ap_rst_n_{v_props["module"]};')
+      decl.append(f'always @ (posedge ap_clk) ap_rst_n_{v_props["module"]} <= ap_rst_n;')
 
   # distribute ap_start
   decl.append(f'(* keep = "true" *) reg ap_start_q0;')
@@ -145,8 +145,8 @@ def get_ctrl_signals(config: Dict) -> List[str]:
     if v_props['category'] in ('PORT_VERTEX', 'CTRL_VERTEX'):
       continue
 
-    decl.append(f'(* keep = "true" *) reg ap_start_{v_props["instance"]};')
-    decl.append(f'always @ (posedge ap_clk) ap_start_{v_props["instance"]} <= ap_start_q0;')
+    decl.append(f'(* keep = "true" *) reg ap_start_{v_props["module"]};')
+    decl.append(f'always @ (posedge ap_clk) ap_start_{v_props["module"]} <= ap_start_q0;')
 
   # collect ap_done
   # each vertex will only assert ap_done for one cycle, so we need to hold the value
@@ -158,19 +158,19 @@ def get_ctrl_signals(config: Dict) -> List[str]:
     if v_props['category'] in ('PORT_VERTEX', 'CTRL_VERTEX'):
       continue
 
-    decl.append(f'wire ap_done_{v_props["instance"]};')
-    decl.append(f'(* keep = "true" *) reg ap_done_{v_props["instance"]}_q0;')
+    decl.append(f'wire ap_done_{v_props["module"]};')
+    decl.append(f'(* keep = "true" *) reg ap_done_{v_props["module"]}_q0;')
     decl.append(f'always @ (posedge ap_clk) begin')
-    decl.append(f'  if (~ap_rst_n_{v_props["instance"]}) ap_done_{v_props["instance"]}_q0 <= 0;')
-    decl.append(f'  else if (ap_done_final) ap_done_{v_props["instance"]}_q0 <= 0;')
-    decl.append(f'  else ap_done_{v_props["instance"]}_q0 <= ap_done_{v_props["instance"]}_q0 | ap_done_{v_props["instance"]};')
+    decl.append(f'  if (~ap_rst_n_{v_props["module"]}) ap_done_{v_props["module"]}_q0 <= 0;')
+    decl.append(f'  else if (ap_done_final) ap_done_{v_props["module"]}_q0 <= 0;')
+    decl.append(f'  else ap_done_{v_props["module"]}_q0 <= ap_done_{v_props["module"]}_q0 | ap_done_{v_props["module"]};')
     decl.append(f'end')
 
   reduce = 'always @ (posedge ap_clk) ap_done_final_q0 <= 1\'b1'
   for v_props in config['vertices'].values():
     if v_props['category'] in ('PORT_VERTEX', 'CTRL_VERTEX'):
       continue
-    reduce += f' & ap_done_{v_props["instance"]}_q0'
+    reduce += f' & ap_done_{v_props["module"]}_q0'
   reduce += ';'
   decl.append(reduce)
 
