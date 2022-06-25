@@ -135,6 +135,11 @@ def get_constant_broadcast(v_props: Dict) -> List[str]:
 
   for portname, argname in v_props['port_wire_map']['constant_ports'].items():
     width = v_props['port_width_map'][portname]
+    # argname is already defined as output port
+    # if the inner vertex also uses this constant
+    # we need to additionally define it as wire
+    rtl.append(f'wire {width} {argname};')
+
     rtl.append(f'wire {width} {argname}_inner;')
     rtl.append(f'reg  {width} {argname}_q;')
     rtl.append(f'always @ posedge(ap_clk) {argname}_q <= {argname}_inner;')
