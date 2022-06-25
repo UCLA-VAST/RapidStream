@@ -107,11 +107,13 @@ def get_ctrl_signals(props: Dict) -> List[str]:
 
   # send ap_start to the normal vertex within the wrapper
   wrapper_sub_vertex = props['wrapper_sub_vertex']
+  rtl.append(f'wire ap_start_{wrapper_sub_vertex};')
   rtl.append(f'reg ap_start_{wrapper_sub_vertex}_q;')
   rtl.append(f'always @ (posedge ap_clk) ap_start_{wrapper_sub_vertex}_q <= ap_start_orig;')
+  rtl.append(f'assign ap_start_{wrapper_sub_vertex} = ap_start_{wrapper_sub_vertex}_q;')
 
   # get the ap_done from the normal vertex within the wrapper
-  rtl.append(f'reg ap_done_{wrapper_sub_vertex};')
+  rtl.append(f'reg ap_done_{wrapper_sub_vertex}_q;')
   rtl.append(f'wire ap_done_{wrapper_sub_vertex};')
   rtl.append(f'always @ (posedge ap_clk) begin')
   rtl.append(f'  if (~ap_rst_n) ap_done_{wrapper_sub_vertex}_q <= 0;')
@@ -125,6 +127,12 @@ def get_ctrl_signals(props: Dict) -> List[str]:
     ';'
   )
   rtl.append(f'assign ap_done_final = ap_done_final_q;')
+
+  # reset signal for the vertex
+  rtl.append(f'reg ap_rst_n_{wrapper_sub_vertex}_q;')
+  rtl.append(f'wire ap_rst_n_{wrapper_sub_vertex};')
+  rtl.append(f'always @ (posedge ap_clk) ap_rst_n_{wrapper_sub_vertex}_q <= ap_rst_n;')
+  rtl.append(f'assign ap_rst_n_{wrapper_sub_vertex} = ap_rst_n_{wrapper_sub_vertex}_q;')
 
   return rtl
 
