@@ -4,6 +4,50 @@ from typing import Dict, List, Tuple
 _logger = logging.getLogger().getChild(__name__)
 
 
+def get_port_wire_map(config: Dict, target_vertex: str, ctrl_vertex: str) -> Dict:
+  ctrl_props = config['vertices'][ctrl_vertex]
+  target_props = config['vertices'][target_vertex]
+
+  pw_map = {
+    'axi_ports': [],
+    'ctrl_out': [],
+    'ctrl_in': [],
+    'constant_out': [],
+    'stream_ports': {},
+    'passing_streams': {},
+  }
+
+  # axi interfaces
+  for props in (ctrl_props, target_props):
+    for axi_entry in props['port_wire_map']['axi_ports']:
+      width = axi_entry['data_width']
+      argname = axi_entry['argname']
+      portname = axi_entry['portname']
+      axi_type = axi_entry['axi_type']
+
+      # we name the new ports after the wire being split up
+      pw_map['axi_ports'].append(
+        {
+          'portname': argname,
+          'argname': argname,
+          'data_width': width,
+          'axi_type': axi_type,
+        }
+      )
+
+  # stream interfaces
+  for stream, ports in target_props['port_wire_map']['stream_ports'].items():
+    pw_map['stream_ports'][stream] = {
+      argname: argname for argname in ports.values()
+    }
+
+  # passing streams
+  # directly connect passing streams with the inner vertex, and let the inner vertex handle it
+  target_props['port_wire_map'].get('passing_streams', {})
+
+  return pw_map
+
+
 def embed_ctrl_unit(config: Dict, target_vertex: str, ctrl_vertex: str) -> Dict:
   """Create a new vertex that includes the ctrl vertex and one slot vertex"""
   assert target_vertex in config['vertices']
@@ -30,14 +74,7 @@ def embed_ctrl_unit(config: Dict, target_vertex: str, ctrl_vertex: str) -> Dict:
     'outbound_streams': target_props['outbound_streams'],
     'wire_decl': {**target_props.get('wire_decl', {}), **ctrl_props.get('wire_decl', {})},
     'port_width_map': {**target_props['port_width_map'], **ctrl_props['port_width_map']},
-    'port_wire_map': {
-      'axi_ports': ctrl_props['port_wire_map']['axi_ports'] + target_props['port_wire_map'].get('axi_ports', []),
-      'ctrl_out': [],
-      'ctrl_in': [],
-      'constant_out': [],
-      'stream_ports': target_props['port_wire_map'].get('stream_ports', {}),
-      'passing_streams': target_props['port_wire_map'].get('passing_streams', {}),
-    },
+    'port_wire_map': get_port_wire_map(config, target_vertex, ctrl_vertex),
     'param_map': { **target_props.get('param_map', {}), **ctrl_props.get('param_map', {})},
   }
 
