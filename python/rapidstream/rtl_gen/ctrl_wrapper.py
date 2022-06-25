@@ -41,6 +41,12 @@ def get_master_ctrl_signals_io(props: Dict) -> List[str]:
   for ap_in in port_wire_map['ctrl_in']:
     io.append(f'input {ap_in},')
 
+  return io
+
+
+def get_constant_output_io(props: Dict) -> List[str]:
+  io = []
+  port_wire_map = props['port_wire_map']
   for c_out in port_wire_map['constant_out'].keys():
     width = props['port_width_map'][c_out]
     io.append(f'output {width} {c_out},')
@@ -60,13 +66,14 @@ def get_s_axi_lite_io(props: Dict) -> List[str]:
   return io
 
 
-def get_ctrl_wrapper_io_section(props: Dict) -> List[str]:
+def get_io_section(props: Dict) -> List[str]:
   _logger.info('generating RTL for the ctrl wrapper %s', props['module'])
   io = []
   io += get_stream_io(props)
   io += get_m_axi_io(props)
   io += get_passing_stream_io(props)
   io += get_master_ctrl_signals_io(props)
+  io += get_constant_output_io(props)
   io += get_s_axi_lite_io(props)
   io = remove_trailing_comma(io)
   io = format_io_section(io, props)
@@ -74,7 +81,7 @@ def get_ctrl_wrapper_io_section(props: Dict) -> List[str]:
   return io
 
 
-def get_ctrl_wrapper_ctrl_signals(props: Dict) -> List[str]:
+def get_ctrl_signals(props: Dict) -> List[str]:
   """
   The ctrl wrapper include the ctrl vertex and one normal vertex
   We need to send ctrl signals to the outside as well as to the
@@ -86,6 +93,7 @@ def get_ctrl_wrapper_ctrl_signals(props: Dict) -> List[str]:
   for ap_out in props['port_wire_map']['ctrl_out']:
     rtl.append(f'reg {ap_out}_q;')
     rtl.append(f'always @ (posedge ap_clk) {ap_out}_q <= ap_start_orig;')
+    rtl.append(f'assign {ap_out} = {ap_out}_q;')
 
   # reduce ap_done from outside
   rtl.append(f'reg ap_done_final_q;')
@@ -121,6 +129,21 @@ def get_ctrl_wrapper_ctrl_signals(props: Dict) -> List[str]:
   return rtl
 
 
+def get_constant_broadcast(v_props: Dict) -> List[str]:
+  """Register the constant from ctrl unit before broadcasting"""
+  rtl = []
+
+  for portname, argname in v_props['port_wire_map']['constant_ports'].items():
+    width = v_props['port_width_map'][portname]
+    rtl.append(f'wire {width} {argname}_inner;')
+    rtl.append(f'reg  {width} {argname}_q;')
+    rtl.append(f'always @ posedge(ap_clk) {argname}_q <= {argname}_inner;')
+    rtl.append(f'assign {argname} = {argname}_q;')
+    rtl.append('')
+
+  return rtl
+
+
 def get_ctrl_sub_vertex_inst(v_props: Dict) -> List[str]:
   """the s_axi_control instance"""
   inst = []
@@ -146,8 +169,9 @@ def get_ctrl_sub_vertex_inst(v_props: Dict) -> List[str]:
   for suffix in S_AXI_LITE_INTERFACE.keys():
     inst.append(f'  .{suffix}(s_axi_control_{suffix}),')
 
+  # register the constants once
   for portname, argname in v_props['port_wire_map']['constant_ports'].items():
-    inst.append(f'  .{portname}({argname}),')
+    inst.append(f'  .{portname}({argname}_inner),')
 
   # basic ports
   inst.append(f'  .ACLK(ap_clk),')
@@ -173,18 +197,21 @@ def get_ctrl_wrapper(ctrl_wrapper_props: Dict) -> List[str]:
   wrapper = []
   wrapper += get_wire_decls(ctrl_wrapper_props)
   wrapper += get_passing_wire_pipelines(ctrl_wrapper_props)
-  wrapper += get_ctrl_wrapper_ctrl_signals(ctrl_wrapper_props)
+  wrapper += get_ctrl_signals(ctrl_wrapper_props)
   wrapper += get_sub_vertex_insts(ctrl_wrapper_props)
   wrapper += get_sub_stream_insts(ctrl_wrapper_props)
 
   ctrl_sub_vertex_name = ctrl_wrapper_props['ctrl_sub_vertex']
   ctrl_sub_vertex_props = ctrl_wrapper_props['sub_vertices'][ctrl_sub_vertex_name]
+  wrapper += get_constant_broadcast(ctrl_sub_vertex_props)
   wrapper += get_ctrl_sub_vertex_inst(ctrl_sub_vertex_props)
 
   wrapper += get_ending()
 
+  # push all wire/reg declaration to the front
   wrapper = sort_rtl(wrapper)
 
-  wrapper = get_ctrl_wrapper_io_section(ctrl_wrapper_props) + wrapper
+  # add the header after sorting
+  wrapper = get_io_section(ctrl_wrapper_props) + wrapper
 
   return wrapper

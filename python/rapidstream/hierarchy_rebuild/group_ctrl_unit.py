@@ -25,7 +25,7 @@ def embed_ctrl_unit(config: Dict, target_vertex: str, ctrl_vertex: str) -> Dict:
       target_vertex: target_props,
       ctrl_vertex: ctrl_props,
     },
-    'sub_streams': {},
+    'sub_streams': {},  # the ctrl wrapper only group the ctrl unit with one exsiting vertex
     'inbound_streams': target_props['inbound_streams'],
     'outbound_streams': target_props['outbound_streams'],
     'wire_decl': {**target_props.get('wire_decl', {}), **ctrl_props.get('wire_decl', {})},
