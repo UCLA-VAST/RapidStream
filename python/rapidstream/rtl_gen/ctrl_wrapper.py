@@ -32,6 +32,13 @@ def sort_rtl(top: List[str]) -> List[str]:
   return decl + other
 
 
+def get_basic_io() -> List[str]:
+  io = []
+  io.append('input ap_clk,')
+  io.append('input ap_rst_n,')
+  return io
+
+
 def get_master_ctrl_signals_io(props: Dict) -> List[str]:
   io = []
   port_wire_map = props['port_wire_map']
@@ -69,6 +76,7 @@ def get_s_axi_lite_io(props: Dict) -> List[str]:
 def get_io_section(props: Dict) -> List[str]:
   _logger.info('generating RTL for the ctrl wrapper %s', props['module'])
   io = []
+  io += get_basic_io()
   io += get_stream_io(props)
   io += get_m_axi_io(props)
   io += get_passing_stream_io(props)
@@ -121,7 +129,7 @@ def get_ctrl_signals(props: Dict) -> List[str]:
   rtl.append(f'  else ap_done_{wrapper_sub_vertex}_q <= ap_done_{wrapper_sub_vertex};')
   rtl.append(f'end')
 
-  rtl.append(f'always @ posedge (ap_clk) ap_done_final_q <= 1 & ' +
+  rtl.append(f'always @ (posedge ap_clk) ap_done_final_q <= 1 & ' +
     ' & '.join(f'{ap_in}_q' for ap_in in props['port_wire_map']['ctrl_in']) +
     f' & ap_done_{wrapper_sub_vertex}_q' +
     ';'
@@ -150,7 +158,7 @@ def get_constant_broadcast(v_props: Dict) -> List[str]:
 
     rtl.append(f'wire {width} {argname}_inner;')
     rtl.append(f'reg  {width} {argname}_q;')
-    rtl.append(f'always @ posedge(ap_clk) {argname}_q <= {argname}_inner;')
+    rtl.append(f'always @ (posedge ap_clk) {argname}_q <= {argname}_inner;')
     rtl.append(f'assign {argname} = {argname}_q;')
     rtl.append('')
 
@@ -173,7 +181,7 @@ def get_ctrl_sub_vertex_inst(v_props: Dict) -> List[str]:
 
   # FIXME: hardcoded parameters of the instance
   inst.append(f'  .C_S_AXI_ADDR_WIDTH({C_S_AXI_ADDR_WIDTH}),')
-  inst.append(f'  .C_S_AXI_DATA_WIDTH({C_S_AXI_DATA_WIDTH}),')
+  inst.append(f'  .C_S_AXI_DATA_WIDTH({C_S_AXI_DATA_WIDTH})')
 
   # ports of the instance
   inst.append(f') {v_props["module"]}_0 (')
@@ -190,7 +198,7 @@ def get_ctrl_sub_vertex_inst(v_props: Dict) -> List[str]:
   inst.append(f'  .ACLK(ap_clk),')
   inst.append(f'  .ARESET(ap_rst_ctrl_s_axi),')
   inst.append(f'  .ACLK_EN(1\'b1),')
-  inst.append(f'  .interrupt(interrupt),')
+  inst.append(f'  .interrupt(),')
 
   # sync here with wire declaration
   inst.append(f'  .ap_start(ap_start_orig),')
