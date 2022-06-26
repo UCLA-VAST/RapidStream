@@ -45,6 +45,9 @@ def get_master_ctrl_signals_io(props: Dict) -> List[str]:
   for ap_out in port_wire_map['ctrl_out']:
     io.append(f'output {ap_out},')
 
+  for ap_out in port_wire_map['reset_out']:
+    io.append(f'output {ap_out},')
+
   for ap_in in port_wire_map['ctrl_in']:
     io.append(f'input {ap_in},')
 
@@ -103,6 +106,12 @@ def get_ctrl_signals(props: Dict) -> List[str]:
     rtl.append(f'always @ (posedge ap_clk) {ap_out}_q <= ap_start_orig;')
     rtl.append(f'assign {ap_out} = {ap_out}_q;')
 
+  # broadcast ap_rst_n
+  for ap_out in props['port_wire_map']['reset_out']:
+    rtl.append(f'reg {ap_out}_q;')
+    rtl.append(f'always @ (posedge ap_clk) {ap_out}_q <= ap_rst_n;')
+    rtl.append(f'assign {ap_out} = {ap_out}_q;')
+
   # reduce ap_done from outside
   rtl.append(f'reg ap_done_final_q;')
   for ap_in in props['port_wire_map']['ctrl_in']:
@@ -110,7 +119,7 @@ def get_ctrl_signals(props: Dict) -> List[str]:
     rtl.append(f'always @ (posedge ap_clk) begin')
     rtl.append(f'  if (~ap_rst_n) {ap_in}_q <= 0;')
     rtl.append(f'  else if (ap_done_final_q) {ap_in}_q <= 0;')
-    rtl.append(f'  else {ap_in}_q <= {ap_in};')
+    rtl.append(f'  else {ap_in}_q <= {ap_in} | {ap_in}_q ;')
     rtl.append(f'end')
 
   # send ap_start to the normal vertex within the wrapper
@@ -126,7 +135,7 @@ def get_ctrl_signals(props: Dict) -> List[str]:
   rtl.append(f'always @ (posedge ap_clk) begin')
   rtl.append(f'  if (~ap_rst_n) ap_done_{wrapper_sub_vertex}_q <= 0;')
   rtl.append(f'  else if (ap_done_final_q) ap_done_{wrapper_sub_vertex}_q <= 0;')
-  rtl.append(f'  else ap_done_{wrapper_sub_vertex}_q <= ap_done_{wrapper_sub_vertex};')
+  rtl.append(f'  else ap_done_{wrapper_sub_vertex}_q <= ap_done_{wrapper_sub_vertex} | ap_done_{wrapper_sub_vertex}_q;')
   rtl.append(f'end')
 
   rtl.append(f'always @ (posedge ap_clk) ap_done_final_q <= 1 & ' +

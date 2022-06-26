@@ -22,7 +22,7 @@ def get_slot_inst(v_props: Dict) -> List[str]:
         inst.append(f'  .m_axi_{axi_port_name}_{suffix}(m_axi_{wirename}_{suffix}),')
     elif axi_entry['axi_type'] == 'S_AXI_LITE':
       for portname, dir_and_width in S_AXI_LITE_INTERFACE.items():
-        inst.append(f'  .s_axi_control_{portname}(s_axi_control_{portname})')
+        inst.append(f'  .s_axi_control_{portname}(s_axi_control_{portname}),')
 
   for argname, wirename in pw_map.get('constant_ports', {}).items():
     inst.append(f'  .{argname}({wirename}),')
@@ -31,6 +31,9 @@ def get_slot_inst(v_props: Dict) -> List[str]:
     inst.append(f'  .{argname}({argname}),')
 
   for argname in pw_map.get('ctrl_in', []):
+    inst.append(f'  .{argname}({argname}),')
+
+  for argname in pw_map.get('reset_out', []):
     inst.append(f'  .{argname}({argname}),')
 
   for argname in pw_map.get('constant_out', []):
@@ -49,12 +52,16 @@ def get_slot_inst(v_props: Dict) -> List[str]:
       inst.append(f'  .{wire_name}_{s1}({wire_name}_{s1}),')
       inst.append(f'  .{wire_name}_{s2}({wire_name}_{s2}),')
 
-  inst.append(f'  .ap_clk(ap_clk),')
-  inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}),')
-  inst.append(f'  .ap_start(ap_start_{v_props["instance"]}),')
-  inst.append(f'  .ap_done(ap_done_{v_props["instance"]}),')
-  inst.append(f'  .ap_ready(),')
-  inst.append(f'  .ap_idle()')
+  if v_props['category'] != 'CTRL_WRAPPER':
+    inst.append(f'  .ap_start(ap_start_{v_props["instance"]}),')
+    inst.append(f'  .ap_done(ap_done_{v_props["instance"]}),')
+    inst.append(f'  .ap_ready(),')
+    inst.append(f'  .ap_idle(),')
+    inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}),')
+  else:
+    inst.append(f'  .ap_rst_n(ap_rst_n),')
+
+  inst.append(f'  .ap_clk(ap_clk)')
   inst.append(f');')
 
   return inst

@@ -48,14 +48,16 @@ def get_stream_io(props: Dict) -> List[str]:
       exit(1)
 
     for port in _port_wire_map.keys():
-      port_width = props['port_width_map'].get(port, '')
-
       # for passing streams, the port may have suffix _q\d+
       port_sanitize = port
       match = re.search('(.+)_q\d+$', port)
       if match:
         port_sanitize = match.group(1)
         _logger.debug('port name is sanitized from %s to %s', port, port_sanitize)
+
+      port_width = props['port_width_map'].get(port_sanitize, '')
+      if '_din' in port_sanitize or '_dout' in port_sanitize:
+        assert port_width
 
       # the direction of the ports are determined by if the FIFO is inside
       # or outside the wrapper
