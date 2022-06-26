@@ -105,7 +105,7 @@ def get_group_vertex_props(
   """Get the new group vertex including all inbound streams"""
   group_props = {}
   group_props['module'] = group_name
-  group_props['instance'] = f'{group_name}_0'
+  group_props['instance'] = f'{group_name}'
   group_props['area'] = config['vertices'][target_vertex]['area']
   group_props['category'] = 'INBOUND_STREAM_GROUP_VERTEX'
 
