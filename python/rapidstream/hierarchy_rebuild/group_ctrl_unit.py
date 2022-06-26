@@ -87,6 +87,12 @@ def embed_ctrl_unit(config: Dict, target_vertex: str, ctrl_vertex: str) -> Dict:
     ctrl_wrapper_props['port_wire_map']['ctrl_out'].append(f'ap_start_{v_name}')
     ctrl_wrapper_props['port_wire_map']['ctrl_in'].append(f'ap_done_{v_name}')
 
+    # declare the wire in the upper level
+    # FIXME: should add a function to collect all upper level wires
+    # based on port_wire_map and port_width_map
+    config['wire_decl'][f'ap_start_{v_name}'] = ''
+    config['wire_decl'][f'ap_done_{v_name}'] = ''
+
   # send out constants
   ctrl_wrapper_props['port_wire_map']['constant_out'] = ctrl_props['port_wire_map']['constant_ports']
 
