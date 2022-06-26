@@ -210,8 +210,8 @@ def get_non_ctrl_wrapper_ctrl_signals(props: Dict) -> List[str]:
 
   # distribute ap_rst_n
   for v_props in props['sub_vertices'].values():
-    decl.append(f'(* keep = "true" *) reg ap_rst_n_{v_props["module"]};')
-    decl.append(f'always @ (posedge ap_clk) ap_rst_n_{v_props["module"]} <= ap_rst_n;')
+    decl.append(f'(* keep = "true" *) reg ap_rst_n_{v_props["instance"]};')
+    decl.append(f'always @ (posedge ap_clk) ap_rst_n_{v_props["instance"]} <= ap_rst_n;')
   for s_name in props['sub_streams'].keys():
     decl.append(f'(* keep = "true" *) reg ap_rst_n_{s_name};')
     decl.append(f'always @ (posedge ap_clk) ap_rst_n_{s_name} <= ap_rst_n;')
@@ -220,8 +220,8 @@ def get_non_ctrl_wrapper_ctrl_signals(props: Dict) -> List[str]:
   decl.append(f'(* keep = "true" *) reg ap_start_q0;')
   decl.append('always @ (posedge ap_clk) ap_start_q0 <= ap_start;')
   for v_props in props['sub_vertices'].values():
-    decl.append(f'(* keep = "true" *) reg ap_start_{v_props["module"]};')
-    decl.append(f'always @ (posedge ap_clk) ap_start_{v_props["module"]} <= ap_start_q0;')
+    decl.append(f'(* keep = "true" *) reg ap_start_{v_props["instance"]};')
+    decl.append(f'always @ (posedge ap_clk) ap_start_{v_props["instance"]} <= ap_start_q0;')
 
   # collect ap_done
   # each vertex will only assert ap_done for one cycle, so we need to hold the value
@@ -230,18 +230,18 @@ def get_non_ctrl_wrapper_ctrl_signals(props: Dict) -> List[str]:
   decl.append(f'(* keep = "true" *) reg ap_done_final_q0;')
   decl.append(f'(* keep = "true" *) reg ap_done_final;')
   for v_props in props['sub_vertices'].values():
-    done_signal = f'ap_done_{v_props["module"]}_q0'
+    done_signal = f'ap_done_{v_props["instance"]}_q0'
 
-    decl.append(f'wire ap_done_{v_props["module"]};')
+    decl.append(f'wire ap_done_{v_props["instance"]};')
     decl.append(f'(* keep = "true" *) reg {done_signal};')
     decl.append(f'always @ (posedge ap_clk) begin')
-    decl.append(f'  if (~ap_rst_n_{v_props["module"]}) {done_signal} <= 0;')
+    decl.append(f'  if (~ap_rst_n_{v_props["instance"]}) {done_signal} <= 0;')
     decl.append(f'  else if (ap_done_final) {done_signal} <= 0;')
-    decl.append(f'  else {done_signal} <= {done_signal} | ap_done_{v_props["module"]};')
+    decl.append(f'  else {done_signal} <= {done_signal} | ap_done_{v_props["instance"]};')
     decl.append(f'end')
 
   decl.append('always @ (posedge ap_clk) ap_done_final_q0 <= ' +
-                ' & '.join(f'ap_done_{v_props["module"]}_q0'
+                ' & '.join(f'ap_done_{v_props["instance"]}_q0'
                   for v_props in props['sub_vertices'].values()) + ';'
              )
 
@@ -275,7 +275,7 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
       insts[-1] = insts[-1].strip(',')
       insts.append(')')
 
-    insts.append(f'{v_props["module"]} (')
+    insts.append(f'{v_props["instance"]} (')
 
     pw_map = v_props['port_wire_map']
     for const_port, const_wire in pw_map['constant_ports'].items():
@@ -302,12 +302,12 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
         insts.append(f'  .{wire_name}_{s1}({wire_name}_{s1}),')
         insts.append(f'  .{wire_name}_{s2}({wire_name}_{s2}),')
 
-    insts.append(f'  .ap_start(ap_start_{v_props["module"]}),')
-    insts.append(f'  .ap_done(ap_done_{v_props["module"]}),')
+    insts.append(f'  .ap_start(ap_start_{v_props["instance"]}),')
+    insts.append(f'  .ap_done(ap_done_{v_props["instance"]}),')
     insts.append(f'  .ap_idle(),')
     insts.append(f'  .ap_ready(),')
     insts.append(f'  .ap_clk(ap_clk),')
-    insts.append(f'  .ap_rst_n(ap_rst_n_{v_props["module"]})')
+    insts.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]})')
     insts.append(');')
     insts.append('')
 

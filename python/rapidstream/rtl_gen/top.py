@@ -11,7 +11,7 @@ def get_slot_inst(v_props: Dict) -> List[str]:
   inst = []
   pw_map = v_props['port_wire_map']
 
-  inst.append(f'{v_props["module"]} {v_props["module"]}(')
+  inst.append(f'{v_props["module"]} {v_props["instance"]}(')
 
   # FIXME: consider readonly/writeonly cases
   for axi_entry in pw_map['axi_ports']:
@@ -50,9 +50,9 @@ def get_slot_inst(v_props: Dict) -> List[str]:
       inst.append(f'  .{wire_name}_{s2}({wire_name}_{s2}),')
 
   inst.append(f'  .ap_clk(ap_clk),')
-  inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["module"]}),')
-  inst.append(f'  .ap_start(ap_start_{v_props["module"]}),')
-  inst.append(f'  .ap_done(ap_done_{v_props["module"]}),')
+  inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}),')
+  inst.append(f'  .ap_start(ap_start_{v_props["instance"]}),')
+  inst.append(f'  .ap_done(ap_done_{v_props["instance"]}),')
   inst.append(f'  .ap_ready(),')
   inst.append(f'  .ap_idle()')
   inst.append(f');')

@@ -60,6 +60,7 @@ def embed_ctrl_unit(config: Dict, target_vertex: str, ctrl_vertex: str) -> Dict:
   module_name = target_vertex.replace('WRAPPER_VERTEX', 'CTRL_WRAPPER_VERTEX')
   ctrl_wrapper_props = {
     'module': module_name,
+    'instance': f'{module_name}_0',
     'area': target_props['area'],  # FIXME: neglect the area of the ctrl unit
     'category': 'CTRL_WRAPPER',
     'floorplan_region': target_props['floorplan_region'],
