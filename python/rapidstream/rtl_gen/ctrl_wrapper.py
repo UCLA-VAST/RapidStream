@@ -1,18 +1,15 @@
 import logging
+from re import L
 from typing import Dict, List
 
 from rapidstream.const import *
 from rapidstream.rtl_gen.group_wrapper import (
-  format_io_section,
+  get_io_section,
   get_ending,
-  get_m_axi_io,
-  get_passing_stream_io,
   get_passing_wire_pipelines,
-  get_stream_io,
   get_sub_stream_insts,
   get_sub_vertex_insts,
   get_wire_decls,
-  remove_trailing_comma,
 )
 
 _logger = logging.getLogger().getChild(__name__)
@@ -72,22 +69,6 @@ def get_s_axi_lite_io(props: Dict) -> List[str]:
     if axi_entry['axi_type'] == 'S_AXI_LITE':
       for portname, dir_and_width in S_AXI_LITE_INTERFACE.items():
         io.append(f'{dir_and_width[0]} {dir_and_width[1]} s_axi_control_{portname},')
-
-  return io
-
-
-def get_io_section(props: Dict) -> List[str]:
-  _logger.info('generating RTL for the ctrl wrapper %s', props['module'])
-  io = []
-  io += get_basic_io()
-  io += get_stream_io(props)
-  io += get_m_axi_io(props)
-  io += get_passing_stream_io(props)
-  io += get_master_ctrl_signals_io(props)
-  io += get_constant_output_io(props)
-  io += get_s_axi_lite_io(props)
-  io = remove_trailing_comma(io)
-  io = format_io_section(io, props)
 
   return io
 

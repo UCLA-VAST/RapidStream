@@ -8,127 +8,6 @@ from rapidstream.const import *
 _logger = logging.getLogger().getChild(__name__)
 
 
-def get_passing_stream_io(props: Dict):
-  io = []
-  port_wire_map = props['port_wire_map']
-  passing_streams = port_wire_map.get('passing_streams', {})
-  if not passing_streams:
-    _logger.debug(f'no passing streams found for this vertex')
-
-  for stream_name, stream_props in passing_streams.items():
-    s_in = stream_props['inbound_side_suffix']
-    s_out = stream_props['outbound_side_suffix']
-    for wire_name, width in stream_props['wire_to_width'].items():
-      if wire_name.endswith(('_din', '_write')):
-        io.append(f'input {width} {wire_name}_{s_in},')
-        io.append(f'output {width} {wire_name}_{s_out},')
-      elif wire_name.endswith('_full_n'):
-        io.append(f'output {width} {wire_name}_{s_in},')
-        io.append(f'input {width} {wire_name}_{s_out},')
-      else:
-        assert False
-
-  return io
-
-
-def get_stream_io(props: Dict) -> List[str]:
-  io = []
-  port_wire_map = props['port_wire_map']
-
-  for stream_name, _port_wire_map in port_wire_map['stream_ports'].items():
-    if stream_name in props['inbound_streams']:
-      _logger.debug('%s is an inbound stream', stream_name)
-      stream_dir = 'INBOUND'
-    elif stream_name in props['outbound_streams']:
-      _logger.debug('%s is an outbound stream', stream_name)
-      stream_dir = 'OUTBOUND'
-    else:
-      stream_dir = 'OUTBOUND'
-      _logger.error('direction of stream %s is unknown', stream_name)
-      exit(1)
-
-    for port in _port_wire_map.keys():
-      # for passing streams, the port may have suffix _q\d+
-      port_sanitize = port
-      match = re.search('(.+)_q\d+$', port)
-      if match:
-        port_sanitize = match.group(1)
-        _logger.debug('port name is sanitized from %s to %s', port, port_sanitize)
-
-      port_width = props['port_width_map'].get(port_sanitize, '')
-      if '_din' in port_sanitize or '_dout' in port_sanitize:
-        assert port_width
-
-      # the direction of the ports are determined by if the FIFO is inside
-      # or outside the wrapper
-      if port_sanitize.endswith(('_din', '_write', '_full_n')):
-        if stream_dir == 'OUTBOUND':
-          if port_sanitize.endswith(('_din', '_write')):
-            direction = 'output'
-          else:
-            direction = 'input'
-        else:
-          if port_sanitize.endswith(('_din', '_write')):
-            direction = 'input'
-          else:
-            direction = 'output'
-
-      elif port_sanitize.endswith(('_dout', '_read', '_empty_n')):
-        if stream_dir == 'OUTBOUND':
-          if port_sanitize.endswith(('_dout', '_empty_n')):
-            direction = 'output'
-          else:
-            direction = 'input'
-        else:
-          if port_sanitize.endswith(('_dout', '_empty_n')):
-            direction = 'input'
-          else:
-            direction = 'output'
-      else:
-        assert False
-
-      io.append(f'{direction} {port_width} {port},')
-
-  return io
-
-
-def get_constant_input_io(props: Dict) -> List[str]:
-  io = []
-  port_wire_map = props['port_wire_map']
-
-  for const_io in port_wire_map['constant_ports']:
-    const_width = props['port_width_map'][const_io]
-    io.append(f'input {const_width} {const_io},')
-
-  return io
-
-
-def get_m_axi_io(props: Dict) -> List[str]:
-  io = []
-  port_wire_map = props['port_wire_map']
-
-  for axi_entry in port_wire_map['axi_ports']:
-    if axi_entry['axi_type'] == 'M_AXI':
-      axi_data_width = axi_entry['data_width']
-      axi_port_name = axi_entry['portname']
-      io += get_axi_io_section(axi_data_width, axi_port_name)
-
-  return io
-
-
-def get_slave_ctrl_signals_io() -> List[str]:
-  io = []
-
-  io.append(f'input ap_clk,')
-  io.append(f'input ap_rst_n,')
-  io.append(f'input ap_start,')
-  io.append(f'output ap_done,')
-  io.append(f'output ap_idle,')
-  io.append(f'output ap_ready,')
-
-  return io
-
-
 def remove_trailing_comma(rtl: List[str]) -> List[str]:
   rtl[-1] = rtl[-1].strip(',')
   return rtl
@@ -143,16 +22,14 @@ def format_io_section(io: List[str], props: Dict) -> List[str]:
   return io
 
 
-def get_non_ctrl_wrapper_io_section(props: Dict) -> List[str]:
+def get_io_section(props: Dict) -> List[str]:
   """Get the Input/Output part"""
   _logger.info('generating RTL for non-ctrl wrapper %s', props['module'])
 
   io = []
-  io += get_constant_input_io(props)
-  io += get_stream_io(props)
-  io += get_m_axi_io(props)
-  io += get_passing_stream_io(props)
-  io += get_slave_ctrl_signals_io()
+  for io_dir, name_to_width in props['io_dir_to_name_to_width'].items():
+    for name, width in name_to_width.items():
+      io.append(f'{io_dir} {width} {name},')
 
   io = remove_trailing_comma(io)
   io = format_io_section(io, props)
@@ -365,7 +242,7 @@ def get_group_wrapper(
   """Create the RTL for the specified Vertex"""
 
   wrapper = []
-  wrapper += get_non_ctrl_wrapper_io_section(group_vertex_props)
+  wrapper += get_io_section(group_vertex_props)
   wrapper += get_wire_decls(group_vertex_props)
   wrapper += get_passing_wire_pipelines(group_vertex_props)
   wrapper += get_non_ctrl_wrapper_ctrl_signals(group_vertex_props)
