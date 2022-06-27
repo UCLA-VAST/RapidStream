@@ -1,6 +1,8 @@
 import logging
 from typing import Dict, List, Tuple
 
+from rapidstream.hierarchy_rebuild.gen_wrapper_io_property import generate_no_ctrl_vertex_io_list
+
 _logger = logging.getLogger().getChild(__name__)
 
 
@@ -166,5 +168,7 @@ def group_inbound_streams(
     for wire in props['port_wire_map']['outbound'].values():
       target_wires[wire] = config['wire_decl'][wire]
       config['wire_decl'].pop(wire)
+
+  generate_no_ctrl_vertex_io_list(config['vertices'][group_name])
 
   return config['vertices'][group_name]

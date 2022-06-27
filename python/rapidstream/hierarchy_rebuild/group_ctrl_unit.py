@@ -1,6 +1,8 @@
 import logging
 from typing import Dict, List, Tuple
 
+from rapidstream.hierarchy_rebuild.gen_wrapper_io_property import generate_ctrl_vertex_io_list
+
 _logger = logging.getLogger().getChild(__name__)
 
 
@@ -114,5 +116,7 @@ def embed_ctrl_unit(config: Dict, target_vertex: str, ctrl_vertex: str) -> Dict:
   ctrl_wrapper_props['ctrl_sub_vertex'] = ctrl_vertex
 
   config['vertices'][module_name] = ctrl_wrapper_props
+
+  generate_ctrl_vertex_io_list(ctrl_wrapper_props)
 
   return ctrl_wrapper_props

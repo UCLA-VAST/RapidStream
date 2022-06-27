@@ -150,18 +150,32 @@ def add_s_axi_lite_io_dir(props: Dict) -> List[str]:
         props['io_dir_to_name_to_width'][io_dir][f's_axi_control_{portname}'] = width
 
 
-def generate_no_ctrl_vertex_io_properties(props: Dict) -> None:
+def generate_no_ctrl_vertex_io_list(props: Dict) -> None:
   """For vertex that does not include the ctrl unit"""
+  props['io_dir_to_name_to_width'] = {
+    'input': {},
+    'output': {},
+  }
+
   add_basic_io_dir(props)
-  add_stream_io_dir(props)
+  try:
+    add_stream_io_dir(props)
+  except:
+    import pdb; pdb.set_trace()
   add_m_axi_io_dir(props)
   add_passing_stream_io_dir(props)
 
   add_constant_input_io_dir(props)
   add_slave_ctrl_signals_io_dir(props)
 
-def generate_ctrl_vertex_io_properties(props: Dict) -> None:
+
+def generate_ctrl_vertex_io_list(props: Dict) -> None:
   """For vertex that includes the ctrl unit"""
+  props['io_dir_to_name_to_width'] = {
+    'input': {},
+    'output': {},
+  }
+
   add_basic_io_dir(props)
   add_stream_io_dir(props)
   add_m_axi_io_dir(props)
@@ -170,21 +184,3 @@ def generate_ctrl_vertex_io_properties(props: Dict) -> None:
   add_constant_output_io_dir(props)
   add_master_ctrl_signals_io_dir(props)
   add_s_axi_lite_io_dir(props)
-
-
-def generate_wrapper_io_properties(config: Dict) -> None:
-  """Extract and save IO properties of a given vertex"""
-
-  for v_name, props in config['vertices'].items():
-    if props['category'] == 'PORT_VERTEX':
-      continue
-
-    props['io_dir_to_name_to_width'] = {
-      'input': {},
-      'output': {},
-    }
-
-    if props['category'] == 'CTRL_WRAPPER':
-      generate_ctrl_vertex_io_properties(props)
-    else:
-      generate_no_ctrl_vertex_io_properties(props)

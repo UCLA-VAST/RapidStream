@@ -1,6 +1,8 @@
 import logging
 from typing import Dict, List, Tuple
 
+from rapidstream.hierarchy_rebuild.gen_wrapper_io_property import generate_no_ctrl_vertex_io_list
+
 _logger = logging.getLogger().getChild(__name__)
 
 
@@ -93,3 +95,11 @@ def group_passing_streams(config: Dict, pipeline_level: int) -> None:
       # this pass must be followed by the group_inbound_streams pass
       stream_props = props['sub_streams'][stream_name]
       embed_stream(config, stream_name, stream_props, pipeline_level)
+
+  for v_name, props in config['vertices'].items():
+    # at this point, the ctrl vertex and port vertex are left alone
+    # they are not grouped into any other vertices yet
+    if props['category'] in ('CTRL_VERTEX', 'PORT_VERTEX'):
+      continue
+
+    generate_no_ctrl_vertex_io_list(props)
