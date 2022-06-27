@@ -197,7 +197,7 @@ def get_sub_stream_insts(props: Dict) -> List[str]:
   insts = []
 
   for s_name, s_props in props['sub_streams'].items():
-    pipeline_level = (len(s_props['path']) - 1)
+    pipeline_level = (len(s_props['path']) - 1) * 2
     width = s_props["width"]
 
     # need to pipeline the signal going in & out
@@ -215,6 +215,8 @@ def get_sub_stream_insts(props: Dict) -> List[str]:
     if pipeline_level > 1:
       insts[-1] += ','
       insts.append(f'  .GRACE_PERIOD({grace_period})')
+
+    _logger.debug('stream %s has pipeline level %d', s_name, pipeline_level)
 
     insts.append(f') {s_name} (')
     insts.append(f'  .clk(ap_clk),')

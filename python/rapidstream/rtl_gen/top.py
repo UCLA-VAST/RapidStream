@@ -6,14 +6,27 @@ from rapidstream.const import *
 _logger = logging.getLogger().getChild(__name__)
 
 
+def get_io_direction(v_props: Dict, portname: str) -> str:
+  if portname in v_props['io_dir_to_name_to_width']['input']:
+    return 'input'
+  elif portname in v_props['io_dir_to_name_to_width']['output']:
+    return 'output'
+  else:
+    assert False
+
+
 def get_slot_inst(v_props: Dict) -> List[str]:
-  """the instance for each slot"""
+  """the instance for each slot
+     Change the wire name of input ports to reflect the pipelining
+  """
   inst = []
   pw_map = v_props['port_wire_map']
 
+  inst.append('(* dont_touch = "yes" *)')
   inst.append(f'{v_props["module"]} {v_props["instance"]}(')
 
   # FIXME: consider readonly/writeonly cases
+  # no pipelining for AXI interfaces => connect to top IO
   for axi_entry in pw_map['axi_ports']:
     if axi_entry['axi_type'] == 'M_AXI':
       axi_port_name = axi_entry['portname']
@@ -25,23 +38,24 @@ def get_slot_inst(v_props: Dict) -> List[str]:
         inst.append(f'  .s_axi_control_{portname}(s_axi_control_{portname}),')
 
   for argname, wirename in pw_map.get('constant_ports', {}).items():
-    inst.append(f'  .{argname}({wirename}),')
+    inst.append(f'  .{argname}({wirename}_input),')
 
   for argname in pw_map.get('ctrl_out', []):
-    inst.append(f'  .{argname}({argname}),')
+    inst.append(f'  .{argname}({argname}_output),')
 
   for argname in pw_map.get('ctrl_in', []):
-    inst.append(f'  .{argname}({argname}),')
+    inst.append(f'  .{argname}({argname}_input),')
 
   for argname in pw_map.get('reset_out', []):
-    inst.append(f'  .{argname}({argname}),')
+    inst.append(f'  .{argname}({argname}_output),')
 
   for argname in pw_map.get('constant_out', []):
-    inst.append(f'  .{argname}({argname}),')
+    inst.append(f'  .{argname}({argname}_output),')
 
   for stream_pw_map in pw_map.get('stream_ports', {}).values():
     for argname, wirename in stream_pw_map.items():
-      inst.append(f'  .{argname}({wirename}),')
+      direction = get_io_direction(v_props, argname)
+      inst.append(f'  .{argname}({wirename}_{direction}),')
 
   # passing wires
   passing_streams = pw_map.get('passing_streams', {})
@@ -49,18 +63,22 @@ def get_slot_inst(v_props: Dict) -> List[str]:
     s1 = props['inbound_side_suffix']
     s2 = props['outbound_side_suffix']
     for wire_name in props['wire_to_width'].keys():
-      inst.append(f'  .{wire_name}_{s1}({wire_name}_{s1}),')
-      inst.append(f'  .{wire_name}_{s2}({wire_name}_{s2}),')
+      s1_direction = get_io_direction(v_props, f'{wire_name}_{s1}')
+      s2_direction = get_io_direction(v_props, f'{wire_name}_{s2}')
+      inst.append(f'  .{wire_name}_{s1}({wire_name}_{s1}_{s1_direction}),')
+      inst.append(f'  .{wire_name}_{s2}({wire_name}_{s2}_{s2_direction}),')
 
   if v_props['category'] != 'CTRL_WRAPPER':
-    inst.append(f'  .ap_start(ap_start_{v_props["instance"]}),')
-    inst.append(f'  .ap_done(ap_done_{v_props["instance"]}),')
+    inst.append(f'  .ap_start(ap_start_{v_props["instance"]}_input),')
+    inst.append(f'  .ap_done(ap_done_{v_props["instance"]}_output),')
     inst.append(f'  .ap_ready(),')
     inst.append(f'  .ap_idle(),')
-    inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}),')
+    inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}_input),')
   else:
+    # top level IO
     inst.append(f'  .ap_rst_n(ap_rst_n),')
 
+  # top level IO
   inst.append(f'  .ap_clk(ap_clk)')
   inst.append(f');')
 
@@ -84,10 +102,16 @@ def get_task_vertex_insts(config: Dict) -> List[str]:
   return insts
 
 
-def get_wire_decl(config: Dict) -> List[str]:
+def get_anchor_reg_decl(config: Dict) -> List[str]:
   """Instantiate the wires between instances and the control signals"""
-  wire = [f'wire {width} {name};'
-            for name, width in config['wire_decl'].items()]
+  wire = []
+  for name, width in config['wire_decl'].items():
+    wire.append(f'wire {width} {name}_input;')
+    wire.append(f'wire {width} {name}_output;')
+    wire.append(f'(* dont_touch = "yes" *) reg {width} {name}_q;')
+    wire.append(f'always @ (ap_clk) {name}_q <= {name}_output;')
+    wire.append(f'assign {name}_input = {name}_q;')
+
   return wire
 
 
@@ -149,7 +173,7 @@ def sort_rtl(top: List[str]) -> List[str]:
 
 def get_top(config: Dict, top_name: str) -> List[str]:
   top = []
-  top += get_wire_decl(config) + ['']
+  top += get_anchor_reg_decl(config) + ['']
   top += get_task_vertex_insts(config) + ['']
   top += set_unused_ports()
   top += get_ending() + ['']
