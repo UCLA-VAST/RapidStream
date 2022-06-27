@@ -9,10 +9,12 @@ _logger = logging.getLogger().getChild(__name__)
 
 def add_constant_input_io_dir(props: Dict) -> None:
   port_wire_map = props['port_wire_map']
-  for const_io in port_wire_map['constant_ports']:
-    const_width = props['port_width_map'][const_io]
-    props['io_dir_to_name_to_width']['input'][const_io] = const_width
-
+  try:
+    for const_io in port_wire_map['constant_ports']:
+      const_width = props['port_width_map'][const_io]
+      props['io_dir_to_name_to_width']['input'][const_io] = const_width
+  except:
+    import pdb; pdb.set_trace()
 
 def add_m_axi_io_dir(props: Dict) -> None:
   port_wire_map = props['port_wire_map']
@@ -21,9 +23,9 @@ def add_m_axi_io_dir(props: Dict) -> None:
       axi_data_width = axi_entry['data_width']
       axi_port_name = axi_entry['portname']
 
-      for suffix, props in M_AXI_INTERFACE.items():
-        direction = props[0]
-        width = props[1].format(data_width=axi_data_width)
+      for suffix, dir_and_width in M_AXI_INTERFACE.items():
+        direction = dir_and_width[0]
+        width = dir_and_width[1].format(data_width=axi_data_width)
         portname = f'm_axi_{axi_port_name}_{suffix}'
 
         props['io_dir_to_name_to_width'][direction][portname] = width
@@ -151,23 +153,22 @@ def add_s_axi_lite_io_dir(props: Dict) -> List[str]:
 def generate_no_ctrl_vertex_io_properties(props: Dict) -> None:
   """For vertex that does not include the ctrl unit"""
   add_basic_io_dir(props)
-  add_constant_input_io_dir(props)
   add_stream_io_dir(props)
   add_m_axi_io_dir(props)
   add_passing_stream_io_dir(props)
 
+  add_constant_input_io_dir(props)
   add_slave_ctrl_signals_io_dir(props)
 
 def generate_ctrl_vertex_io_properties(props: Dict) -> None:
   """For vertex that includes the ctrl unit"""
   add_basic_io_dir(props)
-  add_constant_input_io_dir(props)
   add_stream_io_dir(props)
   add_m_axi_io_dir(props)
   add_passing_stream_io_dir(props)
 
-  add_master_ctrl_signals_io_dir(props)
   add_constant_output_io_dir(props)
+  add_master_ctrl_signals_io_dir(props)
   add_s_axi_lite_io_dir(props)
 
 
@@ -183,7 +184,7 @@ def generate_wrapper_io_properties(config: Dict) -> None:
       'output': {},
     }
 
-    if props['category'] == 'CTRL_VERTEX':
+    if props['category'] == 'CTRL_WRAPPER':
       generate_ctrl_vertex_io_properties(props)
     else:
       generate_no_ctrl_vertex_io_properties(props)
