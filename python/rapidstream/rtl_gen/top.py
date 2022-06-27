@@ -121,6 +121,14 @@ def get_io_section(config: Dict, top_name: str) -> List[str]:
   return io
 
 
+def set_unused_ports() -> List[str]:
+  warning = '  // FIXME: only tested on 2021.2'
+  return [
+    'assign interrupt = 0;' + warning,
+    'assign ap_local_block = 0;' + warning,
+  ]
+
+
 def get_ending() -> List[str]:
   return ['endmodule']
 
@@ -143,6 +151,7 @@ def get_top(config: Dict, top_name: str) -> List[str]:
   top = []
   top += get_wire_decl(config) + ['']
   top += get_task_vertex_insts(config) + ['']
+  top += set_unused_ports()
   top += get_ending() + ['']
   top_sorted = sort_rtl(top)
 
