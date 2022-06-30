@@ -7,6 +7,7 @@ from rapidstream.hierarchy_rebuild.group_ctrl_unit import embed_ctrl_unit
 from rapidstream.hierarchy_rebuild.group_inbound_streams import group_inbound_streams
 from rapidstream.hierarchy_rebuild.group_passing_streams import group_passing_streams
 from rapidstream.hierarchy_rebuild.group_vertices import group_vertices
+from rapidstream.rtl_gen.anchor_wrapper import get_anchor_wrapper, get_empty_island
 from rapidstream.rtl_gen.ctrl_wrapper import get_ctrl_wrapper
 from rapidstream.rtl_gen.group_wrapper import get_group_wrapper
 from rapidstream.rtl_gen.top import get_top
@@ -53,6 +54,16 @@ def islandize_vertices(config: Dict, output_dir: str, top_name: str):
   ctrl_wrapper_props = embed_ctrl_unit(config, 'WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3', 'CTRL_VERTEX_control_s_axi')
   ctrl_wrapper = get_ctrl_wrapper(ctrl_wrapper_props)
   open(f'{output_dir}/{ctrl_wrapper_props["module"]}.v', 'w').write('\n'.join(ctrl_wrapper))
+
+  # get anchor wrapper
+  for v_name, props in config['vertices'].items():
+    if props['category'] in ('CTRL_VERTEX', 'PORT_VERTEX'):
+      continue
+    anchor_wrapper = get_anchor_wrapper(props)
+    open(f'{output_dir}/{v_name}_anchor_wrapper.v', 'w').write('\n'.join(anchor_wrapper))
+
+    empty_island = get_empty_island(props)
+    open(f'{output_dir}/{v_name}_empty_island.v', 'w').write('\n'.join(empty_island))
 
   # generate top rtl
   top = get_top(config, top_name)

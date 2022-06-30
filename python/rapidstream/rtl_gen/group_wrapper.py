@@ -13,16 +13,16 @@ def remove_trailing_comma(rtl: List[str]) -> List[str]:
   return rtl
 
 
-def format_io_section(io: List[str], props: Dict) -> List[str]:
+def format_io_section(io: List[str], props: Dict, suffix: str = '') -> List[str]:
   io = ['  ' + line for line in io]
-  io = [f'module {props["module"]} ('] + io
+  io = [f'module {props["module"]}{suffix} ('] + io
   io = ['`timescale 1 ns / 1 ps'] + io
   io += [');']
 
   return io
 
 
-def get_io_section(props: Dict) -> List[str]:
+def get_io_section(props: Dict, suffix: str = '') -> List[str]:
   """Get the Input/Output part"""
   _logger.info('generating RTL for non-ctrl wrapper %s', props['module'])
 
@@ -32,7 +32,7 @@ def get_io_section(props: Dict) -> List[str]:
       io.append(f'{io_dir} {width} {name},')
 
   io = remove_trailing_comma(io)
-  io = format_io_section(io, props)
+  io = format_io_section(io, props, suffix)
 
   return io
 
