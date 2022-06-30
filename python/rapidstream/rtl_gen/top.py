@@ -184,3 +184,35 @@ def get_top(config: Dict, top_name: str, use_anchor_wrapper: bool) -> List[str]:
   top = get_io_section(config, top_name) + [''] + top_sorted + ['']
 
   return top
+
+
+def get_dummy_task_vertex_insts(config: Dict) -> List[str]:
+  """Skip ctrl vertex and other conceptual vertices like port vertices"""
+  insts = []
+
+  for v_name, v_props in config['vertices'].items():
+    if v_props['category'] == 'PORT_VERTEX':
+      continue
+
+    elif v_props['category'] == 'CTRL_VERTEX':
+      continue
+
+    else:
+      module_name_suffix = DUMMY_WRAPPER_SUFFIX
+      insts += get_slot_inst(v_props, module_name_suffix) + ['']
+
+  return insts
+
+
+def get_top_with_empty_islands(config: Dict, top_name: str, use_anchor_wrapper: bool) -> List[str]:
+  """Get the top RTL that instantiate empty dummy islands"""
+  top = []
+  top += get_anchor_reg_decl(config) + ['']
+  top += get_dummy_task_vertex_insts(config) + ['']
+  top += set_unused_ports()
+  top += get_ending() + ['']
+  top_sorted = sort_rtl(top)
+
+  top = get_io_section(config, top_name) + [''] + top_sorted + ['']
+
+  return top

@@ -80,7 +80,7 @@ def get_anchor_wrapper(
 def get_empty_island(group_vertex_props: Dict) -> List[str]:
   """Create a dummy module that only includes a register for each IO"""
   wrapper = []
-  wrapper += get_io_section(group_vertex_props, suffix = '_empty')
+  wrapper += get_io_section(group_vertex_props, suffix = DUMMY_WRAPPER_SUFFIX)
   wrapper += get_anchor_section(group_vertex_props)
   wrapper += get_ending()
 

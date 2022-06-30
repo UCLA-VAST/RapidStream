@@ -10,7 +10,7 @@ from rapidstream.hierarchy_rebuild.group_vertices import group_vertices
 from rapidstream.rtl_gen.anchor_wrapper import get_anchor_wrapper, get_empty_island
 from rapidstream.rtl_gen.ctrl_wrapper import get_ctrl_wrapper
 from rapidstream.rtl_gen.group_wrapper import get_group_wrapper
-from rapidstream.rtl_gen.top import get_top
+from rapidstream.rtl_gen.top import get_top, get_top_with_empty_islands
 
 _logger = logging.getLogger().getChild(__name__)
 
@@ -68,5 +68,10 @@ def islandize_vertices(config: Dict, output_dir: str, top_name: str, use_anchor_
   # generate top rtl
   top = get_top(config, top_name, use_anchor_wrapper)
   open(f'{output_dir}/{top_name}.v', 'w').write('\n'.join(top))
+
+  # dummy top
+  dummy_name = top_name + '_with_dummy_islands'
+  dummy_top = get_top_with_empty_islands(config, dummy_name, use_anchor_wrapper)
+  open(f'{output_dir}/{dummy_name}.v', 'w').write('\n'.join(dummy_top))
 
   open('test.json', 'w').write(json.dumps(config, indent=2))
