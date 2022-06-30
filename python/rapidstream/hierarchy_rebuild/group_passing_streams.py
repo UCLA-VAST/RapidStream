@@ -6,8 +6,8 @@ from rapidstream.hierarchy_rebuild.gen_wrapper_io_property import generate_no_ct
 _logger = logging.getLogger().getChild(__name__)
 
 
-def embed_stream(config: Dict, stream_name: str, stream_props: Dict, pipeline_level: int) -> None:
-  """Given a stream, embed it into the passing islands"""
+def embed_stream_pipelines(config: Dict, stream_name: str, stream_props: Dict, pipeline_level: int) -> None:
+  """Given a stream, embed the pipeline registers into the passing islands"""
   slot_path = [f'WRAPPER_VERTEX_{slot_name}' for slot_name in stream_props['path']]
 
   # the stream_name is between two adjacent islands
@@ -75,7 +75,7 @@ def embed_stream(config: Dict, stream_name: str, stream_props: Dict, pipeline_le
 
 
 def group_passing_streams(config: Dict, pipeline_level: int) -> None:
-  """Embed the streams so that each island only have stream interfaces
+  """Embed the stream pipelines so that each island only have stream interfaces
      to neighbor islands.
      pipeline_level: when a stream passes an islands, how many pipeline stages
      to put inside the passing island
@@ -94,7 +94,7 @@ def group_passing_streams(config: Dict, pipeline_level: int) -> None:
       # assume that the inbound stream is immediately in the current wrapper
       # this pass must be followed by the group_inbound_streams pass
       stream_props = props['sub_streams'][stream_name]
-      embed_stream(config, stream_name, stream_props, pipeline_level)
+      embed_stream_pipelines(config, stream_name, stream_props, pipeline_level)
 
   for v_name, props in config['vertices'].items():
     # at this point, the ctrl vertex and port vertex are left alone
