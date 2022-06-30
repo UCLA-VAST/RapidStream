@@ -2,6 +2,7 @@ import logging
 from typing import Dict, List
 
 from rapidstream.const import *
+from rapidstream.rtl_gen.const import *
 from rapidstream.rtl_gen.group_wrapper import get_io_section, get_ending
 
 _logger = logging.getLogger().getChild(__name__)
@@ -68,7 +69,7 @@ def get_anchor_wrapper(
 ) -> List[str]:
   """Register each IO port except the clock"""
   wrapper = []
-  wrapper += get_io_section(group_vertex_props, suffix = '_anchor_wrapper')
+  wrapper += get_io_section(group_vertex_props, suffix = ANCHOR_WRAPPER_SUFFIX)
   wrapper += get_anchor_section(group_vertex_props)
   wrapper += get_inner_vertex_instance(group_vertex_props)
   wrapper += get_ending()

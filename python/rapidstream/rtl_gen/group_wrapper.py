@@ -24,7 +24,7 @@ def format_io_section(io: List[str], props: Dict, suffix: str = '') -> List[str]
 
 def get_io_section(props: Dict, suffix: str = '') -> List[str]:
   """Get the Input/Output part"""
-  _logger.info('generating RTL for non-ctrl wrapper %s', props['module'])
+  _logger.debug('generating the IO section of vertex %s', props['module'])
 
   io = []
   for io_dir, name_to_width in props['io_dir_to_name_to_width'].items():
@@ -193,15 +193,27 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
   return insts
 
 
-def get_sub_stream_insts(props: Dict) -> List[str]:
+def get_sub_stream_insts(props: Dict, use_anchor_wrapper: bool) -> List[str]:
+  """anchor_num_per_crossing should synchronize with anchor wrapper generation"""
   insts = []
 
   for s_name, s_props in props['sub_streams'].items():
-    pipeline_level = (len(s_props['path']) - 1) * 2
+    if use_anchor_wrapper:
+      # will wrap around each final island with one layer of registering
+      # thus each island crossing involves three anchors, one in the anchor region
+      # one each in the two islands on the two sides
+      # 1 more latency for the actual FIFO
+      anchor_num_per_crossing = 3
+    else:
+      # only put one anchor register in the anchor region
+      anchor_num_per_crossing = 1
+
+    pipeline_level = (len(s_props['path']) - 1) * anchor_num_per_crossing + 1
     width = s_props["width"]
 
     # need to pipeline the signal going in & out
-    grace_period = pipeline_level * 2
+    # does not count the 1-cycle latency by the FIFO itself
+    grace_period = (pipeline_level-1) * 2
     depth = s_props["adjusted_depth"] + grace_period
     addr_width = int(log2(depth)) + 1
 
@@ -216,7 +228,7 @@ def get_sub_stream_insts(props: Dict) -> List[str]:
       insts[-1] += ','
       insts.append(f'  .GRACE_PERIOD({grace_period})')
 
-    _logger.debug('stream %s has pipeline level %d', s_name, pipeline_level)
+    _logger.debug('stream %s has %d cycles of extra latency due to pipelining', s_name, pipeline_level-1)
 
     insts.append(f') {s_name} (')
     insts.append(f'  .clk(ap_clk),')
@@ -240,6 +252,7 @@ def get_ending() -> List[str]:
 
 def get_group_wrapper(
   group_vertex_props: Dict,
+  use_anchor_wrapper: bool,
 ) -> List[str]:
   """Create the RTL for the specified Vertex"""
 
@@ -249,7 +262,7 @@ def get_group_wrapper(
   wrapper += get_passing_wire_pipelines(group_vertex_props)
   wrapper += get_non_ctrl_wrapper_ctrl_signals(group_vertex_props)
   wrapper += get_sub_vertex_insts(group_vertex_props)
-  wrapper += get_sub_stream_insts(group_vertex_props)
+  wrapper += get_sub_stream_insts(group_vertex_props, use_anchor_wrapper)
   wrapper += get_ending()
 
   return wrapper

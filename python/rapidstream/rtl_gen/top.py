@@ -2,6 +2,7 @@ import logging
 from typing import Dict, List
 
 from rapidstream.const import *
+from rapidstream.rtl_gen.const import *
 
 _logger = logging.getLogger().getChild(__name__)
 
@@ -15,7 +16,7 @@ def get_io_direction(v_props: Dict, portname: str) -> str:
     assert False
 
 
-def get_slot_inst(v_props: Dict) -> List[str]:
+def get_slot_inst(v_props: Dict, module_name_suffix: str) -> List[str]:
   """the instance for each slot
      Change the wire name of input ports to reflect the pipelining
   """
@@ -23,7 +24,7 @@ def get_slot_inst(v_props: Dict) -> List[str]:
   pw_map = v_props['port_wire_map']
 
   inst.append('(* dont_touch = "yes" *)')
-  inst.append(f'{v_props["module"]} {v_props["instance"]}(')
+  inst.append(f'{v_props["module"]}{module_name_suffix} {v_props["instance"]}(')
 
   # FIXME: consider readonly/writeonly cases
   # no pipelining for AXI interfaces => connect to top IO
@@ -85,7 +86,7 @@ def get_slot_inst(v_props: Dict) -> List[str]:
   return inst
 
 
-def get_task_vertex_insts(config: Dict) -> List[str]:
+def get_task_vertex_insts(config: Dict, use_anchor_wrapper: bool) -> List[str]:
   """Skip ctrl vertex and other conceptual vertices like port vertices"""
   insts = []
 
@@ -97,7 +98,8 @@ def get_task_vertex_insts(config: Dict) -> List[str]:
       continue
 
     else:
-      insts += get_slot_inst(v_props) + ['']
+      module_name_suffix = ANCHOR_WRAPPER_SUFFIX if use_anchor_wrapper else ''
+      insts += get_slot_inst(v_props, module_name_suffix) + ['']
 
   return insts
 
@@ -171,10 +173,10 @@ def sort_rtl(top: List[str]) -> List[str]:
   return decl + other
 
 
-def get_top(config: Dict, top_name: str) -> List[str]:
+def get_top(config: Dict, top_name: str, use_anchor_wrapper: bool) -> List[str]:
   top = []
   top += get_anchor_reg_decl(config) + ['']
-  top += get_task_vertex_insts(config) + ['']
+  top += get_task_vertex_insts(config, use_anchor_wrapper) + ['']
   top += set_unused_ports()
   top += get_ending() + ['']
   top_sorted = sort_rtl(top)

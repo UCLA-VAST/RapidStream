@@ -93,7 +93,7 @@ def add_passing_stream_io_dir(props: Dict) -> None:
   port_wire_map = props['port_wire_map']
   passing_streams = port_wire_map.get('passing_streams', {})
   if not passing_streams:
-    _logger.debug(f'no passing streams found for this vertex')
+    _logger.debug('no passing streams found for vertex %s', props['instance'])
 
   for stream_name, stream_props in passing_streams.items():
     s_in = stream_props['inbound_side_suffix']

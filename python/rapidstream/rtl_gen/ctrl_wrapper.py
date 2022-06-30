@@ -202,7 +202,7 @@ def get_ctrl_sub_vertex_inst(v_props: Dict) -> List[str]:
   return inst
 
 
-def get_ctrl_wrapper(ctrl_wrapper_props: Dict) -> List[str]:
+def get_ctrl_wrapper(ctrl_wrapper_props: Dict, use_anchor_wrapper: bool) -> List[str]:
   """Create the RTL for the vertex with the ctrl unit in it"""
 
   wrapper = []
@@ -210,7 +210,7 @@ def get_ctrl_wrapper(ctrl_wrapper_props: Dict) -> List[str]:
   wrapper += get_passing_wire_pipelines(ctrl_wrapper_props)
   wrapper += get_ctrl_signals(ctrl_wrapper_props)
   wrapper += get_sub_vertex_insts(ctrl_wrapper_props)
-  wrapper += get_sub_stream_insts(ctrl_wrapper_props)
+  wrapper += get_sub_stream_insts(ctrl_wrapper_props, use_anchor_wrapper)
 
   ctrl_sub_vertex_name = ctrl_wrapper_props['ctrl_sub_vertex']
   ctrl_sub_vertex_props = ctrl_wrapper_props['sub_vertices'][ctrl_sub_vertex_name]
