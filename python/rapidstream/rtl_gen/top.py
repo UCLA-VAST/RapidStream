@@ -109,7 +109,7 @@ def get_anchor_reg_decl(config: Dict) -> List[str]:
     wire.append(f'wire {width} {name}_input;')
     wire.append(f'wire {width} {name}_output;')
     wire.append(f'(* dont_touch = "yes" *) reg {width} {name}_q;')
-    wire.append(f'always @ (ap_clk) {name}_q <= {name}_output;')
+    wire.append(f'always @ (posedge ap_clk) {name}_q <= {name}_output;')
     wire.append(f'assign {name}_input = {name}_q;')
 
   return wire
