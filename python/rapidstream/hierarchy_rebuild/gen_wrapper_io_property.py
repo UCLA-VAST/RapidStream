@@ -158,10 +158,7 @@ def generate_no_ctrl_vertex_io_list(props: Dict) -> None:
   }
 
   add_basic_io_dir(props)
-  try:
-    add_stream_io_dir(props)
-  except:
-    import pdb; pdb.set_trace()
+  add_stream_io_dir(props)
   add_m_axi_io_dir(props)
   add_passing_stream_io_dir(props)
 
