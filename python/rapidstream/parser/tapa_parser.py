@@ -128,13 +128,11 @@ def _get_task_vertex_info(
 
     elif portname.startswith('m_axi_'):
       # e.g., m_axi_mmap_BVALID => ['m', 'axi', 'mmap', 'BVALID']
-      portname_split = portname.split('_')
-      argname_split = argname.split('_')
-      assert len(portname_split) == 4 and portname_split[-1].isupper()
-      assert len(argname_split) == 4 and argname_split[-1].isupper()
+      portname_match = re.search('m_axi_(.*)_[A-Z]+', portname)
+      argname_match = re.search('m_axi_(.*)_[A-Z]+', argname)
 
-      axi_name_port_side = portname_split[2]
-      axi_name_arg_side = argname_split[2]
+      axi_name_port_side = portname_match.group(1)
+      axi_name_arg_side = argname_match.group(1)
 
       # FIXME: collect readonly/writeonly info here
       # axi ports. Use the data width to represent the width for the interface
@@ -280,7 +278,7 @@ def annotate_width_to_port_wire_map(config: Dict) -> None:
       if scalar_name.endswith('_offset'):
         port_width_map[scalar_name] = '[63:0]'
       else:
-        port_width_map[scalar_name] = config['wire_decl'][scalar_name]
+        port_width_map[scalar_name] = config['wire_decl'][scalar_wire_name]
 
     # stream ports
     for stream_name, _port_wire_map in port_wire_map.get('stream_ports', {}).items():
