@@ -84,7 +84,8 @@ def get_passing_wire_pipelines(props: Dict) -> List[str]:
   return pp
 
 
-def get_non_ctrl_wrapper_ctrl_signals(props: Dict) -> List[str]:
+def get_non_ctrl_wrapper_ctrl_signals(props: Dict, is_initial_wrapper: True) -> List[str]:
+  """Note that we need to skip the ap_done of detached tasks"""
   decl = []
 
   # distribute ap_rst_n
@@ -105,10 +106,14 @@ def get_non_ctrl_wrapper_ctrl_signals(props: Dict) -> List[str]:
   # collect ap_done
   # each vertex will only assert ap_done for one cycle, so we need to hold the value
   # after all vertices have finished, reset the ap_done hold registers
-  # FIXME: need to exclude detached vertices
   decl.append(f'(* keep = "true" *) reg ap_done_final_q0;')
   decl.append(f'(* keep = "true" *) reg ap_done_final;')
+  ap_done_list = []
   for v_props in props['sub_vertices'].values():
+    # do not collect ap_done for detached tasks
+    if is_initial_wrapper and v_props['is_detached']:
+      continue
+
     done_signal = f'ap_done_{v_props["instance"]}_q0'
 
     decl.append(f'wire ap_done_{v_props["instance"]};')
@@ -119,10 +124,10 @@ def get_non_ctrl_wrapper_ctrl_signals(props: Dict) -> List[str]:
     decl.append(f'  else {done_signal} <= {done_signal} | ap_done_{v_props["instance"]};')
     decl.append(f'end')
 
-  decl.append('always @ (posedge ap_clk) ap_done_final_q0 <= ' +
-                ' & '.join(f'ap_done_{v_props["instance"]}_q0'
-                  for v_props in props['sub_vertices'].values()) + ';'
-             )
+    ap_done_list.append(done_signal)
+
+  decl.append('always @ (posedge ap_clk) ap_done_final_q0 <= 1 ' +
+                ' '.join(f'& {done}' for done in ap_done_list) + ';')
 
   decl.append(f'(* keep = "true" *) reg ap_rst_n_q0;')
   decl.append(f'always @ (posedge ap_clk) ap_rst_n_q0 <= ap_rst_n;')
@@ -194,8 +199,12 @@ def get_sub_vertex_insts(props: Dict, is_initial_wrapper: bool) -> List[str]:
         insts.append(f'  .{wire_name}_{s1}({wire_name}_{s1}),')
         insts.append(f'  .{wire_name}_{s2}({wire_name}_{s2}),')
 
+    if is_initial_wrapper and v_props['is_detached']:
+      insts.append(f'  .ap_done(),  // detached module')
+    else:
+      insts.append(f'  .ap_done(ap_done_{v_props["instance"]}),')
+
     insts.append(f'  .ap_start(ap_start_{v_props["instance"]}),')
-    insts.append(f'  .ap_done(ap_done_{v_props["instance"]}),')
     insts.append(f'  .ap_idle(),')
     insts.append(f'  .ap_ready(),')
     insts.append(f'  .ap_clk(ap_clk),')
@@ -279,7 +288,7 @@ def get_group_wrapper(
   wrapper += get_io_section(group_vertex_props)
   wrapper += get_wire_decls(group_vertex_props)
   wrapper += get_passing_wire_pipelines(group_vertex_props)
-  wrapper += get_non_ctrl_wrapper_ctrl_signals(group_vertex_props)
+  wrapper += get_non_ctrl_wrapper_ctrl_signals(group_vertex_props, is_initial_wrapper)
   wrapper += get_sub_vertex_insts(group_vertex_props, is_initial_wrapper)
   wrapper += get_sub_stream_insts(group_vertex_props, use_anchor_wrapper)
   wrapper += get_ending()

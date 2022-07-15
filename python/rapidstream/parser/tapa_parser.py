@@ -116,6 +116,18 @@ def _get_task_vertex_info(
     'stream_ports': {},  # connect to FIFOs
   }
 
+  # check detached tasks
+  for port_arg in instance.portlist:
+    portname = str(port_arg.portname)
+    argname = str(port_arg.argname)
+    if portname == 'ap_done':
+      if argname in ('None', ''):
+        _logger.info('instance %s is detached and its ap_done is not checked', instance.name)
+        config['vertices'][task_name]['is_detached'] = True
+      else:
+        config['vertices'][task_name]['is_detached'] = False
+
+  # get port_wire map
   for port_arg in instance.portlist:
     portname = str(port_arg.portname)
     argname = str(port_arg.argname)
