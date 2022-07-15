@@ -32,7 +32,7 @@ def islandize_vertices(config: Dict, output_dir: str, top_name: str, use_anchor_
   # group initial vertices based on floorplanning
   for slot, vertices in slot_to_vertices.items():
     group_vertex_props = group_vertices(config, vertices, slot)
-    group_top = get_group_wrapper(group_vertex_props, use_anchor_wrapper)
+    group_top = get_group_wrapper(group_vertex_props, use_anchor_wrapper, is_initial_wrapper=True)
     name_to_file[f'{slot}.v'] = group_top
 
   # group inbound streams
@@ -48,7 +48,7 @@ def islandize_vertices(config: Dict, output_dir: str, top_name: str, use_anchor_
     if props['category'] in ('CTRL_VERTEX', 'PORT_VERTEX'):
       continue
     _logger.debug(v_name)
-    group_top = get_group_wrapper(props, use_anchor_wrapper)
+    group_top = get_group_wrapper(props, use_anchor_wrapper, is_initial_wrapper=False)
     name_to_file[f'{v_name}.v'] = group_top
 
   # generate ctrl-including wrapper

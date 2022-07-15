@@ -209,7 +209,7 @@ def get_ctrl_wrapper(ctrl_wrapper_props: Dict, use_anchor_wrapper: bool) -> List
   wrapper += get_wire_decls(ctrl_wrapper_props)
   wrapper += get_passing_wire_pipelines(ctrl_wrapper_props)
   wrapper += get_ctrl_signals(ctrl_wrapper_props)
-  wrapper += get_sub_vertex_insts(ctrl_wrapper_props)
+  wrapper += get_sub_vertex_insts(ctrl_wrapper_props, is_initial_wrapper=False)
   wrapper += get_sub_stream_insts(ctrl_wrapper_props, use_anchor_wrapper)
 
   ctrl_sub_vertex_name = ctrl_wrapper_props['ctrl_sub_vertex']

@@ -138,7 +138,7 @@ def get_non_ctrl_wrapper_ctrl_signals(props: Dict) -> List[str]:
   return decl
 
 
-def get_sub_vertex_insts(props: Dict) -> List[str]:
+def get_sub_vertex_insts(props: Dict, is_initial_wrapper: bool) -> List[str]:
   insts = []
 
   for v_name, v_props in props['sub_vertices'].items():
@@ -163,6 +163,19 @@ def get_sub_vertex_insts(props: Dict) -> List[str]:
     for stream_props in pw_map.get('stream_ports', {}).values():
       for stream_port, stream_wire in stream_props.items():
         insts.append(f'  .{stream_port}({stream_wire}),')
+
+        # connect the peek port empty_n and _dout
+        # should only works on the RTL gen of wrappers around native tasks
+        # consider two cases: either the port ends with _s_empty_n or _empty_n
+        if is_initial_wrapper:
+          if stream_port.endswith(('_empty_n', '_dout')):
+            if stream_port.endswith(('_s_empty_n', '_s_dout')):
+              peek_port = stream_port.replace('_s_empty_n', '_peek_empty_n').replace('_s_dout', '_peek_dout')
+            else:
+              peek_port = stream_port.replace('_empty_n', '_peek_empty_n').replace('_dout', '_peek_dout')
+
+            insts.append(f'  .{peek_port}({stream_wire}),')
+            _logger.debug('create peek port %s on %s', peek_port, v_props["instance"])
 
     for axi_entry in pw_map['axi_ports']:
       axi_port_name = axi_entry['portname']
@@ -253,15 +266,21 @@ def get_ending() -> List[str]:
 def get_group_wrapper(
   group_vertex_props: Dict,
   use_anchor_wrapper: bool,
+  is_initial_wrapper: bool,
 ) -> List[str]:
-  """Create the RTL for the specified Vertex"""
+  """Create the RTL for the specified Vertex
+     If the wrapper is around native task modules, set the is_initial_wrapper to be true.
+     Then the codegen will reinstate the peek ports.
+     If the wrapper is around other wrappers, set the is_initial_wrapper to be false,
+     so that the peek ports will be pruned to avoid unnecessary anchors
+  """
 
   wrapper = []
   wrapper += get_io_section(group_vertex_props)
   wrapper += get_wire_decls(group_vertex_props)
   wrapper += get_passing_wire_pipelines(group_vertex_props)
   wrapper += get_non_ctrl_wrapper_ctrl_signals(group_vertex_props)
-  wrapper += get_sub_vertex_insts(group_vertex_props)
+  wrapper += get_sub_vertex_insts(group_vertex_props, is_initial_wrapper)
   wrapper += get_sub_stream_insts(group_vertex_props, use_anchor_wrapper)
   wrapper += get_ending()
 
