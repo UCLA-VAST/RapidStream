@@ -45,7 +45,7 @@ def embed_stream_pipelines(config: Dict, stream_name: str, stream_props: Dict, p
   # we need to divide the wire into n-1 segments
   # starting from 0, the last segment has id n-2
   seg_id = len(slot_path) - 2
-  stream_ports[stream_name] = {k: f'{v}_q{seg_id}' for k, v in stream_ports[stream_name].items()}
+  stream_ports[stream_name] = {portname: f'{wirename}_q{seg_id}' for portname, wirename in stream_ports[stream_name].items()}
 
   # update the port wire mapping of the producer island
   producer_props = config['vertices'][slot_path[0]]
@@ -53,7 +53,7 @@ def embed_stream_pipelines(config: Dict, stream_name: str, stream_props: Dict, p
   stream_ports = producer_props['port_wire_map']['stream_ports']
 
   seg_id = 0
-  stream_ports[stream_name] = {k: f'{v}_q{seg_id}' for k, v in stream_ports[stream_name].items()}
+  stream_ports[stream_name] = {portname: f'{wirename}_q{seg_id}' for portname, wirename in stream_ports[stream_name].items()}
 
   # create passing ports on the intermediate islands
   for i in range(1, len(slot_path) - 1):
@@ -64,13 +64,14 @@ def embed_stream_pipelines(config: Dict, stream_name: str, stream_props: Dict, p
       _logger.error('FIXME: The stream is routed to a slot with no record')
       exit(1)
 
-    passing_slot_props['port_wire_map']['passing_streams'] = {
-      stream_name: {
-        'wire_to_width': wire_to_width,
-        'inbound_side_suffix': f'q{i-1}',
-        'outbound_side_suffix': f'q{i}',
-        'pipeline_level': pipeline_level,
-      }
+    if 'passing_streams' not in passing_slot_props['port_wire_map']:
+      passing_slot_props['port_wire_map']['passing_streams'] = {}
+
+    passing_slot_props['port_wire_map']['passing_streams'][stream_name] = {
+      'wire_to_width': wire_to_width,
+      'inbound_side_suffix': f'q{i-1}',
+      'outbound_side_suffix': f'q{i}',
+      'pipeline_level': pipeline_level,
     }
 
 
