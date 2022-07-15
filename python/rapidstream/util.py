@@ -42,9 +42,21 @@ def create_xo(top_name: str, old_xo_path: str, name_to_file: Dict, output_dir: s
   os.system(f'unzip {temp_dir}/{top_name}.xo -d {temp_dir}/')
   os.system(f'rm {temp_dir}/{top_name}.xo')
 
-  with open(f'{temp_dir}/ip_repo/haoda_xrtl_{top_name}_1_0/src/{top_name}.v', 'w') as top:
+  # xosim requires that the top rtl file only contains logic for the top module
+  xo_rtl_path = f'{temp_dir}/ip_repo/haoda_xrtl_{top_name}_1_0/src/'
+  top_rtl_name = f'{top_name}.v'
+  victim_file = f'{top_name}_inner.v'
+
+  with open(f'{xo_rtl_path}/{top_rtl_name}', 'w') as top:
+    _logger.info(f'overwrite the top-level module in {top_rtl_name}')
+    top.write('\n'.join(name_to_file[top_rtl_name]))
+
+  # put the rest of the wrapper rtl files in another existing rtl file
+  with open(f'{xo_rtl_path}/{victim_file}', 'w') as top:
     for name, file in name_to_file.items():
-      top.write('\n'.join(file))
+      if name != top_rtl_name:
+        _logger.info(f'add wrapper file {name} into {victim_file}')
+        top.write('\n'.join(file))
 
   os.system(f'cd {temp_dir}/; zip -r {top_name}_rapidstream.xo *; cd -')
   os.system(f'mv {temp_dir}/{top_name}_rapidstream.xo {output_dir}/')
