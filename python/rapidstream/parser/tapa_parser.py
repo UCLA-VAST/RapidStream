@@ -174,7 +174,15 @@ def _get_task_vertex_info(
 
     # constant arg
     else:
-      orig_wirename = re.search(f'{instance.name}___(\S+)__q\d+', argname).group(1)
+      match = re.search(f'{instance.name}___(\S+)__q\d+', argname)
+
+      # FIXME: support async_mmap
+      if not match or argname.endswith(STREAM_SUFFIX):
+        _logger.error('Fail to parse portname %s argname %s instance %s. async_mmap not supported yet',
+          portname, argname, instance.name)
+        exit(1)
+
+      orig_wirename = match.group(1)
       port_wire_map['constant_ports'][portname] = orig_wirename
 
   config['vertices'][task_name]['port_wire_map'] = port_wire_map
