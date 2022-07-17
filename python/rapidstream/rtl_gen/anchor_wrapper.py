@@ -24,6 +24,7 @@ def get_anchor_section(v_props: Dict) -> List[str]:
   for io_dir, name_to_width in v_props['io_dir_to_name_to_width'].items():
     for name, width in name_to_width.items():
       if is_skip_port(name):
+        _logger.debug('skip adding anchor for top-level port %s', name)
         continue
 
       rtl.append(f'(* dont_touch = "yes" *) reg {width} {name}_anchor;')

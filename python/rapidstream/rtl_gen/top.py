@@ -32,7 +32,7 @@ def get_slot_inst(v_props: Dict, module_name_suffix: str) -> List[str]:
     if axi_entry['axi_type'] == 'M_AXI':
       axi_port_name = axi_entry['portname']
       wirename = axi_entry['argname']
-      for suffix in M_AXI_INTERFACE.keys():
+      for suffix in get_m_axi_interface(axi_entry['data_width']).keys():
         inst.append(f'  .m_axi_{axi_port_name}_{suffix}(m_axi_{wirename}_{suffix}),')
     elif axi_entry['axi_type'] == 'S_AXI_LITE':
       for portname, dir_and_width in S_AXI_LITE_INTERFACE.items():

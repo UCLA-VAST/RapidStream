@@ -1,3 +1,4 @@
+import re
 
 STREAM_TYPES = (
   'fifo',
@@ -83,7 +84,11 @@ RESOURCE_TYPES = (
   'URAM',
 )
 
-M_AXI_INTERFACE = {
+def get_m_axi_interface(data_width_expr: str):
+  """input: string width, e.g., [511: 0]"""
+  data_width_int = 1 + int(re.search('\[(.*):', data_width_expr).group(1))
+
+  return {
   "ARADDR"  : ("output", "[63:0]        "),
   "ARBURST" : ("output", "[1:0]         "),
   "ARCACHE" : ("output", "[3:0]         "),
@@ -110,16 +115,16 @@ M_AXI_INTERFACE = {
   "BREADY"  : ("output", "              "),
   "BRESP"   : ("input", "[1:0]         "),
   "BVALID"  : ("input", "              "),
-  "RDATA"   : ("input", "{data_width}  "),
+  "RDATA"   : ("input", f"[{data_width_int}-1:0]"),
   "RID"     : ("input", "[0:0]         "),
   "RLAST"   : ("input", "              "),
   "RREADY"  : ("output", "              "),
   "RRESP"   : ("input", "[1:0]         "),
   "RVALID"  : ("input", "              "),
-  "WDATA"   : ("output", "{data_width}  "),
+  "WDATA"   : ("output", f"[{data_width_int}-1:0]"),
   "WLAST"   : ("output", "              "),
   "WREADY"  : ("input", "              "),
-  "WSTRB"   : ("output", "[3:0]         "),
+  "WSTRB"   : ("output", f"[{data_width_int}/8-1:0]"),
   "WVALID"  : ("output", "              "),
 }
 
@@ -127,9 +132,9 @@ M_AXI_INTERFACE = {
 def get_axi_io_section(data_width: str, axi_port_name: str):
   """The data_width is in the format of f'[{width-1}:0]' """
   io = []
-  for suffix, props in M_AXI_INTERFACE.items():
+  for suffix, props in get_m_axi_interface(data_width).items():
     direction = props[0]
-    width = props[1].format(data_width=data_width)
+    width = props[1]
     portname = f'm_axi_{axi_port_name}_{suffix}'
 
     io.append(f'{direction} {width} {portname},')

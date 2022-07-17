@@ -23,7 +23,7 @@ def add_m_axi_io_dir(props: Dict) -> None:
       axi_data_width = axi_entry['data_width']
       axi_port_name = axi_entry['portname']
 
-      for suffix, dir_and_width in M_AXI_INTERFACE.items():
+      for suffix, dir_and_width in get_m_axi_interface(axi_data_width).items():
         direction = dir_and_width[0]
         width = dir_and_width[1].format(data_width=axi_data_width)
         portname = f'm_axi_{axi_port_name}_{suffix}'

@@ -187,7 +187,8 @@ def get_sub_vertex_insts(props: Dict, is_initial_wrapper: bool) -> List[str]:
       axi_wire_name = axi_entry['argname']
 
       assert axi_entry['axi_type'] == 'M_AXI'
-      for suffix, props in M_AXI_INTERFACE.items():
+      axi_width = axi_entry['data_width']
+      for suffix, props in get_m_axi_interface(axi_width).items():
         # e.g., ".m_axi_mmap_ARADDR(m_axi_a_ARADDR),"
         insts.append(f'  .m_axi_{axi_port_name}_{suffix}(m_axi_{axi_wire_name}_{suffix}),')
 
