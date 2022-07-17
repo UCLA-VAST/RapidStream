@@ -235,9 +235,13 @@ def get_sub_stream_insts(props: Dict, use_anchor_wrapper: bool) -> List[str]:
     width = s_props["width"]
 
     # need to pipeline the signal going in & out
-    # does not count the 1-cycle latency by the FIFO itself
-    grace_period = (pipeline_level-1) * 2
-    depth = s_props["adjusted_depth"] + grace_period
+    grace_period = pipeline_level * 2
+    orig_depth = s_props["adjusted_depth"] + grace_period
+
+    # round depth to 32s as the area will be the same
+    depth = (int(orig_depth/32)+1) * 32
+    _logger.debug('fifo %s is pushed from depth %d to %d', s_name, orig_depth, depth)
+
     addr_width = int(log2(depth)) + 1
 
     fifo_type = 'fifo' if pipeline_level == 1 else 'fifo_almost_full'
