@@ -7,6 +7,8 @@
 create_pblock anchor_region
 resize_pblock anchor_region -add { SLICE_X115Y0:SLICE_X119Y719 }
 resize_pblock anchor_region -add { LAGUNA_X0Y0:LAGUNA_X25Y479}
+# some SLICE nearby the IO columns are not included in the dynamic region
+resize_pblock anchor_region -remove {SLICE_X117Y600:SLICE_X117Y719 SLICE_X117Y480:SLICE_X117Y539 SLICE_X117Y180:SLICE_X117Y239}
 set_property parent pblock_dynamic_region [get_pblocks anchor_region]
 set_property EXCLUDE_PLACEMENT 1 [get_pblocks anchor_region]
 
@@ -46,7 +48,7 @@ set island_pblocks {
 
 foreach island $island_pblocks {
   # exclude the anchor regions from the island pblocks
-  resize_pblock ${island} -remove {SLICE_X115Y0:SLICE_X119Y719 SLICE_X0Y237:SLICE_X179Y242 SLICE_X0Y477:SLICE_X179Y482}
+  resize_pblock ${island} -remove [get_property DERIVED_RANGES [get_pblocks anchor_region]]
 
   # some SLICE nearby the IO columns are not included in the dynamic region
   resize_pblock ${island} -remove {SLICE_X117Y600:SLICE_X117Y719 SLICE_X117Y480:SLICE_X117Y539 SLICE_X117Y180:SLICE_X117Y239}
