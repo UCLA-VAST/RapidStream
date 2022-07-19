@@ -1,4 +1,3 @@
-import json
 import logging
 from collections import defaultdict
 from typing import Dict
@@ -19,6 +18,7 @@ def islandize_vertices(config: Dict, output_dir: str, top_name: str, use_anchor_
   """Restructure the RTL to form island hierarchies"""
   slot_to_vertices = defaultdict(list)
   name_to_file = {}
+  name_to_dummy_file = {}
 
   # extract floorplan results
   for name, props in config['vertices'].items():
@@ -64,16 +64,14 @@ def islandize_vertices(config: Dict, output_dir: str, top_name: str, use_anchor_
     name_to_file[f'{v_name}_anchor_wrapper.v'] = anchor_wrapper
 
     empty_island = get_empty_island(props)
-    name_to_file[f'{v_name}_empty_island.v'] = empty_island
+    name_to_dummy_file[f'{v_name}.v'] = empty_island
 
   # generate top rtl
   top = get_top(config, top_name, use_anchor_wrapper)
   name_to_file[f'{top_name}.v'] = top
 
-  # dummy top
-  dummy_name = top_name + '_with_dummy_islands'
-  dummy_top = get_top_with_empty_islands(config, dummy_name, use_anchor_wrapper)
-  open(f'{output_dir}/{dummy_name}.v', 'w').write('\n'.join(dummy_top))
-  name_to_file[f'{dummy_name}.v'] = dummy_top
+  # dummy top with the same name
+  dummy_top = get_top_with_empty_islands(config, top_name, use_anchor_wrapper)
+  name_to_dummy_file[f'{top_name}.v'] = dummy_top
 
-  return name_to_file
+  return name_to_file, name_to_dummy_file

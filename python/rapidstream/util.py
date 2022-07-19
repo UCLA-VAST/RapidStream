@@ -33,9 +33,9 @@ def setup_logging(verbose: Optional[int] = None,
   _logger.info('logging level set to %s', logging.getLevelName(logging_level))
 
 
-def create_xo(top_name: str, old_xo_path: str, name_to_file: Dict, output_dir: str):
+def create_xo(top_name: str, old_xo_path: str, name_to_file: Dict, output_dir: str, xo_suffix: str, temp_dir: str):
   """Create a new xo file that includes the new RTL files"""
-  temp_dir = f'{output_dir}/temp'
+  temp_dir = f'{output_dir}/{temp_dir}'
   os.system(f'rm -rf {temp_dir}/')
   os.system(f'mkdir -p {temp_dir}/')
   os.system(f'cp {old_xo_path} {temp_dir}/')
@@ -58,8 +58,8 @@ def create_xo(top_name: str, old_xo_path: str, name_to_file: Dict, output_dir: s
         _logger.info(f'add wrapper file {name} into {victim_file}')
         top.write('\n'.join(file))
 
-  os.system(f'cd {temp_dir}/; zip -r {top_name}_rapidstream.xo *; cd -')
-  os.system(f'mv {temp_dir}/{top_name}_rapidstream.xo {output_dir}/')
+  os.system(f'cd {temp_dir}/; zip -r {top_name}{xo_suffix}.xo *; cd -')
+  os.system(f'mv {temp_dir}/{top_name}{xo_suffix}.xo {output_dir}/')
 
 
 def dump_files(name_to_file: Dict, output_dir: str):
