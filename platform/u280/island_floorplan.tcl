@@ -2,6 +2,9 @@
 # 1. Use half-SLR islands
 # 2. Use <4 HBM channels, from 28 to 31
 # 3. Platform xilinx_u280_xdma_201920_3
+set kernel_name "gaussian_kernel"
+delete_pblocks anchor_region
+delete_pblocks CR*
 
 # anchor region
 create_pblock anchor_region
@@ -30,27 +33,28 @@ set_property EXCLUDE_PLACEMENT 1 [get_pblocks anchor_region]
 
 # define the island pblocks
 create_pblock CR_X0Y8_To_CR_X3Y11
-resize_pblock CR_X0Y8_To_CR_X3Y11 -add {SLICE_X0Y480:SLICE_X116Y719 DSP48E2_X0Y186:DSP48E2_X15Y281 RAMB18_X0Y192:RAMB18_X7Y287 RAMB36_X0Y96:RAMB36_X7Y143 URAM288_X0Y128:URAM288_X1Y191}
+resize_pblock CR_X0Y8_To_CR_X3Y11 -add {CLOCKREGION_X0Y8:CLOCKREGION_X3Y11}
 set_property parent pblock_dynamic_region [get_pblocks CR_X0Y8_To_CR_X3Y11]
 
 create_pblock CR_X0Y4_To_CR_X3Y7
-resize_pblock CR_X0Y4_To_CR_X3Y7 -add {SLICE_X0Y240:SLICE_X116Y479 DSP48E2_X0Y90:DSP48E2_X15Y185 RAMB18_X0Y96:RAMB18_X7Y191 RAMB36_X0Y48:RAMB36_X7Y95 URAM288_X0Y64:URAM288_X1Y127}
+resize_pblock CR_X0Y4_To_CR_X3Y7 -add {CLOCKREGION_X0Y4:CLOCKREGION_X3Y7}
 set_property parent pblock_dynamic_region [get_pblocks CR_X0Y4_To_CR_X3Y7]
 
 create_pblock CR_X0Y0_To_CR_X3Y3
-resize_pblock CR_X0Y0_To_CR_X3Y3 -add {SLICE_X0Y0:SLICE_X116Y239 DSP48E2_X0Y0:DSP48E2_X15Y89 RAMB18_X0Y0:RAMB18_X7Y95 RAMB36_X0Y0:RAMB36_X7Y47 URAM288_X0Y0:URAM288_X1Y63}
+resize_pblock CR_X0Y0_To_CR_X3Y3 -add {CLOCKREGION_X0Y0:CLOCKREGION_X3Y3}
 set_property parent pblock_dynamic_region [get_pblocks CR_X0Y0_To_CR_X3Y3]
 
+# leave a 1-CR column gap for hmss
 create_pblock CR_X4Y0_To_CR_X7Y3
-resize_pblock CR_X4Y0_To_CR_X7Y3 -add {SLICE_X117Y0:SLICE_X179Y239 DSP48E2_X16Y0:DSP48E2_X24Y89 RAMB18_X8Y0:RAMB18_X11Y95 RAMB36_X8Y0:RAMB36_X11Y47 URAM288_X2Y0:URAM288_X3Y63}
+resize_pblock CR_X4Y0_To_CR_X7Y3 -add {CLOCKREGION_X4Y0:CLOCKREGION_X5Y3}
 set_property parent pblock_dynamic_region [get_pblocks CR_X4Y0_To_CR_X7Y3]
 
 create_pblock CR_X4Y4_To_CR_X7Y7
-resize_pblock CR_X4Y4_To_CR_X7Y7 -add {SLICE_X117Y240:SLICE_X179Y479 DSP48E2_X16Y90:DSP48E2_X24Y185 RAMB18_X8Y96:RAMB18_X11Y191 RAMB36_X8Y48:RAMB36_X11Y95 URAM288_X2Y64:URAM288_X3Y127}
+resize_pblock CR_X4Y4_To_CR_X7Y7 -add {CLOCKREGION_X4Y4:CLOCKREGION_X5Y7}
 set_property parent pblock_dynamic_region [get_pblocks CR_X4Y4_To_CR_X7Y7]
 
 create_pblock CR_X4Y8_To_CR_X7Y11
-resize_pblock CR_X4Y8_To_CR_X7Y11 -add {SLICE_X117Y480:SLICE_X186Y719 DSP48E2_X16Y186:DSP48E2_X25Y281 RAMB18_X8Y192:RAMB18_X11Y287 RAMB36_X8Y96:RAMB36_X11Y143 URAM288_X2Y128:URAM288_X4Y191}
+resize_pblock CR_X4Y8_To_CR_X7Y11 -add {CLOCKREGION_X4Y8:CLOCKREGION_X5Y11}
 set_property parent pblock_dynamic_region [get_pblocks CR_X4Y8_To_CR_X7Y11]
 
 set island_pblocks {
@@ -65,16 +69,20 @@ set island_pblocks {
 foreach island $island_pblocks {
   # exclude the anchor regions from the island pblocks
   resize_pblock ${island} -remove [get_property DERIVED_RANGES [get_pblocks anchor_region]]
+  resize_pblock ${island} -remove [get_property DERIVED_RANGES [get_pblocks base_region]]
 
-  # some SLICE nearby the IO columns are not included in the dynamic region
-  resize_pblock ${island} -remove {SLICE_X117Y600:SLICE_X117Y719 SLICE_X117Y480:SLICE_X117Y539 SLICE_X117Y180:SLICE_X117Y239}
-
-  # reserve area for HMSS
-  resize_pblock ${island} -remove {SLICE_X0Y0:SLICE_X232Y29 RAMB36_X0Y0:RAMB36_X13Y0}
+  # reserve the the bottom row of CR for HMSS
+  resize_pblock ${island} -remove {CLOCKREGION_X0Y0:CLOCKREGION_X7Y0}
 }
 
+# somehow these speical blocks will be left out of the island pblock
+# as a result, the adjacent SLICE columns are also left out if we do not add them back
+resize_pblock CR_X0Y0_To_CR_X3Y3 -add {CMACE4_X0Y0:CMACE4_X0Y1 PCIE4CE4_X0Y1:PCIE4CE4_X0Y1}
+resize_pblock CR_X0Y4_To_CR_X3Y7 -add {CMACE4_X0Y2:CMACE4_X0Y4 ILKNE4_X0Y0:ILKNE4_X0Y0}
+resize_pblock CR_X0Y8_To_CR_X3Y11 -add {CMACE4_X0Y5:CMACE4_X0Y7 ILKNE4_X0Y2:ILKNE4_X0Y2}
+
 # assign island to pblocks
-set base_addr pfm_top_i/dynamic_region/*/inst
+set base_addr pfm_top_i/dynamic_region/${kernel_name}/inst
 add_cells_to_pblock anchor_region [get_cells ${base_addr}] -clear_locs
 add_cells_to_pblock CR_X4Y0_To_CR_X7Y3  [get_cells ${base_addr}/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3] -clear_locs
 add_cells_to_pblock CR_X0Y0_To_CR_X3Y3  [get_cells ${base_addr}/WRAPPER_VERTEX_CR_X0Y0_To_CR_X3Y3] -clear_locs
