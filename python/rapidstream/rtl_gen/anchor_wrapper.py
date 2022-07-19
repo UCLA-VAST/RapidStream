@@ -19,11 +19,11 @@ def is_skip_port(name: str) -> bool:
     return False
 
 
-def get_anchor_section(v_props: Dict) -> List[str]:
+def get_anchor_section(v_props: Dict, skip_anchor_top_ports: bool) -> List[str]:
   rtl = []
   for io_dir, name_to_width in v_props['io_dir_to_name_to_width'].items():
     for name, width in name_to_width.items():
-      if is_skip_port(name):
+      if skip_anchor_top_ports and is_skip_port(name):
         _logger.debug('skip adding anchor for top-level port %s', name)
         continue
 
@@ -71,7 +71,7 @@ def get_anchor_wrapper(
   """Register each IO port except the clock"""
   wrapper = []
   wrapper += get_io_section(group_vertex_props, suffix = ANCHOR_WRAPPER_SUFFIX)
-  wrapper += get_anchor_section(group_vertex_props)
+  wrapper += get_anchor_section(group_vertex_props, skip_anchor_top_ports=True)
   wrapper += get_inner_vertex_instance(group_vertex_props)
   wrapper += get_ending()
 
@@ -82,7 +82,8 @@ def get_empty_island(group_vertex_props: Dict) -> List[str]:
   """Create a dummy module that only includes a register for each IO"""
   wrapper = []
   wrapper += get_io_section(group_vertex_props, suffix = DUMMY_WRAPPER_SUFFIX)
-  wrapper += get_anchor_section(group_vertex_props)
+  # when we construct the overlay, we need something to connect to every IO
+  wrapper += get_anchor_section(group_vertex_props, skip_anchor_top_ports=False)
   wrapper += get_ending()
 
   return wrapper
