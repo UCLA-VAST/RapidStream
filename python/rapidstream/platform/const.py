@@ -1,3 +1,13 @@
+CR_Y_TO_LAGUNA_RANGE_Y = {
+  3: (0, 119),
+  4: (120, 239),
+  7: (240, 359),
+  8: (360, 479),
+}
+
+def GET_CR_X_TO_LAGUNA_RANGE(x: int):
+  return (4*x, 4*x+3)
+
 ISLAND_ORIENTATIONS = (
   'NORTH',
   'SOUTH',
