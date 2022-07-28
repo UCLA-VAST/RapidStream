@@ -337,6 +337,13 @@ def remove_unused_peek_ports(config):
       stream_port_info[stream_name] = filter_unused_peek
 
 
+def remove_port_vertices(config):
+  """remove PORT_VERTE_xxx from vertices. They are useless after floorplanning"""
+  port_vertices = [v for v, props in config['vertices'].items() if props['category'] == 'PORT_VERTEX']
+  config['vertices'] = {v: props for v, props in config['vertices'].items()
+                          if v not in port_vertices}
+
+
 def parse_tapa_output_rtl(
   config: Dict,
   root: ast.Source,
@@ -364,5 +371,7 @@ def parse_tapa_output_rtl(
   annotate_width_to_port_wire_map(config)
 
   remove_unused_peek_ports(config)
+
+  remove_port_vertices(config)
 
   return config
