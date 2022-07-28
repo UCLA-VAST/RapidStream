@@ -47,6 +47,10 @@ def get_anchor_section(v_props: Dict, skip_anchor_top_ports: bool) -> List[str]:
       elif io_dir == 'output':
         rtl.append(f'assign {name}_anchor_in = {name}_inst;')
         rtl.append(f'assign {name} = {name}_anchor_out;')
+
+        # prevent top-IOs from floating
+        if is_axi_port(name):
+          rtl.append(f'assign {name}_inst = 0; // prevent floating pins')
       else:
         assert False
 
