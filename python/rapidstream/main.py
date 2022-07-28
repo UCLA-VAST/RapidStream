@@ -1,10 +1,12 @@
 import click
 import json
+import os
 from pyverilog.vparser.parser import parse
 
 from rapidstream.parser.tapa_parser import parse_tapa_output_rtl
 from rapidstream.opt import islandize_vertices
 from rapidstream.util import setup_logging, create_xo, dump_files
+from rapidstream.backend.split import annotate_io_orientation
 
 @click.command()
 @click.option(
@@ -47,6 +49,7 @@ def main(
 
   parse_tapa_output_rtl(config, ast_root)
 
+  output_dir = os.path.abspath(output_dir)
   name_to_file, name_to_dummy_file = islandize_vertices(config, '.', top_name)
   create_xo(top_name, xo_path, name_to_file, output_dir, xo_suffix = '_rapidstream', temp_dir='temp_orig_xo')
   create_xo(top_name, xo_path, name_to_dummy_file, output_dir, xo_suffix = '_rapidstream_dummy', temp_dir='temp_dummy_xo')
@@ -54,6 +57,11 @@ def main(
   dump_files(name_to_dummy_file, f'{output_dir}_dummy')
 
   open(f'{output_dir}/rapidstream.json', 'w').write(json.dumps(config, indent=2))
+
+  annotate_io_orientation(config)
+
+  open(f'{output_dir}/rapidstream_with_io_orientation.json', 'w').write(json.dumps(config, indent=2))
+
 
 if __name__ == '__main__':
   main()
