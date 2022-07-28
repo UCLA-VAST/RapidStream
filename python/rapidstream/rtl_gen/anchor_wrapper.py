@@ -8,21 +8,28 @@ from rapidstream.rtl_gen.group_wrapper import get_io_section, get_ending
 _logger = logging.getLogger().getChild(__name__)
 
 
+def is_axi_port(name: str) -> bool:
+  return 'm_axi_' in name or 's_axi_control_' in name
+
+def is_sys_port(name: str) -> bool:
+  return is_clock_port(name) or name == 'ap_rst_n'
+
 def is_skip_port(name: str) -> bool:
-  # do not anchor the clock signal
-  if name == 'ap_clk' or name == 'ap_rst_n':
-    return True
-  # do not anchor the top_level_IO
-  elif 'm_axi_' in name or 's_axi_control_' in name:
-    return True
-  else:
-    return False
+  return is_axi_port(name) or is_sys_port(name)
+
+def is_clock_port(name: str) -> bool:
+  return name == 'ap_clk'
 
 
 def get_anchor_section(v_props: Dict, skip_anchor_top_ports: bool) -> List[str]:
   rtl = []
   for io_dir, name_to_width in v_props['io_dir_to_name_to_width'].items():
     for name, width in name_to_width.items():
+      # never anchor the clock port
+      if is_clock_port(name):
+        _logger.debug('skip adding anchor for clock port %s', name)
+        continue
+
       if skip_anchor_top_ports and is_skip_port(name):
         _logger.debug('skip adding anchor for top-level port %s', name)
         continue
