@@ -41,7 +41,7 @@ resize_pblock CR_X0Y4_To_CR_X3Y7 -add {CLOCKREGION_X0Y4:CLOCKREGION_X3Y7}
 set_property parent pblock_dynamic_region [get_pblocks CR_X0Y4_To_CR_X3Y7]
 
 create_pblock CR_X0Y0_To_CR_X3Y3
-resize_pblock CR_X0Y0_To_CR_X3Y3 -add {SLICE_X0Y15:SLICE_X114Y239 BUFG_GT_X0Y24:BUFG_GT_X0Y95 BUFG_GT_SYNC_X0Y15:BUFG_GT_SYNC_X0Y59 CMACE4_X0Y0:CMACE4_X0Y1 DSP48E2_X0Y0:DSP48E2_X15Y89 GTYE4_CHANNEL_X0Y4:GTYE4_CHANNEL_X0Y15 GTYE4_COMMON_X0Y1:GTYE4_COMMON_X0Y3 LAGUNA_X0Y0:LAGUNA_X15Y119 PCIE4CE4_X0Y0:PCIE4CE4_X0Y1 RAMB18_X0Y6:RAMB18_X7Y95 RAMB36_X0Y3:RAMB36_X7Y47 URAM288_X0Y4:URAM288_X1Y63}
+resize_pblock CR_X0Y0_To_CR_X3Y3 -add {SLICE_X0Y15:SLICE_X114Y239 BUFG_GT_X0Y24:BUFG_GT_X0Y95 BUFG_GT_SYNC_X0Y15:BUFG_GT_SYNC_X0Y59 CMACE4_X0Y0:CMACE4_X0Y1 DSP48E2_X0Y0:DSP48E2_X15Y89 GTYE4_CHANNEL_X0Y4:GTYE4_CHANNEL_X0Y15 GTYE4_COMMON_X0Y1:GTYE4_COMMON_X0Y3 LAGUNA_X0Y0:LAGUNA_X15Y119 PCIE4CE4_X0Y0:PCIE4CE4_X0Y1 RAMB18_X0Y6:RAMB18_X7Y95 RAMB36_X0Y3:RAMB36_X7Y47 URAM288_X0Y4:URAM288_X1Y63 SLICE_X11Y0:SLICE_X12Y14}
 set_property parent pblock_dynamic_region [get_pblocks CR_X0Y0_To_CR_X3Y3]
 
 # leave a 1-CR column gap for hmss
@@ -87,9 +87,6 @@ resize_pblock CR_X0Y8_To_CR_X3Y11 -add {CMACE4_X0Y5:CMACE4_X0Y7 ILKNE4_X0Y2:ILKN
 # assign island to pblocks
 set base_addr pfm_top_i/dynamic_region/${kernel_name}/inst
 add_cells_to_pblock anchor_region [get_cells ${base_addr}] -clear_locs
-add_cells_to_pblock CR_X4Y0_To_CR_X7Y3  [get_cells ${base_addr}/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3] -clear_locs
-add_cells_to_pblock CR_X0Y0_To_CR_X3Y3  [get_cells ${base_addr}/WRAPPER_VERTEX_CR_X0Y0_To_CR_X3Y3] -clear_locs
-add_cells_to_pblock CR_X0Y4_To_CR_X3Y7  [get_cells ${base_addr}/WRAPPER_VERTEX_CR_X0Y4_To_CR_X3Y7] -clear_locs
-add_cells_to_pblock CR_X0Y8_To_CR_X3Y11 [get_cells ${base_addr}/WRAPPER_VERTEX_CR_X0Y8_To_CR_X3Y11] -clear_locs
-add_cells_to_pblock CR_X4Y4_To_CR_X7Y7  [get_cells ${base_addr}/WRAPPER_VERTEX_CR_X4Y4_To_CR_X7Y7] -clear_locs
-add_cells_to_pblock CR_X4Y8_To_CR_X7Y11 [get_cells ${base_addr}/WRAPPER_VERTEX_CR_X4Y8_To_CR_X7Y11] -clear_locs
+foreach island $island_pblocks {
+  add_cells_to_pblock ${island}  [get_cells ${base_addr}/WRAPPER_VERTEX_${island}] -clear_locs
+}
