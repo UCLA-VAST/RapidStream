@@ -16,19 +16,9 @@ def get_io_direction(v_props: Dict, portname: str) -> str:
     assert False
 
 
-def _get_slot_inst(v_props: Dict, module_name_suffix: str) -> List[str]:
-  """the instance for each slot
-     Change the wire name of input ports to reflect the pipelining
-     module_name_suffix changes the type of the module as we instantiate them
-     When we add a register layer around a module, it is generated as a separated file
-     and not recorded in the config file. Thus we use module_name_suffix to control
-     which version of the module we instantiate
-  """
-  inst = []
+def _get_wire_to_io_of_slot(v_props: Dict) -> Dict[str, str]:
+  wire_to_io = {}
   pw_map = v_props['port_wire_map']
-
-  inst.append('(* dont_touch = "yes" *)')
-  inst.append(f'{v_props["module"]}{module_name_suffix} {v_props["instance"]}(')
 
   # FIXME: consider readonly/writeonly cases
   # no pipelining for AXI interfaces => connect to top IO
@@ -37,30 +27,38 @@ def _get_slot_inst(v_props: Dict, module_name_suffix: str) -> List[str]:
       axi_port_name = axi_entry['portname']
       wirename = axi_entry['argname']
       for suffix in get_m_axi_interface(axi_entry['data_width']).keys():
-        inst.append(f'  .m_axi_{axi_port_name}_{suffix}(m_axi_{wirename}_{suffix}),')
+        # inst.append(f'  .m_axi_{axi_port_name}_{suffix}(m_axi_{wirename}_{suffix}),')
+        wire_to_io[f'm_axi_{wirename}_{suffix}'] = f'm_axi_{axi_port_name}_{suffix}'
     elif axi_entry['axi_type'] == 'S_AXI_LITE':
       for portname, dir_and_width in S_AXI_LITE_INTERFACE.items():
-        inst.append(f'  .s_axi_control_{portname}(s_axi_control_{portname}),')
+        # inst.append(f'  .s_axi_control_{portname}(s_axi_control_{portname}),')
+        wire_to_io[f's_axi_control_{portname}'] = f's_axi_control_{portname}'
 
   for argname, wirename in pw_map.get('constant_ports', {}).items():
-    inst.append(f'  .{argname}({wirename}_input),')
+    # inst.append(f'  .{argname}({wirename}_input),')
+    wire_to_io[f'{wirename}_input'] = argname
 
   for argname in pw_map.get('ctrl_out', []):
-    inst.append(f'  .{argname}({argname}_output),')
+    # inst.append(f'  .{argname}({argname}_output),')
+    wire_to_io[f'{argname}_output'] = argname
 
   for argname in pw_map.get('ctrl_in', []):
-    inst.append(f'  .{argname}({argname}_input),')
+    # inst.append(f'  .{argname}({argname}_input),')
+    wire_to_io[f'{argname}_input'] = argname
 
   for argname in pw_map.get('reset_out', []):
-    inst.append(f'  .{argname}({argname}_output),')
+    # inst.append(f'  .{argname}({argname}_output),')
+    wire_to_io[f'{argname}_output'] = argname
 
   for argname in pw_map.get('constant_out', []):
-    inst.append(f'  .{argname}({argname}_output),')
+    # inst.append(f'  .{argname}({argname}_output),')
+    wire_to_io[f'{argname}_output'] = argname
 
   for stream_pw_map in pw_map.get('stream_ports', {}).values():
     for argname, wirename in stream_pw_map.items():
       direction = get_io_direction(v_props, argname)
-      inst.append(f'  .{argname}({wirename}_{direction}),')
+      # inst.append(f'  .{argname}({wirename}_{direction}),')
+      wire_to_io[f'{wirename}_{direction}'] = argname
 
   # passing wires
   passing_streams = pw_map.get('passing_streams', {})
@@ -70,21 +68,51 @@ def _get_slot_inst(v_props: Dict, module_name_suffix: str) -> List[str]:
     for wire_name in props['wire_to_width'].keys():
       s1_direction = get_io_direction(v_props, f'{wire_name}_{s1}')
       s2_direction = get_io_direction(v_props, f'{wire_name}_{s2}')
-      inst.append(f'  .{wire_name}_{s1}({wire_name}_{s1}_{s1_direction}),')
-      inst.append(f'  .{wire_name}_{s2}({wire_name}_{s2}_{s2_direction}),')
+      # inst.append(f'  .{wire_name}_{s1}({wire_name}_{s1}_{s1_direction}),')
+      # inst.append(f'  .{wire_name}_{s2}({wire_name}_{s2}_{s2_direction}),')
+      wire_to_io[f'{wire_name}_{s1}_{s1_direction}'] = f'{wire_name}_{s1}'
+      wire_to_io[f'{wire_name}_{s2}_{s2_direction}'] = f'{wire_name}_{s2}'
 
   if v_props['category'] != 'CTRL_WRAPPER':
-    inst.append(f'  .ap_start(ap_start_{v_props["instance"]}_input),')
-    inst.append(f'  .ap_done(ap_done_{v_props["instance"]}_output),')
-    inst.append(f'  .ap_ready(),')
-    inst.append(f'  .ap_idle(),')
-    inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}_input),')
+    # inst.append(f'  .ap_start(ap_start_{v_props["instance"]}_input),')
+    # inst.append(f'  .ap_done(ap_done_{v_props["instance"]}_output),')
+    # inst.append(f'  .ap_ready(),')
+    # inst.append(f'  .ap_idle(),')
+    # inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}_input),')
+    wire_to_io[f'ap_start_{v_props["instance"]}_input'] = 'ap_start'
+    wire_to_io[f'ap_done_{v_props["instance"]}_output'] = 'ap_done'
+    wire_to_io[f'ap_rst_n_{v_props["instance"]}_input'] = 'ap_rst_n'
   else:
     # top level IO
-    inst.append(f'  .ap_rst_n(ap_rst_n),')
+    # inst.append(f'  .ap_rst_n(ap_rst_n),')
+    wire_to_io['ap_rst_n'] = 'ap_rst_n'
 
   # top level IO
-  inst.append(f'  .ap_clk(ap_clk)')
+  # inst.append(f'  .ap_clk(ap_clk)')
+  wire_to_io['ap_clk'] = 'ap_clk'
+
+  return wire_to_io
+
+
+def _get_slot_inst(v_props: Dict, module_name_suffix: str) -> List[str]:
+  """the instance for each slot
+     Change the wire name of input ports to reflect the pipelining
+     module_name_suffix changes the type of the module as we instantiate them
+     When we add a register layer around a module, it is generated as a separated file
+     and not recorded in the config file. Thus we use module_name_suffix to control
+     which version of the module we instantiate
+  """
+  inst = []
+
+  inst.append('(* dont_touch = "yes" *)')
+  inst.append(f'{v_props["module"]}{module_name_suffix} {v_props["instance"]}(')
+
+  wire_to_io = _get_wire_to_io_of_slot(v_props)
+
+  for wire, io in wire_to_io.items():
+    inst.append(f'  .{io}({wire}),')
+
+  inst[-1] = inst[-1].strip(',')
   inst.append(f');')
 
   return inst
