@@ -128,17 +128,33 @@ def get_slot_insts(config: Dict, module_name_suffix: str) -> List[str]:
   return insts
 
 
+def _get_anchor_reg_decl(name, width):
+  """declare the register and connects it"""
+  anchor_decl = []
+  anchor_decl.append(f'wire {width} {name}_input;')
+  anchor_decl.append(f'wire {width} {name}_output;')
+  anchor_decl.append(f'(* dont_touch = "yes" *) reg {width} {name}_q;')
+  anchor_decl.append(f'always @ (posedge ap_clk) {name}_q <= {name}_output;')
+  anchor_decl.append(f'assign {name}_input = {name}_q;')
+  return anchor_decl
+
+
 def get_anchor_reg_decl(config: Dict) -> List[str]:
   """Instantiate the wires between instances and the control signals"""
-  wire = []
+  anchor_decl = []
   for name, width in config['wire_decl'].items():
-    wire.append(f'wire {width} {name}_input;')
-    wire.append(f'wire {width} {name}_output;')
-    wire.append(f'(* dont_touch = "yes" *) reg {width} {name}_q;')
-    wire.append(f'always @ (posedge ap_clk) {name}_q <= {name}_output;')
-    wire.append(f'assign {name}_input = {name}_q;')
+    anchor_decl += _get_anchor_reg_decl(name, width)
 
-  return wire
+  return anchor_decl
+
+
+def get_selected_anchor_reg_decl(config: Dict, selected_wire_to_io: Dict[str, str]) -> List[str]:
+  """only instantiated some anchor registers"""
+  anchor_decl = []
+  for wire_name in selected_wire_to_io:
+    width = config['wire_decl'][wire_name]
+    anchor_decl += _get_anchor_reg_decl(wire_name, width)
+  return anchor_decl
 
 
 def get_io_section(config: Dict, top_name: str) -> List[str]:
@@ -171,12 +187,20 @@ def get_io_section(config: Dict, top_name: str) -> List[str]:
   return io
 
 
-def set_unused_ports() -> List[str]:
-  warning = '  // FIXME: only tested on 2021.2'
-  return [
-    'assign interrupt = 0;' + warning,
-    'assign ap_local_block = 0;' + warning,
-  ]
+def set_unused_ports(config: Dict) -> List[str]:
+  """prevent an output port from floating"""
+  zero_output = []
+
+  # all wire to io mapping
+  wire_to_io = {}
+  for v_name, v_props in config['vertices'].items():
+    wire_to_io.update(_get_wire_to_io_of_slot(v_props))
+
+  for name, width in config['output_decl'].items():
+    if name not in wire_to_io:
+      zero_output.append(f'assign {name} = 0;')
+      _logger.info('the output port %s is floating, assign it to 0', name)
+  return zero_output
 
 
 def get_ending() -> List[str]:
@@ -201,7 +225,7 @@ def _get_top(config: Dict, top_name: str, wrapper_suffix: str) -> List[str]:
   top = []
   top += get_anchor_reg_decl(config) + ['']
   top += get_slot_insts(config, wrapper_suffix) + ['']
-  top += set_unused_ports()
+  top += set_unused_ports(config)
   top += get_ending() + ['']
   top_sorted = sort_rtl(top)
 
