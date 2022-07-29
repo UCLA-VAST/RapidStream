@@ -14,8 +14,10 @@ from rapidstream.rtl_gen.top import get_top, get_top_with_empty_islands
 _logger = logging.getLogger().getChild(__name__)
 
 
-def islandize_vertices(config: Dict, output_dir: str, top_name: str, use_anchor_wrapper: bool = True) -> Dict:
-  """Restructure the RTL to form island hierarchies"""
+def islandize_vertices(config: Dict, top_name: str, use_anchor_wrapper: bool = True) -> Dict:
+  """Restructure the RTL to form island hierarchies
+  use_anchor_wrapper: affects which wrapper to instantiate in the top as well as the latency calculation
+  """
   slot_to_vertices = defaultdict(list)
   name_to_file = {}
   name_to_dummy_file = {}
@@ -71,7 +73,7 @@ def islandize_vertices(config: Dict, output_dir: str, top_name: str, use_anchor_
   name_to_file[f'{top_name}.v'] = top
 
   # dummy top with the same name
-  dummy_top = get_top_with_empty_islands(config, top_name, use_anchor_wrapper)
+  dummy_top = get_top_with_empty_islands(config, top_name)
   name_to_dummy_file[f'{top_name}.v'] = dummy_top
 
   return name_to_file, name_to_dummy_file

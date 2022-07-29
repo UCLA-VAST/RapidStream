@@ -16,9 +16,13 @@ def get_io_direction(v_props: Dict, portname: str) -> str:
     assert False
 
 
-def get_slot_inst(v_props: Dict, module_name_suffix: str) -> List[str]:
+def _get_slot_inst(v_props: Dict, module_name_suffix: str) -> List[str]:
   """the instance for each slot
      Change the wire name of input ports to reflect the pipelining
+     module_name_suffix changes the type of the module as we instantiate them
+     When we add a register layer around a module, it is generated as a separated file
+     and not recorded in the config file. Thus we use module_name_suffix to control
+     which version of the module we instantiate
   """
   inst = []
   pw_map = v_props['port_wire_map']
@@ -86,20 +90,12 @@ def get_slot_inst(v_props: Dict, module_name_suffix: str) -> List[str]:
   return inst
 
 
-def get_task_vertex_insts(config: Dict, use_anchor_wrapper: bool) -> List[str]:
+def get_slot_insts(config: Dict, module_name_suffix: str) -> List[str]:
   """Skip ctrl vertex and other conceptual vertices like port vertices"""
   insts = []
-
   for v_name, v_props in config['vertices'].items():
-    if v_props['category'] == 'PORT_VERTEX':
-      continue
-
-    elif v_props['category'] == 'CTRL_VERTEX':
-      continue
-
-    else:
-      module_name_suffix = ANCHOR_WRAPPER_SUFFIX if use_anchor_wrapper else ''
-      insts += get_slot_inst(v_props, module_name_suffix) + ['']
+    assert v_props['category'] not in ('PORT_VERTEX', 'CTRL_VERTEX')
+    insts += _get_slot_inst(v_props, module_name_suffix) + ['']
 
   return insts
 
@@ -173,46 +169,24 @@ def sort_rtl(top: List[str]) -> List[str]:
   return decl + other
 
 
+def _get_top(config: Dict, top_name: str, wrapper_suffix: str) -> List[str]:
+  top = []
+  top += get_anchor_reg_decl(config) + ['']
+  top += get_slot_insts(config, wrapper_suffix) + ['']
+  top += set_unused_ports()
+  top += get_ending() + ['']
+  top_sorted = sort_rtl(top)
+
+  top = get_io_section(config, top_name) + [''] + top_sorted + ['']
+
+  return top
+
+
 def get_top(config: Dict, top_name: str, use_anchor_wrapper: bool) -> List[str]:
-  top = []
-  top += get_anchor_reg_decl(config) + ['']
-  top += get_task_vertex_insts(config, use_anchor_wrapper) + ['']
-  top += set_unused_ports()
-  top += get_ending() + ['']
-  top_sorted = sort_rtl(top)
-
-  top = get_io_section(config, top_name) + [''] + top_sorted + ['']
-
-  return top
+  wrapper_suffix = ANCHOR_WRAPPER_SUFFIX if use_anchor_wrapper else ''
+  return _get_top(config, top_name, wrapper_suffix)
 
 
-def get_dummy_task_vertex_insts(config: Dict) -> List[str]:
-  """Skip ctrl vertex and other conceptual vertices like port vertices"""
-  insts = []
-
-  for v_name, v_props in config['vertices'].items():
-    if v_props['category'] == 'PORT_VERTEX':
-      continue
-
-    elif v_props['category'] == 'CTRL_VERTEX':
-      continue
-
-    else:
-      module_name_suffix = DUMMY_WRAPPER_SUFFIX
-      insts += get_slot_inst(v_props, module_name_suffix) + ['']
-
-  return insts
-
-
-def get_top_with_empty_islands(config: Dict, top_name: str, use_anchor_wrapper: bool) -> List[str]:
+def get_top_with_empty_islands(config: Dict, top_name: str) -> List[str]:
   """Get the top RTL that instantiate empty dummy islands"""
-  top = []
-  top += get_anchor_reg_decl(config) + ['']
-  top += get_dummy_task_vertex_insts(config) + ['']
-  top += set_unused_ports()
-  top += get_ending() + ['']
-  top_sorted = sort_rtl(top)
-
-  top = get_io_section(config, top_name) + [''] + top_sorted + ['']
-
-  return top
+  return _get_top(config, top_name, DUMMY_WRAPPER_SUFFIX)

@@ -50,11 +50,11 @@ def main(
   parse_tapa_output_rtl(config, ast_root)
 
   output_dir = os.path.abspath(output_dir)
-  name_to_file, name_to_dummy_file = islandize_vertices(config, '.', top_name)
+  name_to_file, name_to_dummy_file = islandize_vertices(config, top_name, use_anchor_wrapper=True)
   create_xo(top_name, xo_path, name_to_file, output_dir, xo_suffix = '_rapidstream', temp_dir='temp_orig_xo')
   create_xo(top_name, xo_path, name_to_dummy_file, output_dir, xo_suffix = '_rapidstream_dummy', temp_dir='temp_dummy_xo')
   dump_files(name_to_file, output_dir)
-  dump_files(name_to_dummy_file, f'{output_dir}_dummy')
+  dump_files(name_to_dummy_file, f'{output_dir}/dummy_wrappers')
 
   open(f'{output_dir}/rapidstream.json', 'w').write(json.dumps(config, indent=2))
 

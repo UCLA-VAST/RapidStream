@@ -287,6 +287,7 @@ def get_group_wrapper(
      Then the codegen will reinstate the peek ports.
      If the wrapper is around other wrappers, set the is_initial_wrapper to be false,
      so that the peek ports will be pruned to avoid unnecessary anchors
+     use_anchor_wrapper: the latency of a stream is affected by the number of anchors.
   """
 
   wrapper = []
