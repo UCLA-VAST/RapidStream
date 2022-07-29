@@ -123,7 +123,7 @@ def get_io_section(config: Dict, top_name: str) -> List[str]:
   io.append('`timescale 1 ns / 1 ps')
   io.append('')
 
-  io.append(f'module {top_name} (')
+  io.append(f'(* dont_touch = "yes" *) module {top_name} (')
   for name, width in config['input_decl'].items():
     io.append(f'  {name},')
 
