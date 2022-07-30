@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Dict, List
 
 from rapidstream.const import *
@@ -129,7 +130,9 @@ def get_slot_insts(config: Dict, module_name_suffix: str) -> List[str]:
 
 
 def _get_anchor_reg_decl(name, width):
-  """declare the register and connects it"""
+  """declare the register and connects it.
+      Naming: the anchor xxx will be connected to wires xxx_input and xxx_output
+  """
   anchor_decl = []
   anchor_decl.append(f'wire {width} {name}_input;')
   anchor_decl.append(f'wire {width} {name}_output;')
@@ -150,10 +153,18 @@ def get_anchor_reg_decl(config: Dict) -> List[str]:
 
 def get_selected_anchor_reg_decl(config: Dict, selected_wire_to_io: Dict[str, str]) -> List[str]:
   """only instantiated some anchor registers"""
+  def get_base_name(wire_name):
+    """if a wire is xxx_input or xxx_output, the anchor name is xxx_q"""
+    return re.sub('_(in|out)put$', '', wire_name)
+
   anchor_decl = []
   for wire_name in selected_wire_to_io:
-    width = config['wire_decl'][wire_name]
-    anchor_decl += _get_anchor_reg_decl(wire_name, width)
+    base_name = get_base_name(wire_name)
+    width = config['wire_decl'].get(base_name, '')
+    # top-level IO
+    if base_name not in config['wire_decl']:
+      continue
+    anchor_decl += _get_anchor_reg_decl(base_name, width)
   return anchor_decl
 
 
@@ -187,14 +198,15 @@ def get_io_section(config: Dict, top_name: str) -> List[str]:
   return io
 
 
-def set_unused_ports(config: Dict) -> List[str]:
-  """prevent an output port from floating"""
+def set_unused_ports(config: Dict, wire_to_io: Dict = {}) -> List[str]:
+  """prevent an output port from floating. If wire_to_io is none, only consider assigning
+  floating outputs that appear in wire_to_io. If not provided, consider all floating outputs"""
   zero_output = []
 
   # all wire to io mapping
-  wire_to_io = {}
-  for v_name, v_props in config['vertices'].items():
-    wire_to_io.update(_get_wire_to_io_of_slot(v_props))
+  if not wire_to_io:
+    for v_name, v_props in config['vertices'].items():
+      wire_to_io.update(_get_wire_to_io_of_slot(v_props))
 
   for name, width in config['output_decl'].items():
     if name not in wire_to_io:
@@ -242,3 +254,24 @@ def get_top(config: Dict, top_name: str, use_anchor_wrapper: bool) -> List[str]:
 def get_top_with_empty_islands(config: Dict, top_name: str) -> List[str]:
   """Get the top RTL that instantiate empty dummy islands"""
   return _get_top(config, top_name, DUMMY_WRAPPER_SUFFIX)
+
+
+def get_top_with_one_island(config: Dict, top_name: str, use_anchor_wrapper: bool) -> Dict[str, List[str]]:
+  """for each island, generate a top that only instantiates one island in the top
+     if a top-level output port is not connected to the given island, assign it to 0
+  """
+  wrapper_suffix = ANCHOR_WRAPPER_SUFFIX if use_anchor_wrapper else ''
+  island_name_to_wrapper = {}
+  for v_name, v_props in config['vertices'].items():
+    wire_to_io = _get_wire_to_io_of_slot(v_props)
+    top = []
+    top += get_selected_anchor_reg_decl(config, wire_to_io) + ['']
+    top += _get_slot_inst(v_props, wrapper_suffix) + ['']
+    top += set_unused_ports(config, wire_to_io)
+    top += get_ending() + ['']
+    top_sorted = sort_rtl(top)
+
+    top = get_io_section(config, top_name) + [''] + top_sorted + ['']
+    island_name_to_wrapper[v_name] = top
+
+  return island_name_to_wrapper
