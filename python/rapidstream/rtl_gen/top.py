@@ -256,7 +256,7 @@ def get_top_with_empty_islands(config: Dict, top_name: str) -> List[str]:
   return _get_top(config, top_name, DUMMY_WRAPPER_SUFFIX)
 
 
-def get_top_with_one_island(config: Dict, top_name: str, use_anchor_wrapper: bool) -> Dict[str, List[str]]:
+def get_top_with_one_island(config: Dict, use_anchor_wrapper: bool) -> Dict[str, List[str]]:
   """for each island, generate a top that only instantiates one island in the top
      if a top-level output port is not connected to the given island, assign it to 0
   """
@@ -271,7 +271,7 @@ def get_top_with_one_island(config: Dict, top_name: str, use_anchor_wrapper: boo
     top += get_ending() + ['']
     top_sorted = sort_rtl(top)
 
-    top = get_io_section(config, top_name) + [''] + top_sorted + ['']
+    top = get_io_section(config, f'{v_name}_backend_top') + [''] + top_sorted + ['']
     island_name_to_wrapper[v_name] = top
 
   return island_name_to_wrapper
