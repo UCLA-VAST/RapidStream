@@ -60,9 +60,9 @@ def embed_ctrl_unit(config: Dict, target_vertex: str, ctrl_vertex: str) -> Dict:
   ctrl_props = config['vertices'][ctrl_vertex]
   target_props = config['vertices'][target_vertex]
 
-  # module_name = target_vertex.replace('WRAPPER_VERTEX', 'CTRL_WRAPPER_VERTEX')
+  module_name = target_vertex.replace('WRAPPER_VERTEX', 'CTRL_WRAPPER_VERTEX')
   # do not add the CTRL_ prefix, which causes lots of corner cases downstream
-  module_name = target_vertex
+  # module_name = target_vertex
 
   ctrl_wrapper_props = {
     'module': module_name,
