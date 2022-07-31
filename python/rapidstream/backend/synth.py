@@ -38,7 +38,7 @@ def get_synth_script(
   # reset clock because we will insert the checkpoint to DFX environment with pre-defined clocks
   script.append('reset_timing')
 
-  script.append(f'write_checkpoint {synth_dir}/{slot_name}/{slot_name}_synth.dcp')
+  script.append(f'write_checkpoint {synth_dir}/{slot_name}/{slot_name}_synth_opt.dcp')
   script.append(f'exec touch {synth_dir}/{slot_name}/{slot_name}_synth.dcp.done.flag')
 
   return script
@@ -63,7 +63,7 @@ def setup_island_synth(
   wrapper_rtl_path: rapidstream-generated wrappers and the clock xdc
   """
   # create directories
-  os.makedirs(f'{synth_dir}', exist_ok=True)
+  os.makedirs(synth_dir, exist_ok=True)
   for slot_name in config['vertices'].keys():
     os.mkdir(f'{synth_dir}/{slot_name}')
 

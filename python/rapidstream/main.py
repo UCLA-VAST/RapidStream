@@ -8,6 +8,7 @@ from rapidstream.opt import islandize_vertices
 from rapidstream.util import setup_logging, create_xo, dump_files
 from rapidstream.backend.split import annotate_io_orientation
 from rapidstream.backend.synth import setup_island_synth
+from rapidstream.backend.place import setup_island_init_placement
 
 @click.command()
 @click.option(
@@ -42,6 +43,8 @@ def main(
   output_dir: str,
 ):
   """Entry point for RapidStream that targets TAPA"""
+  output_dir = os.path.abspath(output_dir)
+  os.makedirs(output_dir, exist_ok=True)
 
   setup_logging()
 
@@ -50,7 +53,8 @@ def main(
 
   parse_tapa_output_rtl(config, ast_root)
 
-  output_dir = os.path.abspath(output_dir)
+  open(f'{output_dir}/pre_rapidstream.json', 'w').write(json.dumps(config, indent=2))
+
   name_to_file, name_to_dummy_file = islandize_vertices(config, top_name, use_anchor_wrapper=True)
   create_xo(top_name, xo_path, name_to_file, output_dir, xo_suffix = '_rapidstream', temp_dir='temp_orig_xo')
   create_xo(top_name, xo_path, name_to_dummy_file, output_dir, xo_suffix = '_rapidstream_dummy', temp_dir='temp_dummy_xo')
@@ -69,6 +73,13 @@ def main(
     f'{output_dir}/backend/synth',
   )
 
+  setup_island_init_placement(
+    config,
+    f'{output_dir}/backend/synth',
+    f'{output_dir}/backend/init_placement',
+    '/expr/tapa/4ch_soda_u280/test_parallel_placement/rapidstream/overlay/checkpoints/overlay.dcp',
+    top_name,
+  )
 
 if __name__ == '__main__':
   main()
