@@ -63,6 +63,6 @@ def create_xo(top_name: str, old_xo_path: str, name_to_file: Dict, output_dir: s
 
 
 def dump_files(name_to_file: Dict, output_dir: str):
-  os.system(f'mkdir -p {output_dir}/wrapper_rtl')
+  os.system(f'mkdir -p {output_dir}')
   for name, file in name_to_file.items():
-    open(f'{output_dir}/wrapper_rtl/{name}', 'w').write('\n'.join(file))
+    open(f'{output_dir}/{name}', 'w').write('\n'.join(file))

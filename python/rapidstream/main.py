@@ -7,6 +7,7 @@ from rapidstream.parser.tapa_parser import parse_tapa_output_rtl
 from rapidstream.opt import islandize_vertices
 from rapidstream.util import setup_logging, create_xo, dump_files
 from rapidstream.backend.split import annotate_io_orientation
+from rapidstream.backend.synth import setup_island_synth
 
 @click.command()
 @click.option(
@@ -53,14 +54,20 @@ def main(
   name_to_file, name_to_dummy_file = islandize_vertices(config, top_name, use_anchor_wrapper=True)
   create_xo(top_name, xo_path, name_to_file, output_dir, xo_suffix = '_rapidstream', temp_dir='temp_orig_xo')
   create_xo(top_name, xo_path, name_to_dummy_file, output_dir, xo_suffix = '_rapidstream_dummy', temp_dir='temp_dummy_xo')
-  dump_files(name_to_file, output_dir)
-  dump_files(name_to_dummy_file, f'{output_dir}/dummy_wrappers')
+  dump_files(name_to_file, f'{output_dir}/wrapper_rtl')
+  dump_files(name_to_dummy_file, f'{output_dir}/dummy_wrapper_rtl')
 
   open(f'{output_dir}/rapidstream.json', 'w').write(json.dumps(config, indent=2))
 
   annotate_io_orientation(config)
 
   open(f'{output_dir}/rapidstream_with_io_orientation.json', 'w').write(json.dumps(config, indent=2))
+
+  setup_island_synth(
+    config,
+    f'{output_dir}/temp_orig_xo/ip_repo/haoda_xrtl_{top_name}_1_0/src/',
+    f'{output_dir}/backend/synth',
+  )
 
 
 if __name__ == '__main__':
