@@ -30,9 +30,9 @@ ISLAND_TOPOLOGY = {
   },
   'CR_X0Y0_To_CR_X3Y3': {
     'NORTH': 'CR_X0Y4_To_CR_X3Y7',
-    'SOUTH': 'CR_X4Y0_To_CR_X7Y3',
+    'SOUTH': '',
     'WEST' : '',
-    'EAST' : '',
+    'EAST' : 'CR_X4Y0_To_CR_X7Y3',
   },
   'CR_X4Y8_To_CR_X7Y11': {
     'NORTH': '',
