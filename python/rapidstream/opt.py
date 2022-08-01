@@ -6,6 +6,7 @@ from rapidstream.hierarchy_rebuild.group_ctrl_unit import embed_ctrl_unit
 from rapidstream.hierarchy_rebuild.group_inbound_streams import group_inbound_streams
 from rapidstream.hierarchy_rebuild.group_passing_streams import group_passing_streams
 from rapidstream.hierarchy_rebuild.group_vertices import group_vertices
+from rapidstream.hierarchy_rebuild.embed_ctrl_signals import hard_code_embed_ctrl_signals
 from rapidstream.rtl_gen.anchor_wrapper import get_anchor_wrapper, get_empty_island
 from rapidstream.rtl_gen.ctrl_wrapper import get_ctrl_wrapper
 from rapidstream.rtl_gen.group_wrapper import get_group_wrapper
@@ -44,6 +45,9 @@ def islandize_vertices(config: Dict, top_name: str, use_anchor_wrapper: bool = T
 
   # embed passing streams
   group_passing_streams(config, pipeline_level = 1)
+
+  # FIXME: hard code embed ctrl signals
+  hard_code_embed_ctrl_signals(config)
 
   # generate stream-including wrappers
   for v_name, props in config['vertices'].items():

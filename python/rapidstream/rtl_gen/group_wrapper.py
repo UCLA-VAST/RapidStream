@@ -44,6 +44,20 @@ def get_wire_decls(props: Dict) -> List[str]:
   return wire
 
 
+def get_passing_constant_pipelines(props: Dict) -> List[str]:
+  pp = []
+  pp.append('')
+  pp.append('// handle passing constants')
+
+  passing_constants = props['port_wire_map'].get('passing_constants', [])
+  for pc in passing_constants:
+    pp.append(f'reg {pc["input"]}_reg;')
+    pp.append(f'always @ (posedge ap_clk) {pc["input"]}_reg <= {pc["input"]};')
+    pp.append(f'assign {pc["output"]} = {pc["input"]}_reg;')
+
+  return pp
+
+
 def get_passing_wire_pipelines(props: Dict) -> List[str]:
   pp = []
   pp.append('')
@@ -294,6 +308,7 @@ def get_group_wrapper(
   wrapper += get_io_section(group_vertex_props)
   wrapper += get_wire_decls(group_vertex_props)
   wrapper += get_passing_wire_pipelines(group_vertex_props)
+  wrapper += get_passing_constant_pipelines(group_vertex_props)
   wrapper += get_non_ctrl_wrapper_ctrl_signals(group_vertex_props, is_initial_wrapper)
   wrapper += get_sub_vertex_insts(group_vertex_props, is_initial_wrapper)
   wrapper += get_sub_stream_insts(group_vertex_props, use_anchor_wrapper)

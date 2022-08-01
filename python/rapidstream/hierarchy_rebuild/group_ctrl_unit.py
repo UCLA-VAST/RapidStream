@@ -103,7 +103,7 @@ def embed_ctrl_unit(config: Dict, target_vertex: str, ctrl_vertex: str) -> Dict:
     config['wire_decl'][f'ap_done_{v_name}'] = ''
 
   # send out constants
-  ctrl_wrapper_props['port_wire_map']['constant_out'] = ctrl_props['port_wire_map']['constant_ports']
+  # ctrl_wrapper_props['port_wire_map']['constant_out'] = ctrl_props['port_wire_map']['constant_ports']
 
   # update the port wire map of the ctrl vertex
   ctrl_props['port_wire_map']['ctrl_ports']['ap_start'] = 'ap_start_orig'

@@ -74,15 +74,21 @@ def _get_wire_to_io_of_slot(v_props: Dict) -> Dict[str, str]:
       wire_to_io[f'{wire_name}_{s1}_{s1_direction}'] = f'{wire_name}_{s1}'
       wire_to_io[f'{wire_name}_{s2}_{s2_direction}'] = f'{wire_name}_{s2}'
 
+  # passing constants:
+  passing_constants = pw_map.get('passing_constants', {})
+  for pc in passing_constants:
+    for dir in ('input', 'output'):
+      wire_to_io[f'{pc[dir]}_{dir}'] = pc[dir]
+
   if v_props['category'] != 'CTRL_WRAPPER':
     # inst.append(f'  .ap_start(ap_start_{v_props["instance"]}_input),')
     # inst.append(f'  .ap_done(ap_done_{v_props["instance"]}_output),')
     # inst.append(f'  .ap_ready(),')
     # inst.append(f'  .ap_idle(),')
     # inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}_input),')
-    wire_to_io[f'ap_start_{v_props["instance"]}_input'] = 'ap_start'
-    wire_to_io[f'ap_done_{v_props["instance"]}_output'] = 'ap_done'
-    wire_to_io[f'ap_rst_n_{v_props["instance"]}_input'] = 'ap_rst_n'
+    wire_to_io[f'{pw_map["ctrl_ports"]["ap_start"]}_input'] = 'ap_start'
+    wire_to_io[f'{pw_map["ctrl_ports"]["ap_rst_n"]}_input'] = 'ap_rst_n'
+    wire_to_io[f'{pw_map["ctrl_ports"]["ap_done"]}_output'] = 'ap_done'
   else:
     # top level IO
     # inst.append(f'  .ap_rst_n(ap_rst_n),')

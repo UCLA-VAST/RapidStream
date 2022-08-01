@@ -109,6 +109,19 @@ def add_passing_stream_io_dir(props: Dict) -> None:
         assert False
 
 
+def add_passing_constant_io_dir(props: Dict) -> None:
+  """FIXME: temp hack only works for ap signals"""
+  port_wire_map = props['port_wire_map']
+  passing_constants = port_wire_map.get('passing_constants', [])
+
+  for pc in passing_constants:
+    s_in = pc['input']
+    s_out = pc['output']
+    assert s_in.startswith('ap_') and s_out.startswith('ap_')
+    props['io_dir_to_name_to_width']['input'][s_in] = ''
+    props['io_dir_to_name_to_width']['output'][s_out] = ''
+
+
 def add_slave_ctrl_signals_io_dir(props: Dict) -> None:
   props['io_dir_to_name_to_width']['input']['ap_start'] = ''
   props['io_dir_to_name_to_width']['output']['ap_done'] = ''
@@ -161,6 +174,7 @@ def generate_no_ctrl_vertex_io_list(props: Dict) -> None:
   add_stream_io_dir(props)
   add_m_axi_io_dir(props)
   add_passing_stream_io_dir(props)
+  add_passing_constant_io_dir(props)
 
   add_constant_input_io_dir(props)
   add_slave_ctrl_signals_io_dir(props)
@@ -177,7 +191,6 @@ def generate_ctrl_vertex_io_list(props: Dict) -> None:
   add_stream_io_dir(props)
   add_m_axi_io_dir(props)
   add_passing_stream_io_dir(props)
-
-  add_constant_output_io_dir(props)
+  # add_constant_output_io_dir(props)
   add_master_ctrl_signals_io_dir(props)
   add_s_axi_lite_io_dir(props)
