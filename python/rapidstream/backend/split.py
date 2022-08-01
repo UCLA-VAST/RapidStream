@@ -1,7 +1,15 @@
 """Create each sub task in the backend flow"""
-
+import re
 from typing import Dict
 from rapidstream.platform.const import *
+from rapidstream.rtl_gen.top import _get_wire_to_io_of_slot
+
+
+def get_wire_to_io_of_slot(props: Dict) -> Dict[str, str]:
+  wire_with_dir_to_io = _get_wire_to_io_of_slot(props)
+  wire_to_io_name = {re.sub('_(in|out)put$', '', wire_with_dir): io_name
+    for wire_with_dir, io_name in wire_with_dir_to_io.items()}
+  return wire_to_io_name
 
 
 def annotate_io_orientation(config: Dict) -> None:
@@ -16,10 +24,12 @@ def annotate_io_orientation(config: Dict) -> None:
       return ''
     return pblock_to_island[neighbor_pblock]
 
+  island_to_wire_to_io = {island: get_wire_to_io_of_slot(props) for island, props in config['vertices'].items()}
+
   # for each island, get the shared io with neighbors in each orientation
   for island, props in config['vertices'].items():
     floorplan_region = props['floorplan_region']
-    orientation_to_io_to_width = {}
+    orientation_to_wire = {}
     for orientation in ISLAND_ORIENTATIONS:
       neighbor_name = get_neighbor_island_name(orientation)
 
@@ -28,14 +38,8 @@ def annotate_io_orientation(config: Dict) -> None:
         continue
 
       neighbor_props = config['vertices'][neighbor_name]
+      orientation_to_wire[orientation] = list(
+        island_to_wire_to_io[island].keys() & island_to_wire_to_io[neighbor_name].keys()
+      )
 
-      dir_to_io_to_width = {
-        'input': dict(props['io_dir_to_name_to_width']['input'].items() &
-                         neighbor_props['io_dir_to_name_to_width']['output'].items()),
-        'output': dict(props['io_dir_to_name_to_width']['output'].items() &
-                         neighbor_props['io_dir_to_name_to_width']['input'].items()),
-      }
-
-      orientation_to_io_to_width[orientation] = dir_to_io_to_width
-
-    props['orientation_to_dir_to_io_name_to_width'] = orientation_to_io_to_width
+    props['orientation_to_wire'] = orientation_to_wire

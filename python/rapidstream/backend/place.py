@@ -20,14 +20,11 @@ def get_init_place_script(
   script.append(f'read_checkpoint -cell {bb_cell} {synth_dcp}')
 
   # assign anchors to corresponding pblocks
-  for orientation, dir_to_name_to_width in config['vertices'][slot_name][
-      'orientation_to_dir_to_io_name_to_width'
-  ].items():
+  for orientation, wire_list in config['vertices'][slot_name]['orientation_to_wire'].items():
     script.append(f'create_pblock {orientation}')
     script.append(f'add_cells_to_pblock {orientation} [ get_cells [ list \\')
-    for name_to_width in dir_to_name_to_width.values():
-      for name in name_to_width.keys():
-        script.append(f'  {bb_cell}/{name}_q_reg* \\')
+    for name in wire_list:
+      script.append(f'  {bb_cell}/{name}_q_reg* \\')
     script.append(f'] ]')
     script.append('')
 
