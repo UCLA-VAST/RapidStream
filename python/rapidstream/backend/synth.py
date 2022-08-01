@@ -35,6 +35,9 @@ def get_synth_script(
   script.append(f'synth_design -top "{top_name}" -part {fpga_part_name} -mode out_of_context')
   script.append(f'opt_design')
 
+  # FIXME: remove abs path. add LUT1 to all un-used top ports (a DFX requirement)
+  script.append('source /share/einsx7/vast-lab-tapa/RapidStream/tcl/insertLutToUnusedPorts.tcl')
+
   # reset clock because we will insert the checkpoint to DFX environment with pre-defined clocks
   script.append('reset_timing')
 

@@ -1,7 +1,5 @@
-write_checkpoint before_insert_luts.dcp
-
 # get all wrapper cells
-set wrapper_cells [get_cells pfm_top_i/dynamic_region/*/inst/* -filter {IS_PRIMITIVE == False}]
+set wrapper_cells [get_cells * -filter {IS_PRIMITIVE == False}]
 
 foreach wrapper ${wrapper_cells} {
   set GND_net "${wrapper}/<const0>"
@@ -59,10 +57,5 @@ foreach wrapper ${wrapper_cells} {
 
       puts "connect $vcc_pin to VCC through a LUT1 with INIT 2'h2"
     }
-  }
-
-  if { ([llength $VCC_pins] != 0) && ([llength $GND_pins] != 0) } {
-    puts "setting LUT1s for unused ports on ${wrapper} to be dont_touch"
-    set_property DONT_TOUCH true [get_cells ${wrapper}/*lut1]
   }
 }

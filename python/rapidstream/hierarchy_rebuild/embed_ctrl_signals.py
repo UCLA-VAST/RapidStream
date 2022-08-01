@@ -74,6 +74,13 @@ def hard_code_embed_ctrl_signals(config: Dict) -> None:
     config['wire_decl'][f'{ap_signal}_WRAPPER_VERTEX_CR_X4Y8_To_CR_X7Y11_q1'] = ''
     config['vertices']['WRAPPER_VERTEX_CR_X4Y8_To_CR_X7Y11']['port_wire_map']['ctrl_ports'][ap_signal] = f'{ap_signal}_WRAPPER_VERTEX_CR_X4Y8_To_CR_X7Y11_q1'
 
+    # for WRAPPER_VERTEX_CR_X4Y4_To_CR_X7Y7
+    config['vertices']['WRAPPER_VERTEX_CR_X4Y4_To_CR_X7Y7']['port_wire_map']['ctrl_ports'][ap_signal] = f'{ap_signal}_WRAPPER_VERTEX_CR_X4Y4_To_CR_X7Y7'
+
+    # for WRAPPER_VERTEX_CR_X0Y0_To_CR_X3Y3
+    config['vertices']['WRAPPER_VERTEX_CR_X0Y0_To_CR_X3Y3']['port_wire_map']['ctrl_ports'][ap_signal] = f'{ap_signal}_WRAPPER_VERTEX_CR_X0Y0_To_CR_X3Y3'
+
+
   # update io list
   for island, props in config['vertices'].items():
     if props['category'] in ('CTRL_VERTEX', 'PORT_VERTEX'):
