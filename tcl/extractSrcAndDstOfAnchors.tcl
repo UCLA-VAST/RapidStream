@@ -1,5 +1,5 @@
 set lines []
-set anchor_cells [get_cells  -regexp -filter { NAME =~  ".*q0_reg.*" } ]
+set anchor_cells [get_cells  -regexp pfm_top_i/dynamic_region/.*/inst/.*q.*_reg.*]
 
 foreach anchor $anchor_cells {
   set input_pin [get_pins "$anchor/D"]
@@ -33,19 +33,23 @@ foreach anchor $anchor_cells {
 
   if {$src_cell != ""} {
     set src_cell_loc [get_property LOC [get_cells $src_cell]]
+    set src_cell_bel [get_property BEL [get_cells $dst_cell]]
+    set src_cell_bel [lindex [split $src_cell_bel "."] 1]
     set src_cell_type [get_property PRIMITIVE_TYPE [get_cells $src_cell] ]
-    
+
     # the source cell may be VCC or GND
-    if {$src_cell_loc != ""} { 
-      lappend locations " { \"${src_cell_loc}\" : \"${src_cell_type}\" } "
+    if {$src_cell_loc != ""} {
+      lappend locations " { \"${src_cell_loc}/${src_cell_bel}\" : \"${src_cell_type}\" } "
     }
   }
 
   if {$dst_cells != []} {
     foreach dst_cell $dst_cells {
       set dst_cell_loc [get_property LOC [get_cells $dst_cell]]
+      set dst_cell_bel [get_property BEL [get_cells $dst_cell]]
+      set dst_cell_bel [lindex [split $dst_cell_bel "."] 1]
       set dst_cell_type [get_property PRIMITIVE_TYPE  [get_cells $dst_cell] ]
-      lappend locations " { \"${dst_cell_loc}\" : \"${dst_cell_type}\" }"
+      lappend locations " { \"${dst_cell_loc}/${dst_cell_bel}\" : \"${dst_cell_type}\" }"
     }
   }
 
