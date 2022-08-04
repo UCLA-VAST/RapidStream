@@ -1,5 +1,6 @@
 set lines []
-set kernel_cell_addr [lindex $argv 0]
+
+# need to set kernel_cell_addr outside
 set anchor_cells [get_cells  -regexp ${kernel_cell_addr}.*q.*_reg.*]
 
 foreach anchor $anchor_cells {

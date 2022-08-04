@@ -111,7 +111,8 @@ def get_init_place_script(
   script.append(f'place_design -directive {placement_strategy}')
 
   # extract locations of src and dst of each anchor
-  script.append(f'source /share/einsx7/vast-lab-tapa/RapidStream/tcl/extractSrcAndDstOfAnchors.tcl {kernel_cell_addr}')
+  script.append(f'set kernel_cell_addr "{kernel_cell_addr}"')
+  script.append(f'source /share/einsx7/vast-lab-tapa/RapidStream/tcl/extractSrcAndDstOfAnchors.tcl')
 
   script.append(f'write_checkpoint {init_place_dir}/{slot_name}/{slot_name}_place.dcp')
 
