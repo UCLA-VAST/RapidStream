@@ -62,3 +62,37 @@ foreach wrapper ${wrapper_cells} {
 
   connect_net -dict $mydict
 }
+
+# for input pins, connect to D pin of dummy FFs
+foreach wrapper ${wrapper_cells} {
+  set empty_pins []
+  set nets_to_connect []
+  set GND_net "${wrapper}/<const0>"
+  set VCC_net "${wrapper}/<const1>"
+  set clk_net "${wrapper}/ap_clk"
+
+  set all_input_pins [get_pins -of_object [get_cells ${wrapper}] -filter {DIRECTION == IN}]
+
+  foreach pin ${all_input_pins} {
+    puts "Found unused input pin ${pin}"
+    set all_nets [get_nets -segments -of_object [get_pins ${pin}]]
+    set net_count [ llength ${all_nets} ]
+    if { ${net_count} == 1} {
+      lappend empty_pins ${pin}
+    }
+  }
+
+  foreach pin ${empty_pins} {
+    create_cell -reference FDRE ${pin}_ff
+    create_net ${pin}_ff_D
+    # lappend nets_to_connect [get_nets ${pin}_ff_D]; lappend nets_to_connect [get_pins ${pin}];
+    connect_net -net ${pin}_ff_D -objects [get_pins ${pin}]
+
+    lappend nets_to_connect [get_nets ${pin}_ff_D]; lappend nets_to_connect [get_pins ${pin}_ff/D];
+    lappend nets_to_connect [get_nets $VCC_net];    lappend nets_to_connect [get_pins ${pin}_ff/CE];
+    lappend nets_to_connect [get_nets $GND_net];    lappend nets_to_connect [get_pins ${pin}_ff/R];
+    lappend nets_to_connect [get_nets $clk_net];    lappend nets_to_connect [get_pins ${pin}_ff/C];
+  }
+
+  connect_net -hier -dict $nets_to_connect
+}
