@@ -41,7 +41,7 @@ foreach anchor $anchor_cells {
 
     # the source cell may be VCC or GND
     if {$src_cell_loc != ""} {
-      lappend locations " { \"${src_cell_loc}/${src_cell_bel}\" : \"${src_cell_type}\" } "
+      lappend locations " { \"dir\": \"input\", \"loc\": \"${src_cell_loc}/${src_cell_bel}\", \"type\": \"${src_cell_type}\" } "
     }
   }
 
@@ -51,7 +51,7 @@ foreach anchor $anchor_cells {
       set dst_cell_bel [get_property BEL [get_cells $dst_cell]]
       set dst_cell_bel [lindex [split $dst_cell_bel "."] 1]
       set dst_cell_type [get_property PRIMITIVE_TYPE  [get_cells $dst_cell] ]
-      lappend locations " { \"${dst_cell_loc}/${dst_cell_bel}\" : \"${dst_cell_type}\" }"
+      lappend locations " { \"dir\": \"output\", \"loc\": \"${dst_cell_loc}/${dst_cell_bel}\", \"type\": \"${dst_cell_type}\" }"
     }
   }
 
