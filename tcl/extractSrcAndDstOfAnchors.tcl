@@ -1,5 +1,6 @@
 set lines []
-set anchor_cells [get_cells  -regexp pfm_top_i/dynamic_region/.*/inst/.*q.*_reg.*]
+set kernel_cell_addr [lindex $argv 0]
+set anchor_cells [get_cells  -regexp ${kernel_cell_addr}.*q.*_reg.*]
 
 foreach anchor $anchor_cells {
   set input_pin [get_pins "$anchor/D"]
@@ -33,7 +34,7 @@ foreach anchor $anchor_cells {
 
   if {$src_cell != ""} {
     set src_cell_loc [get_property LOC [get_cells $src_cell]]
-    set src_cell_bel [get_property BEL [get_cells $dst_cell]]
+    set src_cell_bel [get_property BEL [get_cells $src_cell]]
     set src_cell_bel [lindex [split $src_cell_bel "."] 1]
     set src_cell_type [get_property PRIMITIVE_TYPE [get_cells $src_cell] ]
 
