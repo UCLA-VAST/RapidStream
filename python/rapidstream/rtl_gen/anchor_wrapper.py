@@ -15,7 +15,8 @@ def is_sys_port(name: str) -> bool:
   return is_clock_port(name) or name == 'ap_rst_n'
 
 def is_skip_port(name: str) -> bool:
-  return is_axi_port(name) or is_sys_port(name)
+  """always add anchor to ap_rst_n, even for top level reset signal"""
+  return is_axi_port(name) or is_clock_port(name)
 
 def is_clock_port(name: str) -> bool:
   return name == 'ap_clk'
