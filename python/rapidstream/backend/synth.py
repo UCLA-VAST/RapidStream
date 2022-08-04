@@ -2,6 +2,7 @@ import os
 from typing import Dict
 
 from rapidstream.rtl_gen.top import get_top_with_one_island
+from .util import ParallelManager
 
 
 def get_synth_script(
@@ -36,7 +37,7 @@ def get_synth_script(
   script.append(f'opt_design')
 
   # FIXME: remove abs path. add LUT1 to all un-used top ports (a DFX requirement)
-  script.append('source /share/einsx7/vast-lab-tapa/RapidStream/tcl/insertLutToUnusedPorts.tcl')
+  script.append('source /share/einsx7/vast-lab-tapa/RapidStream/tcl/insertFFToUnusedPorts.tcl')
 
   # reset clock because we will insert the checkpoint to DFX environment with pre-defined clocks
   script.append('reset_timing')
@@ -74,6 +75,8 @@ def setup_island_synth(
   xdc = get_clock_xdc(clock_period)
   open(f'{synth_dir}/clock.xdc', 'w').write('\n'.join(xdc))
 
+  mng = ParallelManager()
+
   # create Vivado script for each slot
   for slot_name in config['vertices'].keys():
     script = get_synth_script(
@@ -82,8 +85,11 @@ def setup_island_synth(
       orig_rtl_path,
       slot_name)
     open(f'{synth_dir}/{slot_name}/{slot_name}_synth.tcl', 'w').write('\n'.join(script))
+    mng.add_task(f'{synth_dir}/{slot_name}/', f'{slot_name}_synth.tcl')
 
   # get parallel synthesis files
   island_name_to_wrapper = get_top_with_one_island(config, use_anchor_wrapper)
   for name, wrapper in island_name_to_wrapper.items():
     open(f'{synth_dir}/{name}/{name}_backend_wrapper.v', 'w').write('\n'.join(wrapper))
+
+  open(f'{synth_dir}/parallel.txt', 'w').write('\n'.join(mng.get_parallel_script()))
