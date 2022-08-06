@@ -6,7 +6,7 @@ import shutil
 from typing import Dict, List
 
 from .floorplan_const import *
-
+from .util import ParallelManager
 
 @click.command()
 @click.option(
@@ -29,6 +29,7 @@ def setup_anchor_placement(
 ):
   """"""
   config = json.loads(open(config_path, 'r').read())
+  anchor_place_dir = os.path.abspath(anchor_place_dir)
 
   if os.path.exists(anchor_place_dir):
     shutil.rmtree(anchor_place_dir)
@@ -56,7 +57,9 @@ def setup_anchor_placement(
             dir = cell.pop('dir')
             anchor_to_dir_to_cells[cell_name][dir] += [cell]
 
-  open('anchor_to_dir_to_cells.json', 'w').write(json.dumps(anchor_to_dir_to_cells, indent=2))
+  open(f'{anchor_place_dir}/anchor_to_dir_to_cells.json', 'w').write(json.dumps(anchor_to_dir_to_cells, indent=2))
+
+  mng = ParallelManager()
 
   # create a placement project for each anchor region
   for slot_name, orientation in ANCHOR_REGIONS:
@@ -78,13 +81,18 @@ def setup_anchor_placement(
       else:
         local_anchor_list += [f'{wire}_q_reg[{i}]' for i in range(msb+1)]
 
+    # get all anchors belonging to this anchor region, and src/sink cells
     local_anchor_to_dir_to_cells = {anchor: anchor_to_dir_to_cells[anchor] for anchor in local_anchor_list}
 
+    # get the pblock definition
     anchor_pblock = ISLAND_TO_DIR_TO_ANCHOR_PBLOCK[slot_name][orientation]
 
     script = get_anchor_placement_script(anchor_pblock, local_anchor_to_dir_to_cells)
-
     open(f'{anchor_place_dir}/{slot_name}_{orientation}/place_anchor.tcl', 'w').write('\n'.join(script))
+
+    mng.add_task(f'{anchor_place_dir}/{slot_name}_{orientation}/', 'place_anchor.tcl')
+
+  open(f'{anchor_place_dir}/parallel.txt', 'w').write('\n'.join(mng.get_parallel_script()))
 
 
 def get_anchor_placement_script(
@@ -157,6 +165,20 @@ def get_anchor_placement_script(
   script.append(f'place_design')
 
   # extract anchor locations
+  script.append(f'set all_lines []')
+  for anchor in anchor_to_dir_to_cells.keys():
+    script.append(f'set anchor_loc [get_property LOC [get_cells {anchor}]]')
+    script.append(f'set anchor_bel [get_property BEL [get_cells {anchor}]]')
+    script.append(f'set anchor_bel [lindex [split $anchor_bel "."] 1]')
+    script.append(f'set line "  \\\"{anchor}\\\": \\\"${{anchor_loc}}/${{anchor_bel}}\\\" "')
+    script.append(f'lappend all_lines $line')
+
+  # generate json file
+  script.append('set file [open "anchor_placement.json" "w"]')
+  script.append('puts $file " { "')
+  script.append('puts $file [join $all_lines ",\n"]')
+  script.append('puts $file " } "')
+  script.append('close $file')
 
   return script
 
