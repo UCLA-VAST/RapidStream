@@ -51,6 +51,7 @@ def get_init_place_script(
   script.append(f'create_pblock island')
   script.append(f'resize_pblock island -add {{ {ISLAND_TO_PBLOCK[slot_name]} }}')
   script.append(f'add_cells_to_pblock island [get_cells {kernel_cell_addr}{slot_name} ]')
+  script.append(f'set_property IS_SOFT false [get_pblocks island]')
 
   script.append(f'place_design -directive {placement_strategy}')
 
