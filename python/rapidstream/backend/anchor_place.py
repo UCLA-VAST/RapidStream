@@ -1,12 +1,11 @@
 import click
 import json
 import os
-import re
 import shutil
 from typing import Dict, List
 
 from .floorplan_const import *
-from .util import ParallelManager
+from .util import ParallelManager, get_local_anchor_list
 
 @click.command()
 @click.option(
@@ -66,20 +65,7 @@ def setup_anchor_placement(
     os.mkdir(f'{anchor_place_dir}/{slot_name}_{orientation}')
 
     # create anchor list in each anchor region
-    wire_list = config['vertices'][slot_name]['orientation_to_wire'][orientation]
-    local_anchor_list = []
-    for wire in wire_list:
-      if wire == 'ap_clk':
-        continue
-
-      length = config['wire_decl'].get(wire, '')
-      if not length:
-        length = '[0:0]'
-      msb = int(re.search(r'\[(.*):', length).group(1))
-      if msb == 0:
-        local_anchor_list += [f'{wire}_q_reg']
-      else:
-        local_anchor_list += [f'{wire}_q_reg[{i}]' for i in range(msb+1)]
+    local_anchor_list = get_local_anchor_list(config, slot_name, orientation)
 
     # get all anchors belonging to this anchor region, and src/sink cells
     local_anchor_to_dir_to_cells = {anchor: anchor_to_dir_to_cells[anchor] for anchor in local_anchor_list}
