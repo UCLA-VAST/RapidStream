@@ -35,12 +35,17 @@ from rapidstream.backend.place import setup_island_init_placement
   '--output-dir',
   required=True,
 )
+@click.option(
+  '--hmss-shell-dir',
+  required=True,
+)
 def main(
   top_rtl_path: str,
   post_floorplan_config_path: str,
   top_name: str,
   xo_path: str,
   output_dir: str,
+  hmss_shell_dir: str,
 ):
   """Entry point for RapidStream that targets TAPA"""
   output_dir = os.path.abspath(output_dir)
@@ -77,7 +82,7 @@ def main(
     config,
     f'{output_dir}/backend/synth',
     f'{output_dir}/backend/init_placement',
-    '/expr/tapa/4ch_soda_u280/test_parallel_placement/rapidstream/overlay/checkpoints/overlay.dcp',
+    hmss_shell_dir,
     top_name,
   )
 

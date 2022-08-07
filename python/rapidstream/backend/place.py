@@ -1,8 +1,12 @@
+import logging
 import os
 from typing import Dict, List
 
 from .util import ParallelManager
 from .floorplan_const import *
+
+_logger = logging.getLogger().getChild(__name__)
+
 
 def get_init_place_script(
     config: Dict,
@@ -74,6 +78,7 @@ def setup_island_init_placement(
   mng = ParallelManager()
 
   # create pblock on each orientation, assign anchors to the pblocks
+  _logger.info(f'using hmss shell: {hmss_shell_dir}')
   for slot_name in config['vertices'].keys():
     script = get_init_place_script(config, synth_dir, init_place_dir, hmss_shell_dir, top_name, slot_name)
     open(f'{init_place_dir}/{slot_name}/{slot_name}_place.tcl', 'w').write('\n'.join(script))
