@@ -41,18 +41,22 @@ def setup_anchor_placement(
   for root, dirs, files in os.walk(init_place_dir):
     for file in files:
       if file.endswith('.json'):
-        anchor_info: Dict[str, List[Dict[str, str]]] = json.loads(open(f'{root}/{file}', 'r').read())
-        for anchor, connections in anchor_info.items():
+        # anchor_name -> {'anchor_loc': xxx, 'connections': [{'name': xxx, 'dir': xxx, 'loc'; xxx}, xxx ] }
+        anchor_info = json.loads(open(f'{root}/{file}', 'r').read())
+        for anchor, info in anchor_info.items():
+          anchor_loc = info['anchor_loc']
+
           # strip the path part
           cell_name = anchor.split('/')[-1]
 
           if cell_name not in anchor_to_dir_to_cells:
             anchor_to_dir_to_cells[cell_name] = {
+              'anchor_loc': anchor_loc,
               'input': [],
               'output': [],
             }
 
-          for cell in connections:
+          for cell in info['connections']:
             dir = cell.pop('dir')
             anchor_to_dir_to_cells[cell_name][dir] += [cell]
 
