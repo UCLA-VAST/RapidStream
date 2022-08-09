@@ -99,11 +99,7 @@ def get_island_opt_script(
 
   local_anchor_to_loc = get_local_anchor_to_loc(config, slot_name, anchor_to_loc)
 
-  # get the path to anchor registers
-  if slot_name == 'CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3':
-    kernel_cell_addr = f'pfm_top_i/dynamic_region/{top_name}/inst/'
-  else:
-    kernel_cell_addr = ''
+  kernel_cell_addr = f'pfm_top_i/dynamic_region/{top_name}/inst/'
   local_anchor_to_loc = {kernel_cell_addr + anchor : loc for anchor, loc in local_anchor_to_loc.items()}
 
   script.append(f'open_checkpoint {init_place_dir}/{slot_name}/{slot_name}_place.dcp')
@@ -127,6 +123,9 @@ def get_island_opt_script(
   script.append(f'source /share/einsx7/vast-lab-tapa/RapidStream/tcl/extractSrcAndDstOfAnchors.tcl')
 
   script.append(f'write_checkpoint {place_opt_dir}/{slot_name}/{slot_name}_place.dcp')
+
+  kernel_cell = kernel_cell_addr.strip('/')
+  script.append(f'write_checkpoint -cell {kernel_cell} {place_opt_dir}/{slot_name}/{slot_name}_place.dcp')
 
   return script
 

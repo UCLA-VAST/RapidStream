@@ -22,7 +22,8 @@ def get_init_place_script(
   script = []
   synth_dcp = f'{synth_dir}/{slot_name}/{slot_name}_synth_opt.dcp'
 
-  if slot_name == 'CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3':
+  # if slot_name == 'CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3':
+  if True:
     script.append(f'open_checkpoint {hmss_shell_dir}')
     kernel_cell = f'pfm_top_i/dynamic_region/{top_name}/inst'
     kernel_cell_addr = f'{kernel_cell}/'
