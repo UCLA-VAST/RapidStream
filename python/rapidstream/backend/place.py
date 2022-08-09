@@ -22,18 +22,10 @@ def get_init_place_script(
   script = []
   synth_dcp = f'{synth_dir}/{slot_name}/{slot_name}_synth_opt.dcp'
 
-  # if slot_name == 'CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3':
-  if True:
-    script.append(f'open_checkpoint {hmss_shell_dir}')
-    kernel_cell = f'pfm_top_i/dynamic_region/{top_name}/inst'
-    kernel_cell_addr = f'{kernel_cell}/'
-    script.append(f'read_checkpoint -cell {kernel_cell} {synth_dcp}')
-  else:
-    kernel_cell_addr = ''
-    script.append(f'open_checkpoint {synth_dcp}')
-    script.append(f'create_clock -name ap_clk -period {clock_period} [get_ports ap_clk]')
-    script.append(f'set_property HD.CLK_SRC BUFGCE_X0Y194 [get_ports ap_clk]')
-
+  script.append(f'open_checkpoint {hmss_shell_dir}')
+  kernel_cell = f'pfm_top_i/dynamic_region/{top_name}/inst'
+  kernel_cell_addr = f'{kernel_cell}/'
+  script.append(f'read_checkpoint -cell {kernel_cell} {synth_dcp}')
 
   # assign anchors to corresponding pblocks
   for orientation, wire_list in config['vertices'][slot_name]['orientation_to_wire'].items():
