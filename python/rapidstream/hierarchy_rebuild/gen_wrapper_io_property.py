@@ -125,8 +125,6 @@ def add_passing_constant_io_dir(props: Dict) -> None:
 def add_slave_ctrl_signals_io_dir(props: Dict) -> None:
   props['io_dir_to_name_to_width']['input']['ap_start'] = ''
   props['io_dir_to_name_to_width']['output']['ap_done'] = ''
-  props['io_dir_to_name_to_width']['output']['ap_idle'] = ''
-  props['io_dir_to_name_to_width']['output']['ap_ready'] = ''
 
 
 def add_basic_io_dir(props: Dict) -> None:

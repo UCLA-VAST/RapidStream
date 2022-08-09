@@ -142,8 +142,6 @@ def get_group_port_wire_map(
       "ap_rst_n": None,
       "ap_start": None,
       "ap_done": None,
-      "ap_idle": None,
-      "ap_ready": None,
     }
     port_wire_map['constant_ports'].update(
       {argname: argname for portname, argname in
