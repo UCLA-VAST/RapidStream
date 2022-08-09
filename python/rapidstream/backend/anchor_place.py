@@ -151,6 +151,9 @@ def get_anchor_placement_script(
   script.append(f'set_property IS_SOFT false [get_pblocks anchor_pblock]')
   script.append(f'add_cells_to_pblock anchor_pblock [get_cells * -filter {{STATUS == UNPLACED}}]')
 
+  # add placeholders for pre-used lagunas
+  script.append('source /share/einsx7/vast-lab-tapa/RapidStream/platform/u280/add_laguna_placeholders.tcl')
+
   # place design
   script.append(f'place_design')
 
