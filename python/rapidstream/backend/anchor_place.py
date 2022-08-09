@@ -5,7 +5,7 @@ import shutil
 from typing import Dict, List
 
 from .floorplan_const import *
-from .util import ParallelManager, get_local_anchor_list
+from .util import ParallelManager, get_local_anchor_list, collect_anchor_to_dir_to_locs
 
 @click.command()
 @click.option(
@@ -35,31 +35,7 @@ def setup_anchor_placement(
 
   os.mkdir(anchor_place_dir)
 
-  anchor_to_dir_to_cells = {}
-
-  # read in the six json file and merge them
-  for root, dirs, files in os.walk(init_place_dir):
-    for file in files:
-      if file.endswith('.json'):
-        # anchor_name -> {'anchor_loc': xxx, 'connections': [{'name': xxx, 'dir': xxx, 'loc'; xxx}, xxx ] }
-        anchor_info = json.loads(open(f'{root}/{file}', 'r').read())
-        for anchor, info in anchor_info.items():
-          anchor_loc = info['anchor_loc']
-
-          # strip the path part
-          cell_name = anchor.split('/')[-1]
-
-          if cell_name not in anchor_to_dir_to_cells:
-            anchor_to_dir_to_cells[cell_name] = {
-              'anchor_loc': anchor_loc,
-              'input': [],
-              'output': [],
-            }
-
-          for cell in info['connections']:
-            dir = cell.pop('dir')
-            anchor_to_dir_to_cells[cell_name][dir] += [cell]
-
+  anchor_to_dir_to_cells = collect_anchor_to_dir_to_locs(init_place_dir)
   open(f'{anchor_place_dir}/anchor_to_dir_to_cells.json', 'w').write(json.dumps(anchor_to_dir_to_cells, indent=2))
 
   mng = ParallelManager()

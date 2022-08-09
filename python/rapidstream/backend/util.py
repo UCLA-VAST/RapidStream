@@ -1,3 +1,5 @@
+import json
+import os
 import re
 from typing import List, Tuple, Dict
 
@@ -71,3 +73,47 @@ def get_pairing_laguna_tx(rx_reg: str) -> str:
     return f'LAGUNA_X{x}Y{y-120}/TX_REG{reg}'
   else:
     assert False
+
+
+def collect_anchor_to_dir_to_locs(placement_dir: str):
+  """
+  anchor_to_info: {
+    anchor_name: {
+      'anchor_loc': xxx,
+      'input': [
+        {
+          'loc': xxx,
+          'type': xxx,
+          'name: xxx
+        }, ...
+      ],
+      'output': [...],
+    }
+  }
+  """
+  anchor_to_dir_to_cells = {}
+
+  # read in the six json file and merge them
+  for root, dirs, files in os.walk(placement_dir):
+    for file in files:
+      if file.endswith('.json'):
+        # anchor_name -> {'anchor_loc': xxx, 'connections': [{'name': xxx, 'dir': xxx, 'loc'; xxx}, xxx ] }
+        anchor_info = json.loads(open(f'{root}/{file}', 'r').read())
+        for anchor, info in anchor_info.items():
+          anchor_loc = info['anchor_loc']
+
+          # strip the path part
+          cell_name = anchor.split('/')[-1]
+
+          if cell_name not in anchor_to_dir_to_cells:
+            anchor_to_dir_to_cells[cell_name] = {
+              'anchor_loc': anchor_loc,
+              'input': [],
+              'output': [],
+            }
+
+          for cell in info['connections']:
+            dir = cell.pop('dir')
+            anchor_to_dir_to_cells[cell_name][dir] += [cell]
+
+  return anchor_to_dir_to_cells

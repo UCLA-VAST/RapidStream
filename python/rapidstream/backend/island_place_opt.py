@@ -49,7 +49,6 @@ def setup_island_placement_opt(
 
   # collect all anchor locations
   anchor_to_loc = collect_all_anchor_locs(anchor_place_dir)
-  open(f'{place_opt_dir}/anchor_locs.json', 'w').write(json.dumps(anchor_to_loc, indent=2))
 
   mng = ParallelManager()
   for slot_name in config['vertices'].keys():
