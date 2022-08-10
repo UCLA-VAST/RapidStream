@@ -83,8 +83,6 @@ def _get_wire_to_io_of_slot(v_props: Dict) -> Dict[str, str]:
   if v_props['category'] != 'CTRL_WRAPPER':
     # inst.append(f'  .ap_start(ap_start_{v_props["instance"]}_input),')
     # inst.append(f'  .ap_done(ap_done_{v_props["instance"]}_output),')
-    # inst.append(f'  .ap_ready(),')
-    # inst.append(f'  .ap_idle(),')
     # inst.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]}_input),')
     wire_to_io[f'{pw_map["ctrl_ports"]["ap_start"]}_input'] = 'ap_start'
     wire_to_io[f'{pw_map["ctrl_ports"]["ap_rst_n"]}_input'] = 'ap_rst_n'

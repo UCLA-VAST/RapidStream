@@ -220,8 +220,6 @@ def get_sub_vertex_insts(props: Dict, is_initial_wrapper: bool) -> List[str]:
       insts.append(f'  .ap_done(ap_done_{v_props["instance"]}),')
 
     insts.append(f'  .ap_start(ap_start_{v_props["instance"]}),')
-    insts.append(f'  .ap_idle(),')
-    insts.append(f'  .ap_ready(),')
     insts.append(f'  .ap_clk(ap_clk),')
     insts.append(f'  .ap_rst_n(ap_rst_n_{v_props["instance"]})')
     insts.append(');')
