@@ -44,6 +44,10 @@ def get_init_place_script(
   script.append(f'create_pblock island')
   script.append(f'resize_pblock island -add {{ {ISLAND_TO_PBLOCK[slot_name]} }}')
   script.append(f'resize_pblock island -remove {{ {SLICE_COLUMNS_BESIDES_LAGUNS} }}')
+
+  # for better routability. Also PR flow will prohibit those rows for placement
+  script.append(f'resize_pblock island -remove {{ {SLICE_ROWS_ON_SLR_BOUNDARIES} }}')
+
   script.append(f'add_cells_to_pblock island [get_cells {kernel_cell_addr}{slot_name} ]')
   script.append(f'set_property IS_SOFT false [get_pblocks island]')
 
