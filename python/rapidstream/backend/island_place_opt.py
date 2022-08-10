@@ -121,10 +121,10 @@ def get_island_opt_script(
   script.append(f'set kernel_cell_addr "{kernel_cell_addr}"')
   script.append(f'source /share/einsx7/vast-lab-tapa/RapidStream/tcl/extractSrcAndDstOfAnchors.tcl')
 
-  script.append(f'write_checkpoint {place_opt_dir}/{slot_name}/{slot_name}_place.dcp')
+  script.append(f'write_checkpoint {place_opt_dir}/{slot_name}/{slot_name}_island_and_anchor_place.dcp')
 
   kernel_cell = kernel_cell_addr.strip('/')
-  script.append(f'write_checkpoint -cell {kernel_cell} {place_opt_dir}/{slot_name}/{slot_name}_place.dcp')
+  script.append(f'write_checkpoint -cell {kernel_cell}/{slot_name} {place_opt_dir}/{slot_name}/{slot_name}_island_place.dcp')
 
   return script
 
