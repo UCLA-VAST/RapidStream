@@ -44,14 +44,18 @@ def get_init_place_script(
   script.append(f'create_pblock island')
   script.append(f'resize_pblock island -add {{ {ISLAND_TO_PBLOCK[slot_name]} }}')
   script.append(f'resize_pblock island -remove {{ {SLICE_COLUMNS_BESIDES_LAGUNS} }}')
-
-  # for better routability. Also PR flow will prohibit those rows for placement
-  script.append(f'resize_pblock island -remove {{ {SLICE_ROWS_ON_SLR_BOUNDARIES} }}')
-
   script.append(f'add_cells_to_pblock island [get_cells {kernel_cell_addr}{slot_name} ]')
   script.append(f'set_property IS_SOFT false [get_pblocks island]')
 
+  # for better routability. Also PR flow will prohibit those rows for placement
+  for row_idx in SLICE_ROWS_ON_SLR_BOUNDARIES:
+    script.append(f'set_property PROHIBIT 1 [get_sites SLICE_X*Y{row_idx} -filter {{IS_USED == 0}}]')
+
   script.append(f'place_design -directive {placement_strategy}')
+
+  # remove the prohibit property after placement
+  for row_idx in SLICE_ROWS_ON_SLR_BOUNDARIES:
+    script.append(f'set_property PROHIBIT 0 [get_sites SLICE_X*Y{row_idx}]')
 
   # extract locations of src and dst of each anchor
   script.append(f'set kernel_cell_addr "{kernel_cell_addr}"')
