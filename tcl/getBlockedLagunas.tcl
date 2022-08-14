@@ -1,5 +1,10 @@
+# for each new hmss shell, run this script and rapidstream.backend.get_laguna_blocker.py
+# to get a list of pre-used laguna TXs and RXs.
+# We need to create dummy FFs to block those positions when we place the anchors
+
 set xnets [::xilinx::designutils::get_inter_slr_nets]
 
+set blocked_RXs []
 foreach xnet $xnets {
   # examples:
   # LAG_LAG_X69Y180/LAG_LAGUNA_SITE_3_RXD0
@@ -30,8 +35,12 @@ foreach xnet $xnets {
         # get the bel based on the name of the blocked pin name
         set blocked_laguna_bel [string map {"D" "_REG"} ${pin_name}]
 
-        puts "${blocked_laguna_site}/${blocked_laguna_bel}"
+        lappend blocked_RXs "${blocked_laguna_site}/${blocked_laguna_bel}"
       }
     }
   }
 }
+
+set file [open "blocked_laguna_RX_list.txt" "w"]
+puts $file [join $blocked_RXs "\n"]
+close $file

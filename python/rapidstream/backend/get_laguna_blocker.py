@@ -6,9 +6,16 @@ from .util import get_pairing_laguna_tx
 @click.option(
   '--rx-list',
   required=True,
+  help='list of RX lagunas that have been blocked from getBlockedLagunas.tcl',
 )
 def block_pre_existing_lagunas(rx_list: str):
-  """extract bleed over nets from static region that uses lagunas"""
+  """extract bleed over nets from static region that uses lagunas
+     We first query all SLR-crossing nets with the utilities from xilinx tcl store
+     Then we go through the routing nodes of those nets. With regexp, we can locate
+     all RX lagunas that are blocked.
+     In this function, we get the corresponding TX lagunas
+     Then we generate FF pairs to blocked pre-used TXs and RXs in anchor placement
+  """
   file = open(rx_list, 'r').readlines()
   rx_list = (rx_loc.strip('\n') for rx_loc in file)
 
