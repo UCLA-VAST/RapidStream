@@ -124,6 +124,7 @@ def get_island_opt_script(
   script.append(f'write_checkpoint {place_opt_dir}/{slot_name}/{slot_name}_island_and_anchor_place.dcp')
 
   kernel_cell = kernel_cell_addr.strip('/')
+  script.append('delete_pblocks *') # remove the pblock on the island
   script.append(f'write_checkpoint -cell {kernel_cell}/{slot_name} {place_opt_dir}/{slot_name}/{slot_name}_island_place.dcp')
 
   return script
