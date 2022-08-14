@@ -4,6 +4,11 @@ set lines []
 set anchor_cells [get_cells  -regexp ${kernel_cell_addr}.*q.*_reg.*]
 
 foreach anchor $anchor_cells {
+  # first get the location of anchor itself
+  set anchor_loc [get_property LOC [get_cells $anchor]]
+  set anchor_bel [get_property BEL [get_cells $anchor]]
+  set anchor_bel [lindex [split $anchor_bel "."] 1]
+
   set input_pin [get_pins "$anchor/D"]
   set output_pin [get_pins "$anchor/Q"]
   set src_cell []
@@ -56,7 +61,7 @@ foreach anchor $anchor_cells {
   }
 
   set all_locations [join $locations ", "]
-  set line "  \"$anchor\" : \[ $all_locations \] "
+  set line "  \"$anchor\" : { \"anchor_loc\": \"${anchor_loc}/${anchor_bel}\", \"connections\": \[ $all_locations \] }"
   lappend lines $line
 
 }
