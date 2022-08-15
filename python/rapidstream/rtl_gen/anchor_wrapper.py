@@ -4,6 +4,7 @@ from typing import Dict, List
 from rapidstream.const import *
 from rapidstream.rtl_gen.const import *
 from rapidstream.rtl_gen.group_wrapper import get_io_section, get_ending
+from rapidstream.rtl_gen.ctrl_wrapper import get_param_decl_section
 
 _logger = logging.getLogger().getChild(__name__)
 
@@ -78,11 +79,13 @@ def get_inner_vertex_instance(v_props: Dict) -> List[str]:
 
 
 def get_anchor_wrapper(
+  config: Dict,
   group_vertex_props: Dict,
 ) -> List[str]:
   """Register each IO port except the clock"""
   wrapper = []
   wrapper += get_io_section(group_vertex_props, suffix = ANCHOR_WRAPPER_SUFFIX)
+  wrapper += get_param_decl_section(config)
   wrapper += get_anchor_section(group_vertex_props, skip_anchor_top_ports=True)
   wrapper += get_inner_vertex_instance(group_vertex_props)
   wrapper += get_ending()
@@ -90,10 +93,11 @@ def get_anchor_wrapper(
   return wrapper
 
 
-def get_empty_island(group_vertex_props: Dict) -> List[str]:
+def get_empty_island(config: Dict, group_vertex_props: Dict) -> List[str]:
   """Create a dummy module that only includes a register for each IO"""
   wrapper = []
   wrapper += get_io_section(group_vertex_props, suffix = DUMMY_WRAPPER_SUFFIX)
+  wrapper += get_param_decl_section(config)
   # when we construct the overlay, we need something to connect to every IO
   wrapper += get_anchor_section(group_vertex_props, skip_anchor_top_ports=False)
   wrapper += get_ending()

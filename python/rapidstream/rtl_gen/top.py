@@ -4,6 +4,7 @@ from typing import Dict, List
 
 from rapidstream.const import *
 from rapidstream.rtl_gen.const import *
+from rapidstream.rtl_gen.ctrl_wrapper import get_param_decl_section
 
 _logger = logging.getLogger().getChild(__name__)
 
@@ -189,9 +190,7 @@ def get_io_section(config: Dict, top_name: str) -> List[str]:
   io.append(');')
   io.append('')
 
-  for name, val in config['parameter_decl'].items():
-    io.append(f'parameter {name} = {val};')
-  io.append('')
+  io += get_param_decl_section(config)
 
   for name, width in config['input_decl'].items():
     io.append(f'input {width} {name};')

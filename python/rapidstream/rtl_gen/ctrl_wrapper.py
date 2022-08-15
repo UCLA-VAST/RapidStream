@@ -169,9 +169,8 @@ def get_ctrl_sub_vertex_inst(v_props: Dict) -> List[str]:
 
   inst.append(f'{v_props["module"]} #(')
 
-  # FIXME: hardcoded parameters of the instance
-  inst.append(f'  .C_S_AXI_ADDR_WIDTH({C_S_AXI_ADDR_WIDTH}),')
-  inst.append(f'  .C_S_AXI_DATA_WIDTH({C_S_AXI_DATA_WIDTH})')
+  inst.append(f'  .C_S_AXI_ADDR_WIDTH(C_S_AXI_CONTROL_ADDR_WIDTH),')
+  inst.append(f'  .C_S_AXI_DATA_WIDTH(C_S_AXI_CONTROL_DATA_WIDTH)')
 
   # ports of the instance
   inst.append(f') {v_props["module"]}_0 (')
@@ -202,7 +201,17 @@ def get_ctrl_sub_vertex_inst(v_props: Dict) -> List[str]:
   return inst
 
 
-def get_ctrl_wrapper(ctrl_wrapper_props: Dict, use_anchor_wrapper: bool) -> List[str]:
+def get_param_decl_section(config: Dict) -> List[str]:
+  """A temp hack to add parameter declarations to ctrl wrapper"""
+  io = []
+  for name, val in config['parameter_decl'].items():
+    io.append(f'parameter {name} = {val};')
+  io.append('')
+
+  return io
+
+
+def get_ctrl_wrapper(config: Dict, ctrl_wrapper_props: Dict, use_anchor_wrapper: bool) -> List[str]:
   """Create the RTL for the vertex with the ctrl unit in it"""
 
   wrapper = []
@@ -223,6 +232,6 @@ def get_ctrl_wrapper(ctrl_wrapper_props: Dict, use_anchor_wrapper: bool) -> List
   wrapper = sort_rtl(wrapper)
 
   # add the header after sorting
-  wrapper = get_io_section(ctrl_wrapper_props) + wrapper
+  wrapper = get_io_section(ctrl_wrapper_props) + get_param_decl_section(config) + wrapper
 
   return wrapper

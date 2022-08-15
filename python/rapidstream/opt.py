@@ -59,17 +59,17 @@ def islandize_vertices(config: Dict, top_name: str, use_anchor_wrapper: bool = T
 
   # generate ctrl-including wrapper
   ctrl_wrapper_props = embed_ctrl_unit(config, 'WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3', 'CTRL_VERTEX_control_s_axi')
-  ctrl_wrapper = get_ctrl_wrapper(ctrl_wrapper_props, use_anchor_wrapper)
+  ctrl_wrapper = get_ctrl_wrapper(config, ctrl_wrapper_props, use_anchor_wrapper)
   name_to_file[f'{ctrl_wrapper_props["module"]}.v'] = ctrl_wrapper
 
   # get anchor wrapper
   for v_name, props in config['vertices'].items():
     if props['category'] in ('CTRL_VERTEX', 'PORT_VERTEX'):
       continue
-    anchor_wrapper = get_anchor_wrapper(props)
+    anchor_wrapper = get_anchor_wrapper(config, props)
     name_to_file[f'{v_name}_anchor_wrapper.v'] = anchor_wrapper
 
-    empty_island = get_empty_island(props)
+    empty_island = get_empty_island(config, props)
     name_to_dummy_file[f'{v_name}.v'] = empty_island
 
   # generate top rtl
