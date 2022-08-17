@@ -1,7 +1,7 @@
 import os
 from typing import Dict
 
-from rapidstream.rtl_gen.top import get_top_with_one_island
+from rapidstream.rtl_gen.parallel_impl_wrapper import get_top_with_one_island
 from .util import ParallelManager
 
 

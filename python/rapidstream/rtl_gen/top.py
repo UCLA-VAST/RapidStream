@@ -257,24 +257,3 @@ def get_top(config: Dict, top_name: str, use_anchor_wrapper: bool) -> List[str]:
 def get_top_with_empty_islands(config: Dict, top_name: str) -> List[str]:
   """Get the top RTL that instantiate empty dummy islands"""
   return _get_top(config, top_name, DUMMY_WRAPPER_SUFFIX)
-
-
-def get_top_with_one_island(config: Dict, use_anchor_wrapper: bool) -> Dict[str, List[str]]:
-  """for each island, generate a top that only instantiates one island in the top
-     if a top-level output port is not connected to the given island, assign it to 0
-  """
-  wrapper_suffix = ANCHOR_WRAPPER_SUFFIX if use_anchor_wrapper else ''
-  island_name_to_wrapper = {}
-  for v_name, v_props in config['vertices'].items():
-    wire_to_io = _get_wire_to_io_of_slot(v_props)
-    top = []
-    top += get_selected_anchor_reg_decl(config, wire_to_io) + ['']
-    top += _get_slot_inst(v_props, wrapper_suffix) + ['']
-    top += set_unused_ports(config, wire_to_io)
-    top += get_ending() + ['']
-    top_sorted = sort_rtl(top)
-
-    top = get_io_section(config, f'{v_name}_backend_top') + [''] + top_sorted + ['']
-    island_name_to_wrapper[v_name] = top
-
-  return island_name_to_wrapper
