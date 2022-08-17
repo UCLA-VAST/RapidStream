@@ -98,7 +98,7 @@ def get_island_opt_script(
 
   local_anchor_to_loc = get_local_anchor_to_loc(config, slot_name, anchor_to_loc)
 
-  kernel_cell_addr = f'pfm_top_i/dynamic_region/{top_name}/inst/'
+  kernel_cell_addr = f'pfm_top_i/dynamic_region/{top_name}/inst/{slot_name}/'
   local_anchor_to_loc = {kernel_cell_addr + anchor : loc for anchor, loc in local_anchor_to_loc.items()}
 
   script.append(f'open_checkpoint {init_place_dir}/{slot_name}/{slot_name}_place.dcp')

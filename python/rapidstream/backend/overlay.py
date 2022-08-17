@@ -35,7 +35,7 @@ from .util import collect_anchor_to_dir_to_locs
   required=True,
 )
 def generate_overlay(
-    config_path: Dict,
+    config_path: str,
     overlay_generation_dir: str,
     dummy_wrapper_rtl_dir: str,
     top_name: str,
@@ -43,6 +43,11 @@ def generate_overlay(
     island_place_opt_dir: str,
     device: str = 'xcu280-fsvh2892-2L-e',
 ):
+  config_path = os.path.abspath(config_path)
+  overlay_generation_dir = os.path.abspath(overlay_generation_dir)
+  dummy_wrapper_rtl_dir = os.path.abspath(dummy_wrapper_rtl_dir)
+  hmss_shell_dcp_path = os.path.abspath(hmss_shell_dcp_path)
+  island_place_opt_dir = os.path.abspath(island_place_opt_dir)
 
   config = json.loads(open(config_path, 'r').read())
   anchor_to_info = collect_anchor_to_dir_to_locs(island_place_opt_dir)
