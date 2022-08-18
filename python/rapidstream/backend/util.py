@@ -80,17 +80,25 @@ def collect_anchor_to_dir_to_locs(placement_dir: str):
   anchor_to_info: {
     anchor_name: {
       'anchor_loc': xxx,
-      'input': [
+      'connections': [
         {
           'loc': xxx,
           'type': xxx,
-          'name: xxx
+          'name: xxx,
+          'dir': xxx
         }, ...
-      ],
-      'output': [...],
-    }
+      ]
+    },
+    ...
   }
   """
+
+  def _get_correct_hier_name(orig_name: str) -> str:
+    paths = orig_name.split('/')
+    assert paths[-2] == paths[-3]
+    new_paths = paths[:-2] + paths[-1:]
+    return '/'.join(new_paths)
+
   anchor_to_dir_to_cells = {}
 
   # read in the six json file and merge them
@@ -114,6 +122,16 @@ def collect_anchor_to_dir_to_locs(placement_dir: str):
 
           for cell in info['connections']:
             dir = cell.pop('dir')
+
+            # FIXME: a temp hack to update cell names
+            # now we use the dummy abstract shell for faster placement
+            # the original hierarchy name, for example,
+            # pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3/xxx_anchor_reg
+            # becomes
+            # pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3/xxx_anchor_reg
+            # thus we need to remove the extra slot name before generating place_cell script for the final overlay.
+            cell['name'] = _get_correct_hier_name(cell['name'])
+
             anchor_to_dir_to_cells[cell_name][dir] += [cell]
 
   return anchor_to_dir_to_cells
