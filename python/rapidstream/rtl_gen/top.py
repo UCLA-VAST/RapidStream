@@ -147,10 +147,22 @@ def _get_anchor_reg_decl(name, width):
   return anchor_decl
 
 
-def get_anchor_reg_decl(config: Dict) -> List[str]:
+def _get_used_wires(config: Dict, slot_insts: List[str]) -> List[str]:
+  """filter out wires that do not connect to any slot instants"""
+  used_wires = []
+  for name, width in config['wire_decl'].items():
+    if any(name in line for line in slot_insts):
+      used_wires.append(name)
+    else:
+      _logger.warning('temp hack to remove constant wire %s from top rtl', name)
+  return used_wires
+
+
+def get_anchor_reg_decl(config: Dict, slot_insts: List[str]) -> List[str]:
   """Instantiate the wires between instances and the control signals"""
   anchor_decl = []
-  for name, width in config['wire_decl'].items():
+  for name in _get_used_wires(config, slot_insts):
+    width = config['wire_decl'][name]
     anchor_decl += _get_anchor_reg_decl(name, width)
 
   return anchor_decl
@@ -238,8 +250,13 @@ def sort_rtl(top: List[str]) -> List[str]:
 
 def _get_top(config: Dict, top_name: str, wrapper_suffix: str) -> List[str]:
   top = []
-  top += get_anchor_reg_decl(config) + ['']
-  top += get_slot_insts(config, wrapper_suffix) + ['']
+
+  slot_insts = get_slot_insts(config, wrapper_suffix) + ['']
+
+  # use the rtl for slot instances to filter out unused wires
+  top += get_anchor_reg_decl(config, slot_insts) + ['']
+  top += slot_insts + ['']
+
   top += set_unused_ports(config)
   top += get_ending() + ['']
   top_sorted = sort_rtl(top)
