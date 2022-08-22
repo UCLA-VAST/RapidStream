@@ -74,7 +74,6 @@ def generate_overlay(
     script.append(f'create_pblock {slot_name}')
     script.append(f'resize_pblock {slot_name} -add {{ {pblock_range} }}')
     script.append(f'set_property IS_SOFT false [get_pblocks {slot_name}]')
-    script.append(f'set_property EXCLUDE_PLACEMENT true [get_pblocks {slot_name}]')
     script.append(f'set_property CONTAIN_ROUTING true [get_pblocks {slot_name}]')
     script.append(f'add_cells_to_pblock {slot_name} [get_cells  pfm_top_i/dynamic_region/{top_name}/inst/{slot_name}]')
     script.append(f'')
@@ -91,9 +90,17 @@ def generate_overlay(
       script.append(f'  {name} {loc}')
   script.append('}')
 
+  # FIXME directly place_cell instead of place_design
+  script.append(f'place_design -directive Quick')
+
   # route_design to get the complete overlay
   script.append(f'route_design')
   script.append(f'write_checkpoint {overlay_generation_dir}/overlay.dcp')
+
+  # generate bitstream for the overlay
+  script.append(f'pr_recombine -cell pfm_top_i/dynamic_region/{top_name}/inst')
+  script.append(f'pr_recombine -cell pfm_top_i/dynamic_region')
+  script.append(f'write_bitstream -cell pfm_top_i/dynamic_region overlay.bit')
 
   if os.path.exists(overlay_generation_dir):
     shutil.rmtree(overlay_generation_dir)
