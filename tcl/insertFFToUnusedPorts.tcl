@@ -74,7 +74,6 @@ foreach wrapper ${wrapper_cells} {
   set all_input_pins [get_pins -of_object [get_cells ${wrapper}] -filter {DIRECTION == IN}]
 
   foreach pin ${all_input_pins} {
-    puts "Found unused input pin ${pin}"
     set all_nets [get_nets -segments -of_object [get_pins ${pin}]]
     set net_count [ llength ${all_nets} ]
     if { ${net_count} == 1} {
@@ -83,6 +82,7 @@ foreach wrapper ${wrapper_cells} {
   }
 
   foreach pin ${empty_pins} {
+    puts "Found unused input pin ${pin}"
     create_cell -reference FDRE ${pin}_ff
     create_net ${pin}_ff_D
     # lappend nets_to_connect [get_nets ${pin}_ff_D]; lappend nets_to_connect [get_pins ${pin}];
