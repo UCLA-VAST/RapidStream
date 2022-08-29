@@ -92,7 +92,6 @@ public class AnchorRegRouter {
                     	if (!port.getCellInst().getCellType().isLeafCellOrBlackBox()) {
                     		String hierName = "pfm_top_i/dynamic_region/gaussian_kernel/inst/" + port.toString();
                     		EDIFHierPortInst islandPortInst = design.getNetlist().getHierPortInstFromName(hierName);
-                    		System.out.println(islandPortInst.toString());
                     		mapAnchorPinToIslandPort.put(pinInst, islandPortInst);
                     	}
                     }
@@ -136,29 +135,36 @@ public class AnchorRegRouter {
 
 
     private static String getPblockNameOfTile(HashMap<String, Set<Tile> > pblockNameToTiles, Tile t) {
-    	for (Map.Entry<String, Set<Tile> > e : pblockNameToTiles.entrySet()) {
-    		if (e.getValue().contains(t)) {
-    			return e.getKey();
-    		}
-    	}
-    	return null;
+        for (Map.Entry<String, Set<Tile> > e : pblockNameToTiles.entrySet()) {
+            if (e.getValue().contains(t)) {
+                return e.getKey();
+            }
+        }
+        return null;
     }
 
 
     private static void createPartitionPins(Design design, HashMap<String, Set<Tile> > pblockNameToTiles,
             Map<SitePinInst, EDIFHierPortInst> anchorRegPins) {
         for(Entry<SitePinInst, EDIFHierPortInst> e : anchorRegPins.entrySet()) {
-        	// skip adding partition pins to laguna anchors
-        	if (e.getKey().getSite().getSiteTypeEnum() == SiteTypeEnum.LAGUNA) {
-        		continue;
-        	}
+            // skip adding partition pins to laguna anchors
+            if (e.getKey().getSite().getSiteTypeEnum() == SiteTypeEnum.LAGUNA) {
+              continue;
+            }
 
-        	// FIXME
-        	assert e.getValue().getPhysicalCell(design) != null;
-        	Tile t = e.getValue().getPhysicalCell(design).getTile();
-        	String anchor_src_or_sink_pblock = getPblockNameOfTile(pblockNameToTiles, t);
+            // get the pblock name of the src/sink of the anchor
+            SitePinInst anchorPin = e.getKey();
+            String anchorSrcOrSinkPblock;
+            if (anchorPin.isOutPin()) {
+              Tile sinkTile = anchorPin.getNet().getSinkPins().get(0).getTile();
+              anchorSrcOrSinkPblock = getPblockNameOfTile(pblockNameToTiles, sinkTile);
+            }
+            else {
+              Tile srcTile = anchorPin.getNet().getSourceTile();
+              anchorSrcOrSinkPblock = getPblockNameOfTile(pblockNameToTiles, srcTile);
+            }
 
-            // the net connected to the target pin
+            // get a linked list of nodes from the anchor to src/sink
             Net net = e.getKey().getNet();
             if(net.isStaticNet() || net.isClockNet()) continue;
             Node currNode = e.getKey().getConnectedNode();
@@ -174,7 +180,7 @@ public class AnchorRegRouter {
             }
 
             // locate the first node that is in the same pblock as the src/sink of the anchor
-            while(anchor_src_or_sink_pblock != getPblockNameOfTile(pblockNameToTiles, currNode.getTile())) {
+            while(anchorSrcOrSinkPblock != getPblockNameOfTile(pblockNameToTiles, currNode.getTile())) {
                 currNode = connections.get(currNode);
             }
 
@@ -204,13 +210,22 @@ public class AnchorRegRouter {
             }
         }
 
-
         Map<SitePinInst, EDIFHierPortInst> anchorRegPins = anchorRegPinsToRoute(design);
 
         RWRoute.routeDesignPartialNonTimingDriven(design);
 
         createPartitionPins(design, pblockNameToTiles, anchorRegPins);
 
+        // create black boxes
+        String island_cell_name = "pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3";
+        DesignTools.makeBlackBox(design, island_cell_name);
+
+        // load in placed islands
+        Design island = Design.readCheckpoint("CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3_island_place.dcp");
+        DesignTools.populateBlackBox(design, island_cell_name, island);
+
+        //write checkpoint
         design.writeCheckpoint(args[1]);
     }
+
 }
