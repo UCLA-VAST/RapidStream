@@ -1,9 +1,22 @@
 /*
- *
  * Copyright (c) 2022 Xilinx, Inc.
  * All rights reserved.
  *
  * Author: Chris Lavin, Xilinx Research Labs.
+ *
+ * This file is part of RapidWright.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  *
  */
 /**
@@ -141,8 +154,64 @@ public class AnchorRegRouter {
             }
         }
         return null;
+
     }
 
+    private static boolean isDirectionNode(Node n) {
+    	String [] words = {"EE", "WW", "SS", "NN"};
+
+    	for (String w: words) {
+    		if (n.toString().contains(w)) {
+    			return true;
+    		}
+    	}
+    	return false;
+    }
+
+    private static boolean isValidNodeForPartPin(
+    		Node n,
+    		String targetPblock,
+    		HashMap<String, Set<Tile> > pblockNameToTiles,
+    		Map<Node, Node> connections
+    ) {
+    	// we should select a node as a part pin if it satisfies the following rules:
+    	// 1 it is a EE/WW/SS/NN node
+    	// 2 it should be in the target pblock
+    	// 3 its next node should be in the target pblock
+
+    	// case 1: the node is a mux node, should not choose it as the part pin
+    	if (!isDirectionNode(n)) {
+    		return false;
+    	}
+    	// case 2: the node is not a mux node
+    	else {
+    		// case 2.1: the node is in the target pblock
+    		if (targetPblock == getPblockNameOfTile(pblockNameToTiles, n.getTile())) {
+    			Node nextNode = connections.get(n);
+    			// case 2.1.1: the node is the last node
+    			if (nextNode == null) {
+    				return true;
+    			}
+    			// case 2.1.2: the node is not the last node
+    			else {
+    				// case 2.1.2.1: the next node is still in the target pblock
+    				if (targetPblock == getPblockNameOfTile(pblockNameToTiles, nextNode.getTile())) {
+    					return true;
+    				}
+    				// case 2.1.2.2: the next node is not in the target pblock
+    				// this means some detour happens and the net routes outside the pblock in the middle
+    				// we should not choose the current node as the part pin
+    				else {
+    					return false;
+    				}
+    			}
+    		}
+    		// case 2.2: the node is not in the target pblock
+    		else {
+    			return false;
+    		}
+    	}
+    }
 
     private static void createPartitionPins(Design design, HashMap<String, Set<Tile> > pblockNameToTiles,
             Map<SitePinInst, EDIFHierPortInst> anchorRegPins) {
@@ -180,12 +249,20 @@ public class AnchorRegRouter {
             }
 
             // locate the first node that is in the same pblock as the src/sink of the anchor
-            while(anchorSrcOrSinkPblock != getPblockNameOfTile(pblockNameToTiles, currNode.getTile())) {
+            while(!isValidNodeForPartPin(currNode, anchorSrcOrSinkPblock, pblockNameToTiles, connections)) {
                 currNode = connections.get(currNode);
+
+                // we fail to filed a preferred NN/SS/EE/WW node, use the last node as the part pin
+                if (currNode == null) {
+                	System.out.println("WARNING: skip adding part pin to " + e.getValue().toString());
+                	break;
+                }
             }
 
             // add the partition pin to the island ports instead of anchor pins
-            design.createPartitionPin(e.getValue(), currNode);
+            if (currNode != null) {
+                design.createPartitionPin(e.getValue(), currNode);
+            }
         }
     }
 
@@ -206,7 +283,6 @@ public class AnchorRegRouter {
             		pblockNameToTiles.put(pblock_name, new HashSet<Tile>());
             	}
             	pblockNameToTiles.get(pblock_name).addAll(e.getValue().getAllTiles());
-//                islandTiles.addAll(e.getValue().getAllTiles());
             }
         }
 
@@ -214,16 +290,16 @@ public class AnchorRegRouter {
 
         RWRoute.routeDesignPartialNonTimingDriven(design);
 
-        createPartitionPins(design, pblockNameToTiles, anchorRegPins);
+//        createPartitionPins(design, pblockNameToTiles, anchorRegPins);
 
-        // create black boxes
-        String island_cell_name = "pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3";
-        DesignTools.makeBlackBox(design, island_cell_name);
-
-        // load in placed islands
-        Design island = Design.readCheckpoint("CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3_island_place.dcp");
-        DesignTools.populateBlackBox(design, island_cell_name, island);
-
+//        // create black boxes
+//        String island_cell_name = "pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3";
+//        DesignTools.makeBlackBox(design, island_cell_name);
+//
+//        // load in placed islands
+//        Design island = Design.readCheckpoint("/share/einsx7/expr/island_dcp/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3_island_place.dcp");
+//        DesignTools.populateBlackBox(design, island_cell_name, island);
+//        design.getNetlist().consolidateAllToWorkLibrary();
         //write checkpoint
         design.writeCheckpoint(args[1]);
     }
