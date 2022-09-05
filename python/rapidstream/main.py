@@ -32,6 +32,10 @@ from rapidstream.backend.place import setup_island_init_placement
   help='the xo file created by tapa.'
 )
 @click.option(
+  '--tapa-hdl-dir',
+  required=True,
+)
+@click.option(
   '--output-dir',
   required=True,
 )
@@ -44,10 +48,12 @@ def main(
   post_floorplan_config_path: str,
   top_name: str,
   xo_path: str,
+  tapa_hdl_dir: str,
   output_dir: str,
   hmss_shell_dir: str,
 ):
   """Entry point for RapidStream that targets TAPA"""
+  tapa_hdl_dir = os.path.abspath(tapa_hdl_dir)
   output_dir = os.path.abspath(output_dir)
   os.makedirs(output_dir, exist_ok=True)
 
@@ -74,8 +80,9 @@ def main(
 
   setup_island_synth(
     config,
-    f'{output_dir}/temp_orig_xo/ip_repo/haoda_xrtl_{top_name}_1_0/src/',
     f'{output_dir}/backend/synth',
+    tapa_hdl_dir,
+    f'{output_dir}/wrapper_rtl'
   )
 
   setup_island_init_placement(

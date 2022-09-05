@@ -8,7 +8,8 @@ from .util import ParallelManager
 def get_synth_script(
     synth_dir,
     fpga_part_name,
-    orig_rtl_path,
+    tapa_hdl_dir,
+    wrapper_hdl_dir,
     slot_name):
   """Assume the top name is f"{slot_name}_backend_top" """
   top_name = f'{slot_name}_backend_top'
@@ -19,9 +20,14 @@ def get_synth_script(
   script.append(f'set_part {fpga_part_name}')
 
   # read in the original RTLs by HLS
-  script.append(f'set ORIG_RTL_PATH "{orig_rtl_path}"')
+  script.append(f'set ORIG_RTL_PATH "{tapa_hdl_dir}"')
   script.append(r'set orig_rtl_files [glob ${ORIG_RTL_PATH}/*.v]')
   script.append(r'read_verilog ${orig_rtl_files}')
+
+  # read in the rapidstream wrappers
+  script.append(f'set WRAPPER_RTL_PATH "{wrapper_hdl_dir}"')
+  script.append(r'set wrapper_rtl_files [glob ${WRAPPER_RTL_PATH}/*.v]')
+  script.append(r'read_verilog ${wrapper_rtl_files}')
 
   # read in the backend top wrapper
   script.append(f'read_verilog {backend_wrapper_file}')
@@ -56,8 +62,9 @@ def get_clock_xdc(target_period):
 
 def setup_island_synth(
     config: Dict,
-    orig_rtl_path: str,
     synth_dir: str,
+    tapa_hdl_dir: str,
+    wrapper_hdl_dir: str,
     clock_period: float = 3,
     use_anchor_wrapper: bool = True,
 ):
@@ -82,7 +89,8 @@ def setup_island_synth(
     script = get_synth_script(
       synth_dir,
       config['part_num'],
-      orig_rtl_path,
+      tapa_hdl_dir,
+      wrapper_hdl_dir,
       slot_name)
     open(f'{synth_dir}/{slot_name}/{slot_name}_synth.tcl', 'w').write('\n'.join(script))
     mng.add_task(f'{synth_dir}/{slot_name}/', f'{slot_name}_synth.tcl')
