@@ -151,7 +151,7 @@ def _get_used_wires(config: Dict, slot_insts: List[str]) -> List[str]:
   """filter out wires that do not connect to any slot instants"""
   used_wires = []
   for name, width in config['wire_decl'].items():
-    if any(name in line for line in slot_insts):
+    if any(re.search(f'\.{name}[ ]*\(', line) for line in slot_insts):
       used_wires.append(name)
     else:
       _logger.warning('temp hack to remove constant wire %s from top rtl', name)
