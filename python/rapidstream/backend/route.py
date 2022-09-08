@@ -2,6 +2,7 @@ import click
 import json
 import os
 import shutil
+from typing import Dict
 
 from .util import ParallelManager
 
@@ -34,8 +35,24 @@ def setup_island_route(
     place_opt_dir: str,
     top_name: str,
 ):
-  """"""
+  config_path = os.path.abspath(config_path)
   config = json.loads(open(config_path, 'r').read())
+  setup_island_route_inner(
+    config,
+    overlay_dir,
+    route_dir,
+    place_opt_dir,
+    top_name,
+  )
+
+def setup_island_route_inner(
+    config: Dict,
+    overlay_dir: str,
+    route_dir: str,
+    place_opt_dir: str,
+    top_name: str,
+):
+  """"""
   overlay_dir = os.path.abspath(overlay_dir)
   route_dir = os.path.abspath(route_dir)
   place_opt_dir = os.path.abspath(place_opt_dir)
@@ -54,9 +71,16 @@ def setup_island_route(
     script.append(f'update_design -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} -black_box')
     script.append(f'lock_design -level routing')
     script.append(f'read_checkpoint -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {place_opt_dir}/{slot_name}/{slot_name}_island_place.dcp')
-    script.append(f'route_design')
+    script.append(f'catch {{route_design}}')
     script.append(f'write_checkpoint {slot_name}_routed.dcp')
-    script.append(f'write_bitstream -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {slot_name}.bit')
+
+    if slot_name == 'CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3':
+      # generate bitstream for the overlay
+      script.append(f'pr_recombine -cell pfm_top_i/dynamic_region/{top_name}/inst')
+      script.append(f'pr_recombine -cell pfm_top_i/dynamic_region')
+      script.append(f'write_bitstream -cell pfm_top_i/dynamic_region overlay.bit')
+    else:
+      script.append(f'write_bitstream -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {slot_name}.bit')
 
     open(f'{route_dir}/{slot_name}/route_island.tcl', 'w').write('\n'.join(script))
     mng.add_task(f'{route_dir}/{slot_name}/', 'route_island.tcl')

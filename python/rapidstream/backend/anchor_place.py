@@ -26,10 +26,16 @@ def setup_anchor_placement(
     init_place_dir: str,
     anchor_place_dir: str,
 ):
-  """"""
   config = json.loads(open(config_path, 'r').read())
   anchor_place_dir = os.path.abspath(anchor_place_dir)
+  setup_anchor_placement_inner(config, init_place_dir, anchor_place_dir)
 
+def setup_anchor_placement_inner(
+    config: Dict,
+    init_place_dir: str,
+    anchor_place_dir: str,
+):
+  """"""
   if os.path.exists(anchor_place_dir):
     shutil.rmtree(anchor_place_dir)
 

@@ -1,6 +1,7 @@
 import click
 import json
 import os
+import subprocess
 from pyverilog.vparser.parser import parse
 
 from rapidstream.parser.tapa_parser import parse_tapa_output_rtl
@@ -9,6 +10,11 @@ from rapidstream.util import setup_logging, create_xo, dump_files
 from rapidstream.backend.split import annotate_io_orientation
 from rapidstream.backend.synth import setup_island_synth
 from rapidstream.backend.place import setup_island_init_placement
+from rapidstream.backend.anchor_place import setup_anchor_placement_inner
+from rapidstream.backend.island_place_opt import setup_island_placement_opt_inner
+from rapidstream.backend.overlay import generate_overlay_inner
+from rapidstream.backend.route import setup_island_route_inner
+from rapidstream.backend.setup_nested_dfx import setup_nested_dfx_inner
 
 @click.command()
 @click.option(
@@ -40,8 +46,15 @@ from rapidstream.backend.place import setup_island_init_placement
   required=True,
 )
 @click.option(
-  '--hmss-shell-dir',
+  '--dummy-abs-shell-dir',
   required=True,
+  help="The dummy abstract shell for each island, "
+       "used for placement only, generated from the hmss shell"
+)
+@click.option(
+  '--hmss-shell-path',
+  required=True,
+  help="The shell that includes the PCIe, DMA and HMSS"
 )
 def main(
   top_rtl_path: str,
@@ -50,7 +63,8 @@ def main(
   xo_path: str,
   tapa_hdl_dir: str,
   output_dir: str,
-  hmss_shell_dir: str,
+  dummy_abs_shell_dir: str,
+  hmss_shell_path: str,
 ):
   """Entry point for RapidStream that targets TAPA"""
   tapa_hdl_dir = os.path.abspath(tapa_hdl_dir)
@@ -89,9 +103,64 @@ def main(
     config,
     f'{output_dir}/backend/synth',
     f'{output_dir}/backend/init_placement',
-    hmss_shell_dir,
+    dummy_abs_shell_dir,
     top_name,
   )
+
+  # pr subdivide the user region into islands
+  setup_nested_dfx_inner(
+    config,
+    f'{output_dir}/backend/nested_dfx',
+    f'{output_dir}/dummy_wrapper_rtl',
+    top_name,
+    hmss_shell_path,
+  )
+  nestd_dfx_process = subprocess.Popen([
+    f'cd {output_dir}/backend/nested_dfx; vivado -mode batch -source {output_dir}/backend/nested_dfx/setup_nested_dfx.tcl',
+    ],
+    shell=True,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+  )
+
+  # invoke parallel synthesis
+  os.system(f'parallel < {output_dir}/backend/synth/parallel.txt')
+
+  # invoke parallel placement
+  os.system(f'parallel < {output_dir}/backend/init_placement/parallel.txt')
+
+  setup_anchor_placement_inner(config, f'{output_dir}/backend/init_placement', f'{output_dir}/backend/anchor_placement')
+  os.system(f'parallel < {output_dir}/backend/anchor_placement/parallel.txt')
+
+  setup_island_placement_opt_inner(
+    config,
+    f'{output_dir}/backend/init_placement',
+    f'{output_dir}/backend/anchor_placement',
+    f'{output_dir}/backend/island_place_opt',
+    top_name,
+  )
+  os.system(f'parallel < {output_dir}/backend/island_place_opt/parallel.txt')
+
+  # the nested dfx dcp should be ready before overlay generation
+  nestd_dfx_process.wait()
+
+  generate_overlay_inner(
+    f'{output_dir}/backend/overlay_generation',
+    top_name,
+    f'{output_dir}/backend/island_place_opt',
+    f'{output_dir}/backend/nested_dfx/after_pr_subdivide.dcp',
+  )
+  os.system(f'cd {output_dir}/backend/overlay_generation; vivado -mode batch -source gen_overlay.tcl')
+
+  setup_island_route_inner(
+    config,
+    f'{output_dir}/backend/overlay_generation',
+    f'{output_dir}/backend/island_route',
+    f'{output_dir}/backend/island_place_opt',
+    top_name,
+  )
+  os.system(f'parallel < {output_dir}/backend/island_route/parallel.txt')
+
 
 if __name__ == '__main__':
   main()

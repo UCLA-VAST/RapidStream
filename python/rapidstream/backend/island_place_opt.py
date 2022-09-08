@@ -35,8 +35,23 @@ def setup_island_placement_opt(
     place_opt_dir: str,
     top_name: str,
 ):
-  """"""
   config = json.loads(open(config_path, 'r').read())
+  setup_island_placement_opt_inner(
+    config,
+    init_place_dir,
+    anchor_place_dir,
+    place_opt_dir,
+    top_name,
+  )
+
+def setup_island_placement_opt_inner(
+    config: Dict,
+    init_place_dir: str,
+    anchor_place_dir: str,
+    place_opt_dir: str,
+    top_name: str,
+):
+  """"""
 
   anchor_place_dir = os.path.abspath(anchor_place_dir)
   init_place_dir = os.path.abspath(init_place_dir)
