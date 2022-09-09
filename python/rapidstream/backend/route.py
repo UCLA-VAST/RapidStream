@@ -71,6 +71,25 @@ def setup_island_route_inner(
     script.append(f'update_design -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} -black_box')
     script.append(f'lock_design -level routing')
     script.append(f'read_checkpoint -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {place_opt_dir}/{slot_name}/{slot_name}_island_place.dcp')
+
+    # set false path from place holder FFs to top-level IOs
+    script.append('set top_io_place_holder_ff [get_cells -hierarchical -regexp -filter { PRIMITIVE_TYPE =~ REGISTER.*.* && NAME =~  ".*_ff$.*" && NAME =~  ".*_axi_.*" } ]')
+    script.append('if { [ llength ${top_io_place_holder_ff} ] > 0 } {')
+    script.append('  set_false_path -from [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*C"}]')
+    script.append('  set_false_path -to [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*D"}]')
+    script.append('  set_false_path -hold -from [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*C"}]')
+    script.append('  set_false_path -hold -to [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*D"}]')
+    script.append('}')
+
+    # set false path from place holder FFs in other islands
+    # if an FDRE has _anchor_reg in its name, and does not have the slot name in its parent cell name
+    # then it is a place holder FF in other islands
+    script.append(f'set place_holder_ff [get_cells -hierarchical -regexp -filter {{ PRIMITIVE_TYPE =~ REGISTER.*.* && NAME =~  ".*_anchor_reg.*" && PARENT !~  ".*{slot_name}.*" }} ]')
+    script.append('set_false_path -from [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*C"}]')
+    script.append('set_false_path -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}]')
+    script.append('set_false_path -hold -from [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*C"}]')
+    script.append('set_false_path -hold -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}]')
+
     script.append(f'catch {{route_design}}')
     script.append(f'write_checkpoint {slot_name}_routed.dcp')
 
