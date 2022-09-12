@@ -2,7 +2,7 @@ import click
 import json
 import os
 import shutil
-from typing import Dict
+from typing import Dict, List
 
 
 @click.command()
@@ -81,6 +81,24 @@ def setup_nested_dfx_inner(
     shutil.rmtree(nested_dfx_generation_dir)
   os.mkdir(nested_dfx_generation_dir)
   open(f'{nested_dfx_generation_dir}/setup_nested_dfx.tcl', 'w').write('\n'.join(script))
+
+
+def setup_next_level_partpin() -> List[str]:
+  """ For HMSS shell routed v3, when we partition the black box into anchor region and user region
+      The bottom right island directly interface with the shell. Thus each top-level boundary nets
+      will cross two DFX boundaries. In a default vivado flow, vivado will select two partition pins
+      for the following 6 nets as part of the place_design step. If we do not invoke place_design, we
+      need to manually setup the 2 partition pins for the following 6 nets, otherwise we will run into
+      DRC error in route_design
+  """
+  script = []
+  script.append('set_property HD.PARTPIN_LOCS INT_X110Y157/EE1_E_BEG0 [get_pins pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3/ap_rst_n ]')
+  script.append('set_property HD.PARTPIN_LOCS INT_X82Y52/EE1_E_BEG0   [get_pins pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3/m_axi_bank_0_output_RDATA[211] ]')
+  script.append('set_property HD.PARTPIN_LOCS INT_X77Y19/EE1_E_BEG0   [get_pins pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3/m_axi_bank_0_output_RDATA[2] ]')
+  script.append('set_property HD.PARTPIN_LOCS INT_X87Y78/EE1_E_BEG0   [get_pins pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3/m_axi_bank_0_output_RDATA[486] ]')
+  script.append('set_property HD.PARTPIN_LOCS INT_X83Y52/EE1_E_BEG0   [get_pins pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3/m_axi_bank_0_output_RDATA[98] ]')
+  script.append('set_property HD.PARTPIN_LOCS INT_X99Y21/EE1_E_BEG0   [get_pins pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3/m_axi_bank_0_output_RREADY ]')
+  return script
 
 
 def get_synth_dummy_islands_script(
