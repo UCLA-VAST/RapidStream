@@ -1,0 +1,189 @@
+{
+    "schema_version": {
+        "major": "1",
+        "minor": "0",
+        "patch": "0"
+    },
+    "build_metadata": {
+        "dsa": {
+            "vendor": "xilinx",
+            "board_id": "u280",
+            "name": "xdma",
+            "version_major": "201920",
+            "version_minor": "3",
+            "description": "",
+            "generated_by": {
+                "name": "Vivado",
+                "version": "2019.2",
+                "cl": "2742762",
+                "time_stamp": "Tue Jan 21 23:21:22 2020"
+            },
+            "board": {
+                "name": "xilinx.com:au280:1.0",
+                "vendor": "xilinx.com",
+                "part": "xcu280-fsvh2892-2L-e",
+                "board_part": "xilinx.com:au280:part0:1.0"
+            },
+            "feature_roms": [
+                {
+                    "majorVersion": "10",
+                    "minorVersion": "1",
+                    "vivadoBuildID": "2742762",
+                    "ipBuildID": "2719198",
+                    "timeSinceEpoch": "1579649056",
+                    "fpgaPartName": "xcu280-fsvh2892-2L-e",
+                    "vbnvName": "xilinx_u280_xdma_201920_3",
+                    "ddrChannelCount": "2",
+                    "ddrChannelSize": "16",
+                    "drBaseAddress": "0x0",
+                    "featureBitMap": {
+                        "value": "0x3020d",
+                        "unifiedPlatform": "enabled",
+                        "auroraLink": "disabled",
+                        "boardMgmt": "enabled",
+                        "boardScheduler": "enabled",
+                        "promType": "0x0",
+                        "debugType": "0x2",
+                        "peerToPeer": "enabled",
+                        "uuid": "enabled",
+                        "clockThrottling": "disabled",
+                        "passthruTrans": "disabled"
+                    },
+                    "uuid": "f2b82d53-372f-45a4-bbe9-3d1c980216da",
+                    "cdmaBaseAddress0": "0x0",
+                    "cdmaBaseAddress1": "0x0",
+                    "cdmaBaseAddress2": "0x0",
+                    "cdmaBaseAddress3": "0x0",
+                    "maxTempLimit": "0",
+                    "maxPowerLimit": "0"
+                }
+            ]
+        },
+        "xclbin": {
+            "generated_by": {
+                "name": "v++",
+                "version": "2021.2",
+                "cl": "3363252",
+                "time_stamp": "2021-10-14-04:41:01",
+                "options": "\/opt\/tools\/xilinx\/Vitis\/2021.2\/bin\/unwrapped\/lnx64.o\/v++ --config \/expr\/tapa\/4ch_soda_u280\/src\/link_config.ini --connectivity.nk gaussian_kernel:1:gaussian_kernel --connectivity.sp gaussian_kernel.bank_0_input:HBM[28] --connectivity.sp gaussian_kernel.bank_0_output:HBM[29] --connectivity.sp gaussian_kernel.bank_1_input:HBM[30] --connectivity.sp gaussian_kernel.bank_1_output:HBM[31] --input_files \/expr\/tapa\/4ch_soda_u280\/run\/gaussian_kernel.xo --kernel gaussian_kernel --kernel_frequency 300 --link --optimize 3 --output \/expr\/tapa\/4ch_soda_u280\/run\/vitis_run_hw2\/gaussian_kernel_xilinx_u280_xdma_201920_3.xclbin --platform xilinx_u280_xdma_201920_3 --report_level 2 --save-temps --target hw --temp_dir \/expr\/tapa\/4ch_soda_u280\/run\/vitis_run_hw2\/gaussian_kernel_xilinx_u280_xdma_201920_3.temp --vivado.prop run.impl_1.STEPS.PHYS_OPT_DESIGN.IS_ENABLED=1 --vivado.prop run.impl_1.STEPS.OPT_DESIGN.ARGS.DIRECTIVE=Explore --vivado.prop run.impl_1.STEPS.PLACE_DESIGN.ARGS.DIRECTIVE=EarlyBlockPlacement --vivado.prop run.impl_1.STEPS.PHYS_OPT_DESIGN.ARGS.DIRECTIVE=Explore --vivado.prop run.impl_1.STEPS.ROUTE_DESIGN.ARGS.DIRECTIVE=Explore --vivado.prop run.impl_1.STEPS.OPT_DESIGN.TCL.PRE=\/expr\/tapa\/4ch_soda_u280\/run\/floorplan.tcl --vivado.synth.jobs 8 "
+            },
+            "user_regions": [
+                {
+                    "name": "OCL_REGION_0",
+                    "type": "clc_region",
+                    "instance_path": "pfm_top_i\/dynamic_region",
+                    "base_address": "",
+                    "kernels": [
+                        {
+                            "name": "gaussian_kernel",
+                            "ports": [
+                                {
+                                    "name": "m_axi_bank_0_output",
+                                    "mode": "master",
+                                    "range": "0xFFFFFFFFFFFFFFFF",
+                                    "data_width": "512",
+                                    "port_type": "addressable",
+                                    "base": "0x0"
+                                },
+                                {
+                                    "name": "m_axi_bank_1_output",
+                                    "mode": "master",
+                                    "range": "0xFFFFFFFFFFFFFFFF",
+                                    "data_width": "512",
+                                    "port_type": "addressable",
+                                    "base": "0x0"
+                                },
+                                {
+                                    "name": "m_axi_bank_0_input",
+                                    "mode": "master",
+                                    "range": "0xFFFFFFFFFFFFFFFF",
+                                    "data_width": "512",
+                                    "port_type": "addressable",
+                                    "base": "0x0"
+                                },
+                                {
+                                    "name": "m_axi_bank_1_input",
+                                    "mode": "master",
+                                    "range": "0xFFFFFFFFFFFFFFFF",
+                                    "data_width": "512",
+                                    "port_type": "addressable",
+                                    "base": "0x0"
+                                },
+                                {
+                                    "name": "s_axi_control",
+                                    "mode": "slave",
+                                    "range": "0x1000",
+                                    "data_width": "32",
+                                    "port_type": "addressable",
+                                    "base": "0x0"
+                                }
+                            ],
+                            "arguments": [
+                                {
+                                    "name": "bank_0_output",
+                                    "address_qualifier": "1",
+                                    "id": "0",
+                                    "port": "m_axi_bank_0_output",
+                                    "size": "0x8",
+                                    "offset": "0x10",
+                                    "host_offset": "0x0",
+                                    "host_size": "0x8",
+                                    "type": "tapa::vec_t<int16_t, 32>*"
+                                },
+                                {
+                                    "name": "bank_1_output",
+                                    "address_qualifier": "1",
+                                    "id": "1",
+                                    "port": "m_axi_bank_1_output",
+                                    "size": "0x8",
+                                    "offset": "0x1c",
+                                    "host_offset": "0x0",
+                                    "host_size": "0x8",
+                                    "type": "tapa::vec_t<int16_t, 32>*"
+                                },
+                                {
+                                    "name": "bank_0_input",
+                                    "address_qualifier": "1",
+                                    "id": "2",
+                                    "port": "m_axi_bank_0_input",
+                                    "size": "0x8",
+                                    "offset": "0x28",
+                                    "host_offset": "0x0",
+                                    "host_size": "0x8",
+                                    "type": "tapa::vec_t<int16_t, 32>*"
+                                },
+                                {
+                                    "name": "bank_1_input",
+                                    "address_qualifier": "1",
+                                    "id": "3",
+                                    "port": "m_axi_bank_1_input",
+                                    "size": "0x8",
+                                    "offset": "0x34",
+                                    "host_offset": "0x0",
+                                    "host_size": "0x8",
+                                    "type": "tapa::vec_t<int16_t, 32>*"
+                                },
+                                {
+                                    "name": "coalesced_data_num",
+                                    "address_qualifier": "0",
+                                    "id": "4",
+                                    "port": "s_axi_control",
+                                    "size": "0x8",
+                                    "offset": "0x40",
+                                    "host_offset": "0x0",
+                                    "host_size": "0x8",
+                                    "type": "uint64_t"
+                                }
+                            ],
+                            "instances": [
+                                {
+                                    "name": "gaussian_kernel"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

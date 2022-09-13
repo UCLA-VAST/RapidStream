@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="gaussian_kernel_xilinx_u280_xdma_201920_3">
+  <platform vendor="xilinx" boardid="u280" name="xdma" featureRomTime="1579649056">
+    <version major="201920" minor="3"/>
+    <description/>
+    <board name="xilinx.com:au280:1.0" vendor="xilinx.com" fpga="xcu280-fsvh2892-2L-e">
+      <interfaces>
+        <interface id="int1" name="PCIe" type="gen3x16"/>
+      </interfaces>
+      <memories>
+        <memory name="dynamic_region_memory_subsystem_memory_ddr4_mem00" type="ddr4" size="16GB"/>
+        <memory name="dynamic_region_memory_subsystem_memory_ddr4_mem01" type="ddr4" size="16GB"/>
+      </memories>
+      <images>
+        <image name="au280_image.jpg" type="HDPI"/>
+        <image name="" type="MDPI"/>
+        <image name="" type="LDPI"/>
+      </images>
+      <id>
+        <vendor>0x10EE</vendor>
+        <device>0x500C</device>
+        <subsystem>0x000E</subsystem>
+      </id>
+    </board>
+    <build_flow/>
+    <host architecture="x86_64"/>
+    <device name="fpga0" fpgaDevice="virtexuplusHBM:xcu280:fsvh2892:-2L:e" addrWidth="0">
+      <systemClocks>
+        <clock port="clk_out1_pfm_top_clkwiz_hbm_aclk_0" frequency="330.9MHz" name="clk_out1_pfm_top_clkwiz_hbm_aclk_0"/>
+      </systemClocks>
+      <core name="OCL_REGION_0" target="bitstream" type="clc_region" clockFreq="0MHz" numComputeUnits="60">
+        <kernelClocks>
+          <clock port="DATA_CLK" frequency="300.0MHz" name="clkwiz_kernel_clk_out1"/>
+          <clock port="KERNEL_CLK" frequency="500.0MHz" name="clkwiz_kernel2_clk_out1"/>
+        </kernelClocks>
+        <kernel name="gaussian_kernel" language="ip_c" vlnv="haoda:xrtl:gaussian_kernel:1.0" preferredWorkGroupSizeMultiple="0" workGroupSize="1" debug="false" interrupt="true" hwControlProtocol="ap_ctrl_hs">
+          <port name="m_axi_bank_0_output" mode="master" range="0xFFFFFFFFFFFFFFFF" dataWidth="512" portType="addressable" base="0x0"/>
+          <port name="m_axi_bank_1_output" mode="master" range="0xFFFFFFFFFFFFFFFF" dataWidth="512" portType="addressable" base="0x0"/>
+          <port name="m_axi_bank_0_input" mode="master" range="0xFFFFFFFFFFFFFFFF" dataWidth="512" portType="addressable" base="0x0"/>
+          <port name="m_axi_bank_1_input" mode="master" range="0xFFFFFFFFFFFFFFFF" dataWidth="512" portType="addressable" base="0x0"/>
+          <port name="s_axi_control" mode="slave" range="0x1000" dataWidth="32" portType="addressable" base="0x0"/>
+          <arg name="bank_0_output" addressQualifier="1" id="0" port="m_axi_bank_0_output" size="0x8" offset="0x10" hostOffset="0x0" hostSize="0x8" type="tapa::vec_t&lt;int16_t, 32&gt;*"/>
+          <arg name="bank_1_output" addressQualifier="1" id="1" port="m_axi_bank_1_output" size="0x8" offset="0x1c" hostOffset="0x0" hostSize="0x8" type="tapa::vec_t&lt;int16_t, 32&gt;*"/>
+          <arg name="bank_0_input" addressQualifier="1" id="2" port="m_axi_bank_0_input" size="0x8" offset="0x28" hostOffset="0x0" hostSize="0x8" type="tapa::vec_t&lt;int16_t, 32&gt;*"/>
+          <arg name="bank_1_input" addressQualifier="1" id="3" port="m_axi_bank_1_input" size="0x8" offset="0x34" hostOffset="0x0" hostSize="0x8" type="tapa::vec_t&lt;int16_t, 32&gt;*"/>
+          <arg name="coalesced_data_num" addressQualifier="0" id="4" port="s_axi_control" size="0x8" offset="0x40" hostOffset="0x0" hostSize="0x8" type="uint64_t"/>
+          <maxWorkGroupSize x="0" y="0" z="0"/>
+          <string_table/>
+          <instance name="gaussian_kernel">
+            <addrRemap base="0x1800000" range="0x10000" port="s_axi_control"/>
+          </instance>
+        </kernel>
+        <connection srcType="core" srcInst="OCL_REGION_0" srcPort="slr0/interconnect_axilite_user_slr0_M01_AXI" dstType="kernel" dstInst="gaussian_kernel" dstPort="s_axi_control"/>
+        <connection srcType="core" srcInst="OCL_REGION_0" srcPort="hmss_0" dstType="kernel" dstInst="gaussian_kernel" dstPort="m_axi_bank_0_output"/>
+        <connection srcType="core" srcInst="OCL_REGION_0" srcPort="hmss_0" dstType="kernel" dstInst="gaussian_kernel" dstPort="m_axi_bank_1_output"/>
+        <connection srcType="core" srcInst="OCL_REGION_0" srcPort="hmss_0" dstType="kernel" dstInst="gaussian_kernel" dstPort="m_axi_bank_0_input"/>
+        <connection srcType="core" srcInst="OCL_REGION_0" srcPort="hmss_0" dstType="kernel" dstInst="gaussian_kernel" dstPort="m_axi_bank_1_input"/>
+      </core>
+    </device>
+  </platform>
+</project>

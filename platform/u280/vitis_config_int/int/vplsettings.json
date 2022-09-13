@@ -1,0 +1,18 @@
+{
+    "kernelContainerValues": [
+        "gaussian_kernel:xo"
+    ],
+    "compile": "false",
+    "debug": "false",
+    "exportScript": "false",
+    "gccHostCompile": "false",
+    "generateEstimateRpt": "false",
+    "keepSolution": "false",
+    "link": "false",
+    "logDir": "\/expr\/tapa\/4ch_soda_u280\/run\/vitis_run_hw2\/gaussian_kernel_xilinx_u280_xdma_201920_3.temp\/logs\/link",
+    "package": "false",
+    "reportDir": "\/expr\/tapa\/4ch_soda_u280\/run\/vitis_run_hw2\/gaussian_kernel_xilinx_u280_xdma_201920_3.temp\/reports\/link",
+    "saveTemps": "false",
+    "verbose": "false",
+    "vplNoIpCache": "false"
+}

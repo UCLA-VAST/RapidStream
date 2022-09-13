@@ -1,0 +1,243 @@
+{
+    "ip_layout": {
+        "m_count": "34",
+        "m_ip_data": [
+            {
+                "m_type": "IP_MEM_DDR4",
+                "m_index": "0",
+                "m_base_address": "0x01000000",
+                "m_name": "AXI-LITE-DDR0"
+            },
+            {
+                "m_type": "IP_MEM_DDR4",
+                "m_index": "1",
+                "m_base_address": "0x01010000",
+                "m_name": "AXI-LITE-DDR1"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "0",
+                "m_pc_index": "0",
+                "m_base_address": "0x00900000",
+                "m_name": "AXI-LITE-HBM0"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "1",
+                "m_pc_index": "1",
+                "m_base_address": "0x00900000",
+                "m_name": "AXI-LITE-HBM1"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "2",
+                "m_pc_index": "0",
+                "m_base_address": "0x00980000",
+                "m_name": "AXI-LITE-HBM2"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "3",
+                "m_pc_index": "1",
+                "m_base_address": "0x00980000",
+                "m_name": "AXI-LITE-HBM3"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "4",
+                "m_pc_index": "0",
+                "m_base_address": "0x00920000",
+                "m_name": "AXI-LITE-HBM4"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "5",
+                "m_pc_index": "1",
+                "m_base_address": "0x00920000",
+                "m_name": "AXI-LITE-HBM5"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "6",
+                "m_pc_index": "0",
+                "m_base_address": "0x009A0000",
+                "m_name": "AXI-LITE-HBM6"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "7",
+                "m_pc_index": "1",
+                "m_base_address": "0x009A0000",
+                "m_name": "AXI-LITE-HBM7"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "8",
+                "m_pc_index": "0",
+                "m_base_address": "0x00940000",
+                "m_name": "AXI-LITE-HBM8"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "9",
+                "m_pc_index": "1",
+                "m_base_address": "0x00940000",
+                "m_name": "AXI-LITE-HBM9"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "10",
+                "m_pc_index": "0",
+                "m_base_address": "0x009C0000",
+                "m_name": "AXI-LITE-HBM10"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "11",
+                "m_pc_index": "1",
+                "m_base_address": "0x009C0000",
+                "m_name": "AXI-LITE-HBM11"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "12",
+                "m_pc_index": "0",
+                "m_base_address": "0x00960000",
+                "m_name": "AXI-LITE-HBM12"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "13",
+                "m_pc_index": "1",
+                "m_base_address": "0x00960000",
+                "m_name": "AXI-LITE-HBM13"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "14",
+                "m_pc_index": "0",
+                "m_base_address": "0x009E0000",
+                "m_name": "AXI-LITE-HBM14"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "15",
+                "m_pc_index": "1",
+                "m_base_address": "0x009E0000",
+                "m_name": "AXI-LITE-HBM15"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "16",
+                "m_pc_index": "0",
+                "m_base_address": "0x00D00000",
+                "m_name": "AXI-LITE-HBM16"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "17",
+                "m_pc_index": "1",
+                "m_base_address": "0x00D00000",
+                "m_name": "AXI-LITE-HBM17"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "18",
+                "m_pc_index": "0",
+                "m_base_address": "0x00D80000",
+                "m_name": "AXI-LITE-HBM18"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "19",
+                "m_pc_index": "1",
+                "m_base_address": "0x00D80000",
+                "m_name": "AXI-LITE-HBM19"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "20",
+                "m_pc_index": "0",
+                "m_base_address": "0x00D20000",
+                "m_name": "AXI-LITE-HBM20"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "21",
+                "m_pc_index": "1",
+                "m_base_address": "0x00D20000",
+                "m_name": "AXI-LITE-HBM21"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "22",
+                "m_pc_index": "0",
+                "m_base_address": "0x00DA0000",
+                "m_name": "AXI-LITE-HBM22"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "23",
+                "m_pc_index": "1",
+                "m_base_address": "0x00DA0000",
+                "m_name": "AXI-LITE-HBM23"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "24",
+                "m_pc_index": "0",
+                "m_base_address": "0x00D40000",
+                "m_name": "AXI-LITE-HBM24"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "25",
+                "m_pc_index": "1",
+                "m_base_address": "0x00D40000",
+                "m_name": "AXI-LITE-HBM25"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "26",
+                "m_pc_index": "0",
+                "m_base_address": "0x00DC0000",
+                "m_name": "AXI-LITE-HBM26"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "27",
+                "m_pc_index": "1",
+                "m_base_address": "0x00DC0000",
+                "m_name": "AXI-LITE-HBM27"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "28",
+                "m_pc_index": "0",
+                "m_base_address": "0x00D60000",
+                "m_name": "AXI-LITE-HBM28"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "29",
+                "m_pc_index": "1",
+                "m_base_address": "0x00D60000",
+                "m_name": "AXI-LITE-HBM29"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "30",
+                "m_pc_index": "0",
+                "m_base_address": "0x00DE0000",
+                "m_name": "AXI-LITE-HBM30"
+            },
+            {
+                "m_type": "IP_MEM_HBM",
+                "m_index": "31",
+                "m_pc_index": "1",
+                "m_base_address": "0x00DE0000",
+                "m_name": "AXI-LITE-HBM31"
+            }
+        ]
+    }
+}

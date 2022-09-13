@@ -1,0 +1,387 @@
+{
+    "schema_version": {
+        "major": "2",
+        "minor": "0",
+        "patch": "0"
+    },
+    "mem_topology": {
+        "m_count": "40",
+        "m_mem_data": {
+            "mem_data": {
+                "m_type": "MEM_DDR4",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x0",
+                "m_tag": "HBM[0]",
+                "m_spTag": "HBM[0]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DDR4",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x10000000",
+                "m_tag": "HBM[1]",
+                "m_spTag": "HBM[1]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x20000000",
+                "m_tag": "HBM[2]",
+                "m_spTag": "HBM[2]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x30000000",
+                "m_tag": "HBM[3]",
+                "m_spTag": "HBM[3]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x40000000",
+                "m_tag": "HBM[4]",
+                "m_spTag": "HBM[4]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x50000000",
+                "m_tag": "HBM[5]",
+                "m_spTag": "HBM[5]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x60000000",
+                "m_tag": "HBM[6]",
+                "m_spTag": "HBM[6]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x70000000",
+                "m_tag": "HBM[7]",
+                "m_spTag": "HBM[7]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x80000000",
+                "m_tag": "HBM[8]",
+                "m_spTag": "HBM[8]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x90000000",
+                "m_tag": "HBM[9]",
+                "m_spTag": "HBM[9]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0xa0000000",
+                "m_tag": "HBM[10]",
+                "m_spTag": "HBM[10]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0xb0000000",
+                "m_tag": "HBM[11]",
+                "m_spTag": "HBM[11]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0xc0000000",
+                "m_tag": "HBM[12]",
+                "m_spTag": "HBM[12]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0xd0000000",
+                "m_tag": "HBM[13]",
+                "m_spTag": "HBM[13]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0xe0000000",
+                "m_tag": "HBM[14]",
+                "m_spTag": "HBM[14]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0xf0000000",
+                "m_tag": "HBM[15]",
+                "m_spTag": "HBM[15]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x100000000",
+                "m_tag": "HBM[16]",
+                "m_spTag": "HBM[16]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x110000000",
+                "m_tag": "HBM[17]",
+                "m_spTag": "HBM[17]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x120000000",
+                "m_tag": "HBM[18]",
+                "m_spTag": "HBM[18]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x130000000",
+                "m_tag": "HBM[19]",
+                "m_spTag": "HBM[19]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x140000000",
+                "m_tag": "HBM[20]",
+                "m_spTag": "HBM[20]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x150000000",
+                "m_tag": "HBM[21]",
+                "m_spTag": "HBM[21]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x160000000",
+                "m_tag": "HBM[22]",
+                "m_spTag": "HBM[22]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x170000000",
+                "m_tag": "HBM[23]",
+                "m_spTag": "HBM[23]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x180000000",
+                "m_tag": "HBM[24]",
+                "m_spTag": "HBM[24]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x190000000",
+                "m_tag": "HBM[25]",
+                "m_spTag": "HBM[25]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x1a0000000",
+                "m_tag": "HBM[26]",
+                "m_spTag": "HBM[26]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x1b0000000",
+                "m_tag": "HBM[27]",
+                "m_spTag": "HBM[27]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "1",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x1c0000000",
+                "m_tag": "HBM[28]",
+                "m_spTag": "HBM[28]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "1",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x1d0000000",
+                "m_tag": "HBM[29]",
+                "m_spTag": "HBM[29]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "1",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x1e0000000",
+                "m_tag": "HBM[30]",
+                "m_spTag": "HBM[30]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "1",
+                "m_sizeKB": "0x40000",
+                "m_base_address": "0x1f0000000",
+                "m_tag": "HBM[31]",
+                "m_spTag": "HBM[31]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x0",
+                "m_base_address": "0x0",
+                "m_tag": "DDR[0]",
+                "m_spTag": "DDR[0]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x0",
+                "m_base_address": "0x0",
+                "m_tag": "DDR[1]",
+                "m_spTag": "DDR[1]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x0",
+                "m_base_address": "0x0",
+                "m_tag": "PLRAM[0]",
+                "m_spTag": "PLRAM[0]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x0",
+                "m_base_address": "0x0",
+                "m_tag": "PLRAM[1]",
+                "m_spTag": "PLRAM[1]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x0",
+                "m_base_address": "0x0",
+                "m_tag": "PLRAM[2]",
+                "m_spTag": "PLRAM[2]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x0",
+                "m_base_address": "0x0",
+                "m_tag": "PLRAM[3]",
+                "m_spTag": "PLRAM[3]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x0",
+                "m_base_address": "0x0",
+                "m_tag": "PLRAM[4]",
+                "m_spTag": "PLRAM[4]"
+            },
+            "mem_data": {
+                "m_type": "MEM_DRAM",
+                "m_used": "0",
+                "m_sizeKB": "0x0",
+                "m_base_address": "0x0",
+                "m_tag": "PLRAM[5]",
+                "m_spTag": "PLRAM[5]"
+            }
+        }
+    },
+    "ip_layout": {
+        "m_count": "1",
+        "m_ip_data": {
+            "ip_data": {
+                "m_type": "IP_KERNEL",
+                "properties": "0x1",
+                "m_int_enable": "1",
+                "m_interrupt_id": "0",
+                "m_ip_control": "AP_CTRL_HS",
+                "m_base_address": "0x1800000",
+                "m_address_range": "0x10000",
+                "m_name": "gaussian_kernel:gaussian_kernel",
+                "m_clocks": [
+                    {
+                        "ap_clk": {
+                            "refClockId": "0"
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    "connectivity": {
+        "m_count": "4",
+        "m_connection": {
+            "connection": {
+                "arg_index": "0",
+                "arg_name": "bank_0_output",
+                "mode": "Master",
+                "m_ip_layout_index": "0",
+                "mem_data_index": "29"
+            },
+            "connection": {
+                "arg_index": "1",
+                "arg_name": "bank_1_output",
+                "mode": "Master",
+                "m_ip_layout_index": "0",
+                "mem_data_index": "31"
+            },
+            "connection": {
+                "arg_index": "2",
+                "arg_name": "bank_0_input",
+                "mode": "Master",
+                "m_ip_layout_index": "0",
+                "mem_data_index": "28"
+            },
+            "connection": {
+                "arg_index": "3",
+                "arg_name": "bank_1_input",
+                "mode": "Master",
+                "m_ip_layout_index": "0",
+                "mem_data_index": "30"
+            }
+        }
+    }
+}

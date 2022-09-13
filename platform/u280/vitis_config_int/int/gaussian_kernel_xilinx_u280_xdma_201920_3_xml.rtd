@@ -1,0 +1,30 @@
+{
+    "schema_version": {
+        "major": "1",
+        "minor": "0",
+        "patch": "0"
+    },
+    "clock_freq_topology": {
+        "m_count": "3",
+        "m_clock_freq": {
+            "clock_freq": {
+                "m_freq_Mhz": "300",
+                "m_type": "SYSTEM",
+                "m_name": "clk_out1_pfm_top_clkwiz_hbm_aclk_0",
+                "m_original_name": "clk_out1_pfm_top_clkwiz_hbm_aclk_0"
+            },
+            "": {
+                "m_freq_Mhz": "200",
+                "m_type": "DATA",
+                "m_name": "DATA_CLK",
+                "m_original_name": "clkwiz_kernel_clk_out1"
+            },
+            "": {
+                "m_freq_Mhz": "500",
+                "m_type": "KERNEL",
+                "m_name": "KERNEL_CLK",
+                "m_original_name": "clkwiz_kernel2_clk_out1"
+            }
+        }
+    }
+}
