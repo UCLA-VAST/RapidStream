@@ -102,6 +102,8 @@ public class AnchorRegRouter {
 
                     for (EDIFPortInst port: portList) {
                     	// check if the port belongs to a hierarchical cell
+                    	// in theory there should be only 3 ports on the anchor net
+                    	// the anchor Q/D port; the sink/src D/Q port; the hier port on the island
                     	if (!port.getCellInst().getCellType().isLeafCellOrBlackBox()) {
                     		String hierName = "pfm_top_i/dynamic_region/gaussian_kernel/inst/" + port.toString();
                     		EDIFHierPortInst islandPortInst = design.getNetlist().getHierPortInstFromName(hierName);
@@ -158,14 +160,23 @@ public class AnchorRegRouter {
     }
 
     private static boolean isDirectionNode(Node n) {
-    	String [] words = {"EE", "WW", "SS", "NN"};
-
-    	for (String w: words) {
-    		if (n.toString().contains(w)) {
+    	switch (n.getIntentCode()) {
+    	case NODE_SINGLE:
+    	case NODE_DOUBLE:
+    	case NODE_HQUAD:
+    	case NODE_VQUAD:
+    	case NODE_HLONG:
+    	case NODE_VLONG:
+    		String name = n.toString();
+    		if (name.contains("/EE") || name.contains("/SS") || name.contains("/WW") || name.contains("/NN")) {
     			return true;
     		}
+    		else {
+    			return false;
+    		}
+    	default:
+    		return false;
     	}
-    	return false;
     }
 
     private static boolean isValidNodeForPartPin(
@@ -214,12 +225,12 @@ public class AnchorRegRouter {
     }
 
     private static void createPartitionPins(Design design, HashMap<String, Set<Tile> > pblockNameToTiles,
-            Map<SitePinInst, EDIFHierPortInst> anchorRegPins) {
+            Map<SitePinInst, EDIFHierPortInst> anchorRegPins) {    	
         for(Entry<SitePinInst, EDIFHierPortInst> e : anchorRegPins.entrySet()) {
             // skip adding partition pins to laguna anchors
-            if (e.getKey().getSite().getSiteTypeEnum() == SiteTypeEnum.LAGUNA) {
-              continue;
-            }
+//            if (e.getKey().getSite().getSiteTypeEnum() == SiteTypeEnum.LAGUNA) {
+//              continue;
+//            }
 
             // get the pblock name of the src/sink of the anchor
             SitePinInst anchorPin = e.getKey();
@@ -237,14 +248,26 @@ public class AnchorRegRouter {
             Net net = e.getKey().getNet();
             if(net.isStaticNet() || net.isClockNet()) continue;
             Node currNode = e.getKey().getConnectedNode();
+            
+            // need to consider bi-directional PIPs
             Map<Node, Node> connections = new HashMap<>();
             if(e.getKey().isOutPin()) {
                 for(PIP pip : net.getPIPs()) {
-                    connections.put(pip.getStartNode(), pip.getEndNode());
+                    if (pip.isBidirectional() && pip.isReversed()) {
+                    	connections.put(pip.getEndNode(), pip.getStartNode());    	
+                    }
+                    else {
+                        connections.put(pip.getStartNode(), pip.getEndNode());                    	
+                    }
                 }
             }else {
                 for(PIP pip : net.getPIPs()) {
-                    connections.put(pip.getEndNode(), pip.getStartNode());
+                    if (pip.isBidirectional() && pip.isReversed()) {
+                        connections.put(pip.getStartNode(), pip.getEndNode());                    	
+                    }
+                    else {
+                        connections.put(pip.getEndNode(), pip.getStartNode());                    	
+                    }
                 }
             }
 
@@ -262,7 +285,7 @@ public class AnchorRegRouter {
             // add the partition pin to the island ports instead of anchor pins
             if (currNode != null) {
                 design.createPartitionPin(e.getValue(), currNode);
-            }
+            }   
         }
     }
 
@@ -290,7 +313,7 @@ public class AnchorRegRouter {
 
         RWRoute.routeDesignPartialNonTimingDriven(design);
 
-//        createPartitionPins(design, pblockNameToTiles, anchorRegPins);
+        createPartitionPins(design, pblockNameToTiles, anchorRegPins);
 
 //        // create black boxes
 //        String island_cell_name = "pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3";
@@ -300,6 +323,7 @@ public class AnchorRegRouter {
 //        Design island = Design.readCheckpoint("/share/einsx7/expr/island_dcp/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3_island_place.dcp");
 //        DesignTools.populateBlackBox(design, island_cell_name, island);
 //        design.getNetlist().consolidateAllToWorkLibrary();
+
         //write checkpoint
         design.writeCheckpoint(args[1]);
     }
