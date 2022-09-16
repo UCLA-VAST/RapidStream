@@ -6,6 +6,7 @@ from typing import Dict, List
 
 from .floorplan_const import ISLAND_TO_PBLOCK
 from .util import collect_anchor_to_dir_to_locs
+from .setup_nested_dfx import setup_next_level_partpin
 
 
 @click.command()
@@ -71,8 +72,13 @@ def generate_overlay_inner(
       script.append(f'  {name} {loc}')
   script.append('}')
 
-  # FIXME directly place_cell instead of place_design, make it more general
-  script.append(f'place_design -directive Quick')
+  # Directly place_cell instead of place_design
+  # the placeholder FF for top-level IOs will be placed on the boundary of the bottom right island
+  # the same placement will be reused every time
+  script.append('source /share/einsx7/vast-lab-tapa/RapidStream/platform/u280/place_top_io_placeholder_ff.tcl')
+  script += setup_next_level_partpin()
+
+  script.append(f'write_checkpoint {overlay_generation_dir}/overlay_placed.dcp')
 
   # route_design to get the complete overlay
   script.append(f'catch {{ route_design -directive Quick }} ')
