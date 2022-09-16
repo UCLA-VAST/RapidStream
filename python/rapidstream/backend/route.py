@@ -2,7 +2,7 @@ import click
 import json
 import os
 import shutil
-from typing import Dict
+from typing import Dict, List
 
 from .util import ParallelManager
 
@@ -51,6 +51,7 @@ def setup_island_route_inner(
     route_dir: str,
     place_opt_dir: str,
     top_name: str,
+    vitis_config_dir = '/share/einsx7/vast-lab-tapa/RapidStream/platform/u280/vitis_config_int/int',
 ):
   """"""
   overlay_dir = os.path.abspath(overlay_dir)
@@ -97,7 +98,7 @@ def setup_island_route_inner(
       # generate bitstream for the overlay
       script.append(f'pr_recombine -cell pfm_top_i/dynamic_region/{top_name}/inst')
       script.append(f'pr_recombine -cell pfm_top_i/dynamic_region')
-      script.append(f'write_bitstream -cell pfm_top_i/dynamic_region overlay.bit')
+      script.append(f'write_bitstream -cell pfm_top_i/dynamic_region {slot_name}.bit')
     else:
       script.append(f'write_bitstream -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {slot_name}.bit')
 
@@ -105,6 +106,50 @@ def setup_island_route_inner(
     mng.add_task(f'{route_dir}/{slot_name}/', 'route_island.tcl')
 
   open(f'{route_dir}/parallel.txt', 'w').write('\n'.join(mng.get_parallel_script()))
+
+  # setup xclbin generation
+  setup_local_vitis_config_files(vitis_config_dir, route_dir)
+
+  parallel = []
+  for slot_name in config['vertices'].keys():
+    xclbin_script = get_xclbin_gen_script(f'{route_dir}/int', slot_name)
+    open(f'{route_dir}/{slot_name}/generate_xclbin.sh', 'w').write('\n'.join(xclbin_script))
+    parallel.append(f'cd {route_dir}/{slot_name}; bash generate_xclbin.sh')
+
+  open(f'{route_dir}/parallel_xclbin.txt', 'w').write('\n'.join(parallel))
+
+
+def setup_local_vitis_config_files(
+  vitis_config_dir,
+  route_dir,
+):
+  # FIXME: adjust clock frequency based on routing result
+  os.system(f'cp -r {vitis_config_dir} {route_dir}')
+
+
+def get_xclbin_gen_script(
+    vitis_config_dir,
+    slot_name,
+) -> List[str]:
+  script = f'''
+BASE_DIR={vitis_config_dir}
+ISLAND=CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3
+xclbinutil \
+  --add-section DEBUG_IP_LAYOUT:JSON:${{BASE_DIR}}/debug_ip_layout.rtd \
+  --add-section BITSTREAM:RAW:{slot_name}.bit \
+  --force \
+  --target hw \
+  --key-value SYS:dfx_enable:true \
+  --add-section :JSON:${{BASE_DIR}}/gaussian_kernel_xilinx_u280_xdma_201920_3.rtd \
+  --append-section :JSON:${{BASE_DIR}}/appendSection.rtd \
+  --add-section CLOCK_FREQ_TOPOLOGY:JSON:${{BASE_DIR}}/gaussian_kernel_xilinx_u280_xdma_201920_3_xml.rtd \
+  --add-section BUILD_METADATA:JSON:${{BASE_DIR}}/gaussian_kernel_xilinx_u280_xdma_201920_3_build.rtd \
+  --add-section EMBEDDED_METADATA:RAW:${{BASE_DIR}}/gaussian_kernel_xilinx_u280_xdma_201920_3_{slot_name}.xml \
+  --add-section SYSTEM_METADATA:RAW:${{BASE_DIR}}/systemDiagramModelSlrBaseAddress.json \
+  --output {slot_name}.xclbin
+'''
+
+  return script.split('\n')
 
 
 if __name__ == '__main__':
