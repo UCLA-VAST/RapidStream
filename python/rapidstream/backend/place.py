@@ -68,6 +68,8 @@ def get_init_place_script(
   script.append(f'resize_pblock anchor_sink_src -add {{ {ISLAND_TO_PBLOCK[slot_name]} }}')
   script.append(f'resize_pblock anchor_sink_src -remove {{ {SLICE_COLUMNS_BESIDES_LAGUNS} }}')
   script.append(f'resize_pblock anchor_sink_src -remove {{ CLOCKREGION_X3Y0:CLOCKREGION_X4Y11 }}')
+  script.append(f'resize_pblock anchor_sink_src -remove {{ CLOCKREGION_X0Y3:CLOCKREGION_X7Y4 }}')
+  script.append(f'resize_pblock anchor_sink_src -remove {{ CLOCKREGION_X0Y7:CLOCKREGION_X7Y8 }}')
   script.append(f'resize_pblock anchor_sink_src -remove {{ {ISLAND_BOUNDARY_SLICE} }}')
   script.append(f'add_cells_to_pblock anchor_sink_src [get_cells {kernel_cell_addr}{slot_name}/*anchor_reg* ]')
   script.append(f'set_property IS_SOFT false [get_pblocks anchor_sink_src]')
