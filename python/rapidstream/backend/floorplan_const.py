@@ -111,15 +111,15 @@ SLICE_COLUMN_INDICES_BESIDES_LAGUNS = (
   226,
 )
 
-# include the row above/below the lagunas
+# include the two rows above/below the lagunas
 SLICE_ROW_INDICES_BESIDES_LAGUNS = (
-  (179, 300),
-  (419, 540),
+  (178, 301),
+  (418, 541),
 )
 
 # two SLICE columns to the left of LAGUNA, three SLICE
 SLICE_COLUMNS_BESIDES_LAGUNS = '\n'.join(
-  f'SLICE_X{x}Y{y_low}:SLICE_X{x}Y{y_high}' 
+  f'SLICE_X{x-1}Y{y_low}:SLICE_X{x}Y{y_high}' 
     for x in SLICE_COLUMN_INDICES_BESIDES_LAGUNS
       for y_low, y_high in SLICE_ROW_INDICES_BESIDES_LAGUNS
 )
