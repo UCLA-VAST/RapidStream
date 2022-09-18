@@ -52,6 +52,7 @@ def setup_island_route_inner(
     place_opt_dir: str,
     top_name: str,
     vitis_config_dir = '/share/einsx7/vast-lab-tapa/RapidStream/platform/u280/vitis_config_int/int',
+    unfix_anchor_nets = False,
 ):
   """"""
   overlay_dir = os.path.abspath(overlay_dir)
@@ -68,9 +69,10 @@ def setup_island_route_inner(
 
     script = []
     script.append(f'open_checkpoint {overlay_dir}/overlay.dcp')
-    script.append(f'lock_design -unlock -level routing')
-    script.append(f'update_design -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} -black_box')
-    script.append(f'lock_design -level routing')
+    script.append(f'set_param hd.absShellCreationIgnoreDRC true')
+    script.append(f'catch {{ write_abstract_shell -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {slot_name}_abs_shell.dcp }}')
+
+    script.append(f'open_checkpoint {slot_name}_abs_shell.dcp')
     script.append(f'read_checkpoint -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {place_opt_dir}/{slot_name}/{slot_name}_island_place.dcp')
 
     # set false path from place holder FFs to top-level IOs
@@ -90,17 +92,15 @@ def setup_island_route_inner(
     script.append('set_false_path -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}]')
     script.append('set_false_path -hold -from [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*C"}]')
     script.append('set_false_path -hold -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}]')
-
+    
+    # UNTESTED: make laguna anchor D/Q nets unfixed
+    if unfix_anchor_nets:
+      script.append('set_property IS_ROUTE_FIXED 0 [get_nets -of_objects [ get_cells pfm_top_i/dynamic_region/gaussian_kernel/inst/*q_reg* -filter {LOC =~ LAG*} ] -filter {TYPE == SIGNAL} ]')
+    
     script.append(f'catch {{route_design}}')
     script.append(f'write_checkpoint {slot_name}_routed.dcp')
-
-    if slot_name == 'CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3':
-      # generate bitstream for the overlay
-      script.append(f'pr_recombine -cell pfm_top_i/dynamic_region/{top_name}/inst')
-      script.append(f'pr_recombine -cell pfm_top_i/dynamic_region')
-      script.append(f'write_bitstream -cell pfm_top_i/dynamic_region {slot_name}.bit')
-    else:
-      script.append(f'write_bitstream -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {slot_name}.bit')
+    script.append(f'write_checkpoint -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {slot_name}.dcp')
+    script.append(f'write_bitstream -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {slot_name}.bit')
 
     open(f'{route_dir}/{slot_name}/route_island.tcl', 'w').write('\n'.join(script))
     mng.add_task(f'{route_dir}/{slot_name}/', 'route_island.tcl')
