@@ -25,26 +25,26 @@ from .setup_nested_dfx import setup_next_level_partpin
 def generate_overlay(
     overlay_generation_dir: str,
     top_name: str,
-    island_place_opt_dir: str,
+    anchor_place_dir: str,
 ):
 
   generate_overlay_inner(
     overlay_generation_dir,
     top_name,
-    island_place_opt_dir,
+    anchor_place_dir,
   )
 
 def generate_overlay_inner(
     overlay_generation_dir: str,
     top_name: str,
-    island_place_opt_dir: str,
+    anchor_place_dir: str,
     nested_dfx_dcp_path: str,
 ):
   overlay_generation_dir = os.path.abspath(overlay_generation_dir)
-  island_place_opt_dir = os.path.abspath(island_place_opt_dir)
+  anchor_place_dir = os.path.abspath(anchor_place_dir)
   nested_dfx_dcp_path = os.path.abspath(nested_dfx_dcp_path)
 
-  anchor_to_info = collect_anchor_to_dir_to_locs(island_place_opt_dir)
+  anchor_to_info = json.load(open(f'{anchor_place_dir}/new_anchor_placement.json', 'r'))
 
   script = []
 

@@ -158,5 +158,18 @@ def get_anchor_placement_script(
   return script
 
 
+def collect_anchor_placement_result(anchor_place_dir):
+  """collect the anchor locations after all anchor placement are done"""
+  anchor_to_loc = {}
+  for slot_name, orientation in ANCHOR_REGIONS:
+    local_placement = json.load(open(f'{anchor_place_dir}/{slot_name}_{orientation}/anchor_placement.json', 'r'))
+    anchor_to_loc.update(local_placement)
+
+  old_anchor_placement = json.load(open(f'{anchor_place_dir}/anchor_to_dir_to_cells.json', 'r'))
+  for anchor, loc in anchor_to_loc.items():
+    old_anchor_placement[anchor]['anchor_loc'] = loc
+  open(f'{anchor_place_dir}/new_anchor_placement.json', 'w').write(json.dumps(old_anchor_placement, indent=2))
+
+
 if __name__ == '__main__':
   setup_anchor_placement()
