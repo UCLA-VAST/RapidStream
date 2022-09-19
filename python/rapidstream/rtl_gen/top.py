@@ -248,6 +248,13 @@ def sort_rtl(top: List[str]) -> List[str]:
   return decl + other
 
 
+def safety_check(io_section: List[str]) -> bool:
+  for port in ('interrupt', 'ap_local_block'):
+    if not any(re.search(rf'[ ]+{port}[ ]*,[ ]*', line) for line in io_section):
+      _logger.error('Missing top-level port ' + port)
+      exit(1)
+
+
 def _get_top(config: Dict, top_name: str, wrapper_suffix: str) -> List[str]:
   top = []
 
@@ -261,10 +268,11 @@ def _get_top(config: Dict, top_name: str, wrapper_suffix: str) -> List[str]:
   top += get_ending() + ['']
   top_sorted = sort_rtl(top)
 
-  top = get_io_section(config, top_name) + [''] + top_sorted + ['']
-
-  return top
-
+  io_section = get_io_section(config, top_name)
+  safety_check(io_section)
+  
+  return io_section + [''] + top_sorted + ['']
+  
 
 def get_top(config: Dict, top_name: str, use_anchor_wrapper: bool) -> List[str]:
   wrapper_suffix = ANCHOR_WRAPPER_SUFFIX if use_anchor_wrapper else ''
