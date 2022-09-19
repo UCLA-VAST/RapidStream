@@ -152,6 +152,13 @@ def main(
   )
   os.system(f'cd {output_dir}/backend/overlay_generation; vivado -mode batch -source gen_overlay.tcl')
 
+  gen_overlay_bistream_process = subprocess.Popen(
+    [f'cd {output_dir}/backend/overlay_generation; vivado -mode batch -source gen_overlay_bitstream.tcl'],
+    shell=True,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+  )
+  
   setup_island_route_inner(
     config,
     f'{output_dir}/backend/overlay_generation',
@@ -160,6 +167,8 @@ def main(
     top_name,
   )
   os.system(f'parallel < {output_dir}/backend/island_route/parallel.txt')
+
+  gen_overlay_bistream_process.wait()
 
 
 if __name__ == '__main__':

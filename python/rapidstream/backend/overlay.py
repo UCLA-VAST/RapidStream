@@ -89,6 +89,18 @@ def generate_overlay_inner(
   os.mkdir(overlay_generation_dir)
   open(f'{overlay_generation_dir}/gen_overlay.tcl', 'w').write('\n'.join(script))
 
+  bitstream_script = gen_overlay_bistream_script()
+  open(f'{overlay_generation_dir}/gen_overlay_bitstream.tcl', 'w').write('\n'.join(bitstream_script))
+
+
+def gen_overlay_bistream_script():
+  bitstream_script = []
+  bitstream_script.append(f'open_checkpoint overlay.dcp')
+  bitstream_script.append(f'pr_recombine -cell pfm_top_i/dynamic_region/gaussian_kernel/inst')
+  bitstream_script.append(f'pr_recombine -cell pfm_top_i/dynamic_region')
+  bitstream_script.append(f'write_bitstream -cell pfm_top_i/dynamic_region overlay.bit')
+  return bitstream_script
+
 
 if __name__ == '__main__':
   generate_overlay()
