@@ -10,11 +10,12 @@ from rapidstream.util import setup_logging, create_xo, dump_files
 from rapidstream.backend.split import annotate_io_orientation
 from rapidstream.backend.synth import setup_island_synth
 from rapidstream.backend.place import setup_island_init_placement
-from rapidstream.backend.anchor_place import setup_anchor_placement_inner
+from rapidstream.backend.anchor_place import setup_anchor_placement_inner, collect_anchor_placement_result
 from rapidstream.backend.island_place_opt import setup_island_placement_opt_inner
 from rapidstream.backend.overlay import generate_overlay_inner
 from rapidstream.backend.route import setup_island_route_inner
 from rapidstream.backend.setup_nested_dfx import setup_nested_dfx_inner
+from rapidstream.backend.setup_abs_shell import setup_abs_shell
 
 @click.command()
 @click.option(
@@ -115,12 +116,8 @@ def main(
     top_name,
     hmss_shell_path,
   )
-  nestd_dfx_process = subprocess.Popen([
-    f'cd {output_dir}/backend/nested_dfx; vivado -mode batch -source {output_dir}/backend/nested_dfx/setup_nested_dfx.tcl',
-    ],
-    shell=True,
-    stdout=subprocess.DEVNULL,
-    stderr=subprocess.DEVNULL,
+  nestd_dfx_process = detached_run(
+    f'cd {output_dir}/backend/nested_dfx; vivado -mode batch -source {output_dir}/backend/nested_dfx/setup_nested_dfx.tcl'
   )
 
   # invoke parallel synthesis
@@ -129,8 +126,10 @@ def main(
   # invoke parallel placement
   os.system(f'parallel < {output_dir}/backend/init_placement/parallel.txt')
 
+  # invoke parallel anchor placement
   setup_anchor_placement_inner(config, f'{output_dir}/backend/init_placement', f'{output_dir}/backend/anchor_placement')
   os.system(f'parallel < {output_dir}/backend/anchor_placement/parallel.txt')
+  collect_anchor_placement_result(f'{output_dir}/backend/anchor_placement')
 
   setup_island_placement_opt_inner(
     config,
@@ -139,36 +138,56 @@ def main(
     f'{output_dir}/backend/island_place_opt',
     top_name,
   )
-  os.system(f'parallel < {output_dir}/backend/island_place_opt/parallel.txt')
+  island_place_opt_process = detached_run(f'parallel < {output_dir}/backend/island_place_opt/parallel.txt')
 
   # the nested dfx dcp should be ready before overlay generation
   nestd_dfx_process.wait()
 
+  # overlap the overlay gen with island re-placement
   generate_overlay_inner(
     f'{output_dir}/backend/overlay_generation',
     top_name,
-    f'{output_dir}/backend/island_place_opt',
+    f'{output_dir}/backend/anchor_placement',
     f'{output_dir}/backend/nested_dfx/after_pr_subdivide.dcp',
   )
   os.system(f'cd {output_dir}/backend/overlay_generation; vivado -mode batch -source gen_overlay.tcl')
 
-  gen_overlay_bistream_process = subprocess.Popen(
-    [f'cd {output_dir}/backend/overlay_generation; vivado -mode batch -source gen_overlay_bitstream.tcl'],
-    shell=True,
-    stdout=subprocess.DEVNULL,
-    stderr=subprocess.DEVNULL,
+  # detached bitstream generation for overlay
+  gen_overlay_bistream_process = detached_run(
+    f'cd {output_dir}/backend/overlay_generation; vivado -mode batch -source gen_overlay_bitstream.tcl'
   )
-  
-  setup_island_route_inner(
+
+  # generate abstract shell after overlay is generated
+  setup_abs_shell(
     config,
     f'{output_dir}/backend/overlay_generation',
+    f'{output_dir}/backend/abs_shell',
+    top_name,
+  )
+  os.system(f'parallel < {output_dir}/backend/abs_shell/parallel.txt')
+
+  island_place_opt_process.wait()
+
+  # final island routing
+  setup_island_route_inner(
+    config,
+    f'{output_dir}/backend/abs_shell',
     f'{output_dir}/backend/island_route',
     f'{output_dir}/backend/island_place_opt',
     top_name,
   )
   os.system(f'parallel < {output_dir}/backend/island_route/parallel.txt')
 
+  # wait until the bitstream for the overlay is generated
   gen_overlay_bistream_process.wait()
+
+
+def detached_run(cmd: str) -> subprocess.Popen:
+  return subprocess.Popen([cmd],
+    shell=True,
+    stdout=subprocess.DEVNULL,
+    stderr=subprocess.DEVNULL,
+  )
 
 
 if __name__ == '__main__':
