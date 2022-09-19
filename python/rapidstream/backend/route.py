@@ -47,7 +47,7 @@ def setup_island_route(
 
 def setup_island_route_inner(
     config: Dict,
-    overlay_dir: str,
+    abs_shell_dir: str,
     route_dir: str,
     place_opt_dir: str,
     top_name: str,
@@ -55,7 +55,6 @@ def setup_island_route_inner(
     unfix_anchor_nets = False,
 ):
   """"""
-  overlay_dir = os.path.abspath(overlay_dir)
   route_dir = os.path.abspath(route_dir)
   place_opt_dir = os.path.abspath(place_opt_dir)
 
@@ -68,11 +67,8 @@ def setup_island_route_inner(
     os.mkdir(f'{route_dir}/{slot_name}')
 
     script = []
-    script.append(f'open_checkpoint {overlay_dir}/overlay.dcp')
-    script.append(f'set_param hd.absShellCreationIgnoreDRC true')
-    script.append(f'catch {{ write_abstract_shell -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {slot_name}_abs_shell.dcp }}')
 
-    script.append(f'open_checkpoint {slot_name}_abs_shell.dcp')
+    script.append(f'open_checkpoint {abs_shell_dir}/{slot_name}/{slot_name}_abs_shell.dcp')
     script.append(f'read_checkpoint -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {place_opt_dir}/{slot_name}/{slot_name}_island_place.dcp')
 
     # set false path from place holder FFs to top-level IOs
@@ -92,11 +88,11 @@ def setup_island_route_inner(
     script.append('set_false_path -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}]')
     script.append('set_false_path -hold -from [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*C"}]')
     script.append('set_false_path -hold -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}]')
-    
+
     # UNTESTED: make laguna anchor D/Q nets unfixed
     if unfix_anchor_nets:
       script.append('set_property IS_ROUTE_FIXED 0 [get_nets -of_objects [ get_cells pfm_top_i/dynamic_region/gaussian_kernel/inst/*q_reg* -filter {LOC =~ LAG*} ] -filter {TYPE == SIGNAL} ]')
-    
+
     script.append(f'catch {{route_design}}')
     script.append(f'write_checkpoint {slot_name}_routed.dcp')
     script.append(f'write_checkpoint -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {slot_name}.dcp')
