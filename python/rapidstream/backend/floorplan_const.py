@@ -1,3 +1,5 @@
+import re
+from typing import Tuple
 
 INIT_PLACEMENT_ANCHOR_PBLOCK_ISLAND_X0Y0_NORTH = 'LAGUNA_X0Y0:LAGUNA_X15Y119'
 INIT_PLACEMENT_ANCHOR_PBLOCK_ISLAND_X1Y0_NORTH = 'LAGUNA_X16Y0:LAGUNA_X25Y119'
@@ -119,11 +121,11 @@ SLICE_ROW_INDICES_BESIDES_LAGUNS = (
 
 # two SLICE columns to the left of LAGUNA, three SLICE
 SLICE_COLUMNS_BESIDES_LAGUNS = '\n'.join(
-  f'SLICE_X{x-1}Y{y_low}:SLICE_X{x}Y{y_high}' 
+  f'SLICE_X{x-1}Y{y_low}:SLICE_X{x}Y{y_high}'
     for x in SLICE_COLUMN_INDICES_BESIDES_LAGUNS
       for y_low, y_high in SLICE_ROW_INDICES_BESIDES_LAGUNS
 )
-  
+
 
 ANCHOR_PBLOCK_ISLAND_X0Y0_EAST = 'SLICE_X118Y16:SLICE_X119Y239'
 ANCHOR_PBLOCK_ISLAND_X0Y1_EAST = 'SLICE_X118Y240:SLICE_X119Y479'
@@ -194,10 +196,42 @@ ISLAND_BOUNDARY_SLICE = '''
   SLICE_X174Y15:SLICE_X175Y59
   SLICE_X120Y15:SLICE_X175Y16
   SLICE_X176Y60:SLICE_X191Y61
-  
+
   SLICE_X192Y300:SLICE_X198Y301
   SLICE_X197Y300:SLICE_X198Y419
   SLICE_X192Y418:SLICE_X198Y419
   SLICE_X192Y520:SLICE_X200Y521
   SLICE_X199Y540:SLICE_X200Y719
 '''
+
+
+def get_neighbor_slice_Y_of_laguna_Y(laguna_y: int) -> int:
+  """get the Y coordinate of the SLICE site nearby a laguna site"""
+  if 0 <= laguna_y <= 239:
+    return int(laguna_y/2) + 180
+  elif 240 <= laguna_y <= 479:
+    return (int(laguna_y/2) - 120) + 420
+  else:
+    assert False, 'wrong laguna y coordinates: ' + laguna_y
+
+
+def get_neighbor_slice_X_of_laguna_X(laguna_x: int) -> int:
+  try:
+    slice_x = SLICE_COLUMN_INDICES_BESIDES_LAGUNS[int(laguna_x/2)]
+  except:
+    assert False, 'wrong laguna x coordinates: ' + laguna_x
+  return slice_x
+
+
+def get_neighbor_slice_site_of_laguna_site(laguna_site: str) -> Tuple[str, str]:
+  """convert from LAGUNA_X{}Y{} to SLICE_X{}Y{}"""
+  match = re.search('LAGUNA_X(\d+)Y(\d+)', laguna_site)
+  if not match:
+    assert False, f'wrong laguna site format: {laguna_site}. Expected format: LAGUNA_X(\d+)Y(\d+).*'
+  laguna_x, laguna_y = map(int, (match.group(1), match.group(2)))
+
+  slice_x = get_neighbor_slice_X_of_laguna_X(laguna_x)
+  slice_y = get_neighbor_slice_Y_of_laguna_Y(laguna_y)
+
+  # the slice on the right (share the same INT with laguna) and on the left
+  return f'SLICE_X{slice_x}Y{slice_y}', f'SLICE_X{slice_x-2}Y{slice_y}'
