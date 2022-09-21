@@ -1,56 +1,17 @@
-import click
-import json
 import os
 import shutil
 from typing import Dict, List
 
-from .util import ParallelManager
+from .util import ParallelManager, mark_false_paths_to_placeholder_ff
 
-@click.command()
-@click.option(
-  '--config-path',
-  required=True,
-  help='Path to the TAPA configuration file.'
-)
-@click.option(
-  '--overlay-dir',
-  required=True,
-)
-@click.option(
-  '--route-dir',
-  required=True,
-)
-@click.option(
-  '--place-opt-dir',
-  required=True,
-)
-@click.option(
-  '--top-name',
-  required=True,
-)
+
 def setup_island_route(
-    config_path: str,
-    overlay_dir: str,
-    route_dir: str,
-    place_opt_dir: str,
-    top_name: str,
-):
-  config_path = os.path.abspath(config_path)
-  config = json.loads(open(config_path, 'r').read())
-  setup_island_route_inner(
-    config,
-    overlay_dir,
-    route_dir,
-    place_opt_dir,
-    top_name,
-  )
-
-def setup_island_route_inner(
     config: Dict,
     abs_shell_dir: str,
     route_dir: str,
     place_opt_dir: str,
     top_name: str,
+    re_place_before_routing: bool,
     vitis_config_dir = '/share/einsx7/vast-lab-tapa/RapidStream/platform/u280/vitis_config_int/int',
     unfix_anchor_nets = False,
 ):
@@ -71,27 +32,16 @@ def setup_island_route_inner(
     script.append(f'open_checkpoint {abs_shell_dir}/{slot_name}/{slot_name}_abs_shell.dcp')
     script.append(f'read_checkpoint -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {place_opt_dir}/{slot_name}/{slot_name}_island_place.dcp')
 
-    # set false path from place holder FFs to top-level IOs
-    script.append('set top_io_place_holder_ff [get_cells -hierarchical -regexp -filter { PRIMITIVE_TYPE =~ REGISTER.*.* && NAME =~  ".*_ff$.*" && NAME =~  ".*_axi_.*" } ]')
-    script.append('if { [ llength ${top_io_place_holder_ff} ] > 0 } {')
-    script.append('  set_false_path -from [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*C"}]')
-    script.append('  set_false_path -to [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*D"}]')
-    script.append('  set_false_path -hold -from [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*C"}]')
-    script.append('  set_false_path -hold -to [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*D"}]')
-    script.append('}')
-
-    # set false path from place holder FFs in other islands
-    # if an FDRE has _anchor_reg in its name, and does not have the slot name in its parent cell name
-    # then it is a place holder FF in other islands
-    script.append(f'set place_holder_ff [get_cells -hierarchical -regexp -filter {{ PRIMITIVE_TYPE =~ REGISTER.*.* && NAME =~  ".*_anchor_reg.*" && PARENT !~  ".*{slot_name}.*" }} ]')
-    script.append('set_false_path -from [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*C"}]')
-    script.append('set_false_path -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}]')
-    script.append('set_false_path -hold -from [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*C"}]')
-    script.append('set_false_path -hold -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}]')
+    # set false path from place holder FFs to top-level IOs and place holder FFs in other islands
+    script += mark_false_paths_to_placeholder_ff(slot_name)
 
     # UNTESTED: make laguna anchor D/Q nets unfixed
     if unfix_anchor_nets:
       script.append('set_property IS_ROUTE_FIXED 0 [get_nets -of_objects [ get_cells pfm_top_i/dynamic_region/gaussian_kernel/inst/*q_reg* -filter {LOC =~ LAG*} ] -filter {TYPE == SIGNAL} ]')
+
+    if re_place_before_routing:
+      script.append(f'place_design -unplace')
+      script.append(f'place_design -place')
 
     script.append(f'catch {{route_design}}')
     script.append(f'write_checkpoint {slot_name}_routed.dcp')
@@ -146,7 +96,3 @@ xclbinutil \
 '''
 
   return script.split('\n')
-
-
-if __name__ == '__main__':
-  setup_island_route()

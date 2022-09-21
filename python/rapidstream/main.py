@@ -13,7 +13,7 @@ from rapidstream.backend.place import setup_island_init_placement
 from rapidstream.backend.anchor_place import setup_anchor_placement_inner, collect_anchor_placement_result
 from rapidstream.backend.island_place_opt import setup_island_placement_opt_inner
 from rapidstream.backend.overlay import generate_overlay_inner
-from rapidstream.backend.route import setup_island_route_inner
+from rapidstream.backend.route import setup_island_route
 from rapidstream.backend.setup_nested_dfx import setup_nested_dfx_inner
 from rapidstream.backend.setup_abs_shell import setup_abs_shell
 
@@ -57,6 +57,12 @@ from rapidstream.backend.setup_abs_shell import setup_abs_shell
   required=True,
   help="The shell that includes the PCIe, DMA and HMSS"
 )
+@click.option(
+  '--re-place-before-routing',
+  is_flag=True,
+  required=False,
+  default=False,
+)
 def main(
   top_rtl_path: str,
   post_floorplan_config_path: str,
@@ -66,6 +72,7 @@ def main(
   output_dir: str,
   dummy_abs_shell_dir: str,
   hmss_shell_path: str,
+  re_place_before_routing: bool,
 ):
   """Entry point for RapidStream that targets TAPA"""
   tapa_hdl_dir = os.path.abspath(tapa_hdl_dir)
@@ -137,6 +144,7 @@ def main(
     f'{output_dir}/backend/anchor_placement',
     f'{output_dir}/backend/island_place_opt',
     top_name,
+    rerun_placement = False,
   )
   island_place_opt_process = detached_run(f'parallel < {output_dir}/backend/island_place_opt/parallel.txt')
 
@@ -169,12 +177,13 @@ def main(
   island_place_opt_process.wait()
 
   # final island routing
-  setup_island_route_inner(
+  setup_island_route(
     config,
     f'{output_dir}/backend/abs_shell',
     f'{output_dir}/backend/island_route',
     f'{output_dir}/backend/island_place_opt',
     top_name,
+    re_place_before_routing = re_place_before_routing
   )
   os.system(f'parallel < {output_dir}/backend/island_route/parallel.txt')
 

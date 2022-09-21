@@ -135,3 +135,29 @@ def collect_anchor_to_dir_to_locs(placement_dir: str):
             anchor_to_dir_to_cells[cell_name][dir] += [cell]
 
   return anchor_to_dir_to_cells
+
+
+def mark_false_paths_to_placeholder_ff(slot_name: str) -> List[str]:
+  script = []
+
+  # set false path from place holder FFs to top-level IOs
+  script.append('set top_io_place_holder_ff [get_cells -hierarchical -regexp -filter { PRIMITIVE_TYPE =~ REGISTER.*.* && NAME =~  ".*_ff$.*" && NAME =~  ".*_axi_.*" } ]')
+  script.append('if { [ llength ${top_io_place_holder_ff} ] > 0 } {')
+  script.append('  set_false_path -from [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*C"}]')
+  script.append('  set_false_path -to [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*D"}]')
+  script.append('  set_false_path -hold -from [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*C"}]')
+  script.append('  set_false_path -hold -to [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*D"}]')
+  script.append('}')
+
+  # set false path from place holder FFs in other islands
+  # if an FDRE has _anchor_reg in its name, and does not have the slot name in its parent cell name
+  # then it is a place holder FF in other islands
+  script.append(f'set place_holder_ff [get_cells -hierarchical -regexp -filter {{ PRIMITIVE_TYPE =~ REGISTER.*.* && NAME =~  ".*_anchor_reg.*" && PARENT !~  ".*{slot_name}.*" }} ]')
+  script.append('if { [ llength ${place_holder_ff} ] > 0 } {')
+  script.append('  set_false_path -from [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*C"}]')
+  script.append('  set_false_path -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}]')
+  script.append('  set_false_path -hold -from [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*C"}]')
+  script.append('  set_false_path -hold -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}]')
+  script.append('}')
+
+  return script
