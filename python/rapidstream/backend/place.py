@@ -2,7 +2,7 @@ import logging
 import os
 from typing import Dict, List
 
-from .util import ParallelManager
+from .util import ParallelManager, mark_false_paths_to_placeholder_ff
 from .floorplan_const import *
 
 _logger = logging.getLogger().getChild(__name__)
@@ -60,10 +60,15 @@ def get_init_place_script(
 
   script.append(f'add_cells_to_pblock island [get_cells {kernel_cell_addr}{slot_name} ]')
   script.append(f'set_property IS_SOFT false [get_pblocks island]')
+  script.append(f'set_property EXCLUDE_PLACEMENT 1 [get_pblocks island]')
+  script.append(f'set_property CONTAIN_ROUTING 1 [get_pblocks island]')
 
   # for better routability. Also PR flow will prohibit those rows for placement
   for row_idx in SLICE_ROWS_ON_SLR_BOUNDARIES:
     script.append(f'set_property PROHIBIT 1 [get_sites SLICE_X*Y{row_idx} -filter {{IS_USED == 0}}]')
+
+  # mark dummies for unused top-level IOs as false paths
+  script += mark_false_paths_to_placeholder_ff(slot_name)
 
   if placement_strategy:
     assert placement_strategy.startswith('-directive ')
