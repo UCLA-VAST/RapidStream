@@ -140,13 +140,14 @@ def collect_anchor_to_dir_to_locs(placement_dir: str):
 def mark_false_paths_to_placeholder_ff(slot_name: str) -> List[str]:
   script = []
 
+  # use catch because in abstract shells, some FF will be unconnected, and set_false_path will trigger an ERROR
   # set false path from place holder FFs to top-level IOs
   script.append('set top_io_place_holder_ff [get_cells -hierarchical -regexp -filter { PRIMITIVE_TYPE =~ REGISTER.*.* && NAME =~  ".*_ff$.*" && NAME =~  ".*_axi_.*" } ]')
   script.append('if { [ llength ${top_io_place_holder_ff} ] > 0 } {')
-  script.append('  set_false_path -from [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*C"}]')
-  script.append('  set_false_path -to [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*D"}]')
-  script.append('  set_false_path -hold -from [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*C"}]')
-  script.append('  set_false_path -hold -to [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*D"}]')
+  script.append('  catch { set_false_path -from [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*C"}] }')
+  script.append('  catch { set_false_path -to [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*D"}] }')
+  script.append('  catch { set_false_path -hold -from [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*C"}] }')
+  script.append('  catch { set_false_path -hold -to [get_pins -of_objects ${top_io_place_holder_ff} -filter {NAME =~ "*D"}] }')
   script.append('}')
 
   # set false path from place holder FFs in other islands
@@ -154,10 +155,10 @@ def mark_false_paths_to_placeholder_ff(slot_name: str) -> List[str]:
   # then it is a place holder FF in other islands
   script.append(f'set place_holder_ff [get_cells -hierarchical -regexp -filter {{ PRIMITIVE_TYPE =~ REGISTER.*.* && NAME =~  ".*_anchor_reg.*" && PARENT !~  ".*{slot_name}.*" }} ]')
   script.append('if { [ llength ${place_holder_ff} ] > 0 } {')
-  script.append('  set_false_path -from [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*C"}]')
-  script.append('  set_false_path -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}]')
-  script.append('  set_false_path -hold -from [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*C"}]')
-  script.append('  set_false_path -hold -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}]')
+  script.append('  catch { set_false_path -from [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*C"}] }')
+  script.append('  catch { set_false_path -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}] }')
+  script.append('  catch { set_false_path -hold -from [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*C"}] }')
+  script.append('  catch { set_false_path -hold -to [get_pins -of_objects ${place_holder_ff} -filter {NAME =~ "*D"}] }')
   script.append('}')
 
   return script
