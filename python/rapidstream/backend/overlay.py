@@ -79,6 +79,7 @@ def generate_overlay_inner(
   script += setup_next_level_partpin()
 
   script.append(f'write_checkpoint {overlay_generation_dir}/overlay_placed.dcp')
+  script.append(f'write_edif {overlay_generation_dir}/overlay_placed.edf')
 
   # route_design to get the complete overlay
   script.append(f'catch {{ route_design -directive Quick }} ')
