@@ -19,4 +19,21 @@ for {set i 0} {$i < $group_num + 1} {incr i} {
   }
 }
 
+set has_found_loc 0
+for {set x 118} {$x < 120} {incr x} {
+  for {set y 600} {$y < 720} {incr y} {
+    set curr_site "SLICE_X${x}Y${y}"
+    if { [get_property IS_USED [get_sites ${curr_site}]] != 1} {
+      lappend cell_to_loc "pfm_top_i/dynamic_region/gaussian_kernel/inst/GND_HD_Inserted_Inst_interrupt"
+      lappend cell_to_loc ${curr_site}
+      set has_found_loc 1
+      break
+    }
+  }
+
+  if { ${has_found_loc} == 1} {
+    break
+  }
+}
+
 place_cell $cell_to_loc

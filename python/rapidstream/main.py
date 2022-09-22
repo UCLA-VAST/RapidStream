@@ -63,6 +63,12 @@ from rapidstream.backend.setup_abs_shell import setup_abs_shell
   required=False,
   default=False,
 )
+@click.option(
+  '--re-place-after-anchor-place',
+  is_flag=True,
+  required=False,
+  default=False,
+)
 def main(
   top_rtl_path: str,
   post_floorplan_config_path: str,
@@ -73,6 +79,7 @@ def main(
   dummy_abs_shell_dir: str,
   hmss_shell_path: str,
   re_place_before_routing: bool,
+  re_place_after_anchor_place: bool,
 ):
   """Entry point for RapidStream that targets TAPA"""
   tapa_hdl_dir = os.path.abspath(tapa_hdl_dir)
@@ -144,7 +151,7 @@ def main(
     f'{output_dir}/backend/anchor_placement',
     f'{output_dir}/backend/island_place_opt',
     top_name,
-    rerun_placement = False,
+    rerun_placement = re_place_after_anchor_place,
   )
   island_place_opt_process = detached_run(f'parallel < {output_dir}/backend/island_place_opt/parallel.txt')
 
