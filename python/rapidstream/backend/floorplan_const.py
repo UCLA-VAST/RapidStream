@@ -189,21 +189,22 @@ ANCHOR_REGIONS = (
   ('WRAPPER_VERTEX_CR_X0Y0_To_CR_X3Y3', 'EAST'),
 )
 
-# two columns of SLICE near the boundary of the island
-ISLAND_BOUNDARY_SLICE = '''
-  SLICE_X114Y15:SLICE_X122Y719
-  SLICE_X190Y60:SLICE_X191Y239
-  SLICE_X174Y15:SLICE_X175Y59
-  SLICE_X120Y15:SLICE_X175Y16
-  SLICE_X176Y60:SLICE_X191Y61
+# two rows/columns of SLICE near the boundary of the island
+# if the boundary column is DSP/BRAM, then do not exclude
+ISLAND_BOUNDARY_SLICE = '\n'.join(
+  [
+  # slr 0
+  'SLICE_X120Y15:SLICE_X175Y16',
+  'SLICE_X176Y60:SLICE_X191Y61',
 
-  SLICE_X192Y300:SLICE_X198Y301
-  SLICE_X197Y300:SLICE_X198Y419
-  SLICE_X192Y418:SLICE_X198Y419
-  SLICE_X192Y520:SLICE_X200Y521
-  SLICE_X199Y540:SLICE_X200Y719
-'''
+  # slr 1
+  'SLICE_X192Y300:SLICE_X198Y301',
+  'SLICE_X192Y418:SLICE_X198Y419',
 
+  # slr 2
+  'SLICE_X192Y540:SLICE_X200Y541',
+  ]
+)
 
 def get_neighbor_slice_Y_of_laguna_Y(laguna_y: int) -> int:
   """get the Y coordinate of the SLICE site nearby a laguna site"""
