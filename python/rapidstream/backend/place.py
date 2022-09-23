@@ -32,6 +32,10 @@ def get_init_place_script(
 
   # assign anchors to corresponding pblocks
   for orientation, wire_list in config['vertices'][slot_name]['orientation_to_wire'].items():
+    if len(wire_list) == 1 and wire_list[0] == 'ap_clk':
+      _logger.info(f'no anchor on the {orientation} side of {slot_name}')
+      continue
+
     script.append(f'create_pblock {orientation}')
     script.append(f'set_property IS_SOFT false [get_pblocks {orientation}]')
     # note: use EXCLUDE_PLACEMENT will make it extremely slow
@@ -47,6 +51,8 @@ def get_init_place_script(
 
     script.append(f'add_cells_to_pblock {orientation} [ get_cells [ list \\')
     for name in wire_list:
+      if name == 'ap_clk':
+        continue
       script.append(f'  {kernel_cell_addr}{name}_q_reg* \\')
     script.append(f'] ]')
     script.append('')
