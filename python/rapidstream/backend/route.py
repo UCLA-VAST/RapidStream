@@ -13,7 +13,6 @@ def setup_island_route(
     top_name: str,
     re_place_before_routing: bool,
     vitis_config_dir = '/share/einsx7/vast-lab-tapa/RapidStream/platform/u280/vitis_config_int/int',
-    unfix_anchor_nets = False,
 ):
   """"""
   route_dir = os.path.abspath(route_dir)
@@ -34,10 +33,6 @@ def setup_island_route(
 
     # set false path from place holder FFs to top-level IOs and place holder FFs in other islands
     script += mark_false_paths_to_placeholder_ff(slot_name)
-
-    # UNTESTED: make laguna anchor D/Q nets unfixed
-    if unfix_anchor_nets:
-      script.append('set_property IS_ROUTE_FIXED 0 [get_nets -of_objects [ get_cells pfm_top_i/dynamic_region/gaussian_kernel/inst/*q_reg* -filter {LOC =~ LAG*} ] -filter {TYPE == SIGNAL} ]')
 
     if re_place_before_routing:
       script.append(f'place_design -unplace')
