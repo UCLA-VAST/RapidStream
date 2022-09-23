@@ -1,4 +1,5 @@
 import click
+import logging
 import json
 import os
 import shutil
@@ -6,6 +7,9 @@ from typing import Dict, List
 
 from .floorplan_const import *
 from .util import ParallelManager, get_local_anchor_list, collect_anchor_to_dir_to_locs
+
+_logger = logging.getLogger().getChild(__name__)
+
 
 @click.command()
 @click.option(
@@ -48,10 +52,12 @@ def setup_anchor_placement_inner(
 
   # create a placement project for each anchor region
   for slot_name, orientation in ANCHOR_REGIONS:
-    os.mkdir(f'{anchor_place_dir}/{slot_name}_{orientation}')
-
     # create anchor list in each anchor region
     local_anchor_list = get_local_anchor_list(config, slot_name, orientation)
+
+    if not local_anchor_list:
+      _logger.info(f'No placement result found on the {orientation} side of {slot_name}')
+      continue
 
     # get all anchors belonging to this anchor region, and src/sink cells
     local_anchor_to_dir_to_cells = {anchor: anchor_to_dir_to_cells[anchor] for anchor in local_anchor_list}
@@ -60,6 +66,8 @@ def setup_anchor_placement_inner(
     anchor_pblock = ISLAND_TO_DIR_TO_ANCHOR_PBLOCK[slot_name][orientation]
 
     script = get_anchor_placement_script(anchor_pblock, local_anchor_to_dir_to_cells)
+
+    os.mkdir(f'{anchor_place_dir}/{slot_name}_{orientation}')
     open(f'{anchor_place_dir}/{slot_name}_{orientation}/place_anchor.tcl', 'w').write('\n'.join(script))
 
     mng.add_task(f'{anchor_place_dir}/{slot_name}_{orientation}/', 'place_anchor.tcl')
@@ -162,8 +170,14 @@ def collect_anchor_placement_result(anchor_place_dir):
   """collect the anchor locations after all anchor placement are done"""
   anchor_to_loc = {}
   for slot_name, orientation in ANCHOR_REGIONS:
-    local_placement = json.load(open(f'{anchor_place_dir}/{slot_name}_{orientation}/anchor_placement.json', 'r'))
-    anchor_to_loc.update(local_placement)
+    placement_dir = f'{anchor_place_dir}/{slot_name}_{orientation}'
+
+    # in case an anchor region is empty, we should not create a directory for it
+    if os.path.isdir(placement_dir):
+      local_placement = json.load(open(f'{placement_dir}/anchor_placement.json', 'r'))
+      anchor_to_loc.update(local_placement)
+    else:
+      _logger.info(f'skip collecting placement of anchor on the {orientation} side of {slot_name}')
 
   old_anchor_placement = json.load(open(f'{anchor_place_dir}/anchor_to_dir_to_cells.json', 'r'))
   for anchor, loc in anchor_to_loc.items():
