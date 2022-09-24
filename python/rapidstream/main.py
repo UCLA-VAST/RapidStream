@@ -181,6 +181,9 @@ def main(
     f'cd {OVERLAY_DIR}; vivado -mode batch -source gen_overlay_bitstream.tcl'
   )
 
+  # optimize the partition pin
+  os.system(f'java com.xilinx.rapidwright.rwroute.AnchorRegRouterFull {OVERLAY_DIR}/overlay.dcp {OVERLAY_DIR}/rw_update_partpin.tcl')
+
   # generate abstract shell after overlay is generated
   setup_abs_shell(
     config,

@@ -24,6 +24,10 @@ def setup_abs_shell(
 
     script = []
     script.append(f'open_checkpoint {overlay_dir}/overlay.dcp')
+
+    # optimize the partition pin locations
+    script.append(f'source {overlay_dir}/rw_update_partpin.tcl')
+
     script.append(f'set_param hd.absShellCreationIgnoreDRC true')
     script.append(f'catch {{ write_abstract_shell -cell pfm_top_i/dynamic_region/{top_name}/inst/{slot_name} {slot_name}_abs_shell.dcp }}')
 

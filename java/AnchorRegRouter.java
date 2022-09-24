@@ -24,6 +24,8 @@
  */
 package com.xilinx.rapidwright.rwroute;
 
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -38,6 +40,8 @@ import com.xilinx.rapidwright.design.ConstraintGroup;
 import com.xilinx.rapidwright.design.Design;
 import com.xilinx.rapidwright.design.DesignTools;
 import com.xilinx.rapidwright.design.Net;
+import com.xilinx.rapidwright.design.PartitionPin;
+import com.xilinx.rapidwright.design.PinType;
 import com.xilinx.rapidwright.design.SitePinInst;
 import com.xilinx.rapidwright.design.blocks.PBlock;
 import com.xilinx.rapidwright.design.blocks.PBlockRange;
@@ -47,14 +51,128 @@ import com.xilinx.rapidwright.device.PIP;
 import com.xilinx.rapidwright.device.SiteTypeEnum;
 import com.xilinx.rapidwright.device.Tile;
 import com.xilinx.rapidwright.edif.EDIFHierPortInst;
+import com.xilinx.rapidwright.edif.EDIFHierNet;
 import com.xilinx.rapidwright.edif.EDIFPortInst;
 import com.xilinx.rapidwright.edif.EDIFTools;
+import com.xilinx.rapidwright.router.UltraScaleClockRouting;
+import com.xilinx.rapidwright.edif.EDIFNetlist;
 
 
 /**
  * Created on: Aug 22, 2022
  */
-public class AnchorRegRouter {
+public class AnchorRegRouterFull {
+
+    private static Design routeOverlay(Design design){
+
+        Map<Net,List<SitePinInst>> netToUnroutedPins = new HashMap<>();
+        Map<Net,Set<Node>> netToNodes = new HashMap<>();
+
+        // Examine all partition pins to find the ones that are unrouted
+        EDIFNetlist netlist = design.getNetlist();
+        outer: for (PartitionPin ppin : design.getPartitionPins()) {
+            if(ppin.getInstanceName() == null || ppin.getInstanceName().length() == 0) {
+                // Part pin is on the top level cell
+                throw new RuntimeException();
+           } else {
+                // Part pin is inside design hierarchy
+                EDIFHierPortInst ehpi = netlist.getHierPortInstFromName(ppin.getInstanceName()
+                        + EDIFTools.EDIF_HIER_SEP + ppin.getTerminalName());
+
+                EDIFHierNet ehn = ehpi.getHierarchicalNet();
+                EDIFHierNet parentEhn = netlist.getParentNet(ehn);
+                Net net = design.getNet((parentEhn != null ? parentEhn : ehn).getHierarchicalNetName());
+                if (net == null) {
+                    throw new RuntimeException();
+                }
+                if (net.isClockNet()) {
+                    // Ignore all part pins on clock nets
+                    continue;
+                }
+
+                Node node = Node.getNode(ppin.getTile(), ppin.getWireIndex());
+                if (ehpi.isInput()) {
+                    Set<Node> nodes = netToNodes.computeIfAbsent(net, (n) -> new HashSet<>(RouterHelper.getNodesOfNet(n)));
+                    for (Node uphill : node.getAllUphillNodes()) {
+                        if (nodes.contains(uphill)) {
+                            // If part pin is routed, then it must be a source part pin
+                            continue outer;
+                        }
+                    }
+                }
+
+                SitePinInst sink = new SitePinInst();
+                if (ehpi.isOutput()) {
+                    sink.setPinType(PinType.IN);
+                }
+
+                sink.setNet(net);
+                sink.setPinName(node.toString());
+                netToUnroutedPins.computeIfAbsent(net, (k) -> new ArrayList<>())
+                        .add(sink);
+            }
+        }
+
+        // Examine all physical nets to find all unrouted sinks
+        List<Net> clockNets = new ArrayList<>();
+
+        for (Net net : design.getNets()) {
+            List<SitePinInst> sinkPins = net.getSinkPins();
+            List<SitePinInst> unroutedSinks;
+
+            if (!net.hasPIPs()) {
+                unroutedSinks = sinkPins;
+            } else {
+                unroutedSinks = findUnroutedSinks(net, sinkPins);
+            }
+
+            if (unroutedSinks.isEmpty()) {
+                continue;
+            }
+
+            if (net.isClockNet()) {
+                clockNets.add(net);
+            }
+
+            netToUnroutedPins.compute(net, (k,v) -> {
+                if (v == null) {
+                    return unroutedSinks;
+                }
+                v.addAll(unroutedSinks);
+                return v;
+            });
+        }
+
+        // Incrementally route the clock nets
+        for (Net net : clockNets) {
+            List<SitePinInst> pins = netToUnroutedPins.remove(net);
+            UltraScaleClockRouting.incrementalClockRouter(net, pins);
+        }
+
+        // Incrementally route the static and regular nets
+        PartialRouter.routeDesignPartialNonTimingDriven(design, netToUnroutedPins);
+
+        return design;
+    }
+
+    private static List<SitePinInst> findUnroutedSinks(Net net, List<SitePinInst> sinks) {
+
+        Set<Node> usedNodes = new HashSet<>();
+        List<SitePinInst> unroutedSinks = new ArrayList<>();
+        for(PIP p : net.getPIPs()) {
+            usedNodes.add(p.getStartNode());
+            usedNodes.add(p.getEndNode());
+        }
+
+        for(SitePinInst sink : sinks) {
+            if(!usedNodes.contains(sink.getConnectedNode())) {
+                unroutedSinks.add(sink);
+            }else {
+                sink.setRouted(true);
+            }
+        }
+        return unroutedSinks;
+    }
 
     // get all the site pins of the anchor registers to be routed to
     // we can easily get all the cell pins to be routed to, but we need the site pins as well
@@ -225,7 +343,10 @@ public class AnchorRegRouter {
     }
 
     private static void createPartitionPins(Design design, HashMap<String, Set<Tile> > pblockNameToTiles,
-            Map<SitePinInst, EDIFHierPortInst> anchorRegPins) {    	
+            Map<SitePinInst, EDIFHierPortInst> anchorRegPins,
+            String outputTclName) throws IOException {
+
+    	FileWriter myWriter = new FileWriter(outputTclName);
         for(Entry<SitePinInst, EDIFHierPortInst> e : anchorRegPins.entrySet()) {
             // skip adding partition pins to laguna anchors
 //            if (e.getKey().getSite().getSiteTypeEnum() == SiteTypeEnum.LAGUNA) {
@@ -248,25 +369,25 @@ public class AnchorRegRouter {
             Net net = e.getKey().getNet();
             if(net.isStaticNet() || net.isClockNet()) continue;
             Node currNode = e.getKey().getConnectedNode();
-            
+
             // need to consider bi-directional PIPs
             Map<Node, Node> connections = new HashMap<>();
             if(e.getKey().isOutPin()) {
                 for(PIP pip : net.getPIPs()) {
                     if (pip.isBidirectional() && pip.isReversed()) {
-                    	connections.put(pip.getEndNode(), pip.getStartNode());    	
+                    	connections.put(pip.getEndNode(), pip.getStartNode());
                     }
                     else {
-                        connections.put(pip.getStartNode(), pip.getEndNode());                    	
+                        connections.put(pip.getStartNode(), pip.getEndNode());
                     }
                 }
             }else {
                 for(PIP pip : net.getPIPs()) {
                     if (pip.isBidirectional() && pip.isReversed()) {
-                        connections.put(pip.getStartNode(), pip.getEndNode());                    	
+                        connections.put(pip.getStartNode(), pip.getEndNode());
                     }
                     else {
-                        connections.put(pip.getEndNode(), pip.getStartNode());                    	
+                        connections.put(pip.getEndNode(), pip.getStartNode());
                     }
                 }
             }
@@ -277,25 +398,33 @@ public class AnchorRegRouter {
 
                 // we fail to filed a preferred NN/SS/EE/WW node, use the last node as the part pin
                 if (currNode == null) {
-                	System.out.println("WARNING: skip adding part pin to " + e.getValue().toString());
+                	System.out.println(" # WARNING: skip adding part pin to " + e.getValue().toString());
                 	break;
                 }
             }
 
             // add the partition pin to the island ports instead of anchor pins
             if (currNode != null) {
-                design.createPartitionPin(e.getValue(), currNode);
-            }   
+            	myWriter.write("reset_property HD.PARTPIN_LOCS " +
+            			" [get_pins " + e.getValue().toString() +" ]\n");
+            	myWriter.write("set_property HD.PARTPIN_LOCS " + currNode.toString() +
+            			" [get_pins " + e.getValue().toString() +" ]\n");
+//                design.createPartitionPin(e.getValue(), currNode);
+            }
         }
+        myWriter.close();
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         if(args.length != 2) {
-            System.out.println("USAGE: <overlay_placed.dcp> <overlay_routed.dcp>");
+            System.out.println("USAGE: <overlay_routed.dcp> update_partpin.tcl");
             return;
         }
 
         Design design = Design.readCheckpoint(args[0]);
+        DesignTools.makePhysNetNamesConsistent(design);
+        DesignTools.createPossiblePinsToStaticNets(design);
+        DesignTools.createMissingSitePinInsts(design);
 
         Map<String, PBlock> pblocks = getPBlocksFromXDC(design);
         HashMap<String, Set<Tile> > pblockNameToTiles = new HashMap<String, Set<Tile> >();
@@ -311,21 +440,12 @@ public class AnchorRegRouter {
 
         Map<SitePinInst, EDIFHierPortInst> anchorRegPins = anchorRegPinsToRoute(design);
 
-        RWRoute.routeDesignPartialNonTimingDriven(design);
+        // design = routeOverlay(design);
 
-        createPartitionPins(design, pblockNameToTiles, anchorRegPins);
-
-//        // create black boxes
-//        String island_cell_name = "pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3";
-//        DesignTools.makeBlackBox(design, island_cell_name);
-//
-//        // load in placed islands
-//        Design island = Design.readCheckpoint("/share/einsx7/expr/island_dcp/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3_island_place.dcp");
-//        DesignTools.populateBlackBox(design, island_cell_name, island);
-//        design.getNetlist().consolidateAllToWorkLibrary();
+        createPartitionPins(design, pblockNameToTiles, anchorRegPins, args[1]);
 
         //write checkpoint
-        design.writeCheckpoint(args[1]);
+        // design.writeCheckpoint(args[1]);
     }
 
 }

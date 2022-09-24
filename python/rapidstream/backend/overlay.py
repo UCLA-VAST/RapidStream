@@ -84,6 +84,7 @@ def generate_overlay_inner(
   # route_design to get the complete overlay
   script.append(f'catch {{ route_design -directive Quick }} ')
   script.append(f'write_checkpoint {overlay_generation_dir}/overlay.dcp')
+  script.append(f'write_edif {overlay_generation_dir}/overlay.edf')
 
   if os.path.exists(overlay_generation_dir):
     shutil.rmtree(overlay_generation_dir)
