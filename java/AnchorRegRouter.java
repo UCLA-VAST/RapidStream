@@ -61,7 +61,7 @@ import com.xilinx.rapidwright.edif.EDIFNetlist;
 /**
  * Created on: Aug 22, 2022
  */
-public class AnchorRegRouterFull {
+public class AnchorRegRouter {
 
     private static Design routeOverlay(Design design){
 
@@ -342,16 +342,29 @@ public class AnchorRegRouterFull {
     	}
     }
 
-    private static void createPartitionPins(Design design, HashMap<String, Set<Tile> > pblockNameToTiles,
-            Map<SitePinInst, EDIFHierPortInst> anchorRegPins,
+    private static HashMap<String, Set<Tile> > getPblockNameToTiles(Design design) {
+        Map<String, PBlock> pblocks = getPBlocksFromXDC(design);
+        HashMap<String, Set<Tile> > pblockNameToTiles = new HashMap<String, Set<Tile> >();
+        for(Entry<String, PBlock> e : pblocks.entrySet()) {
+        	String pblock_name = e.getKey();
+            if(pblock_name.contains("WRAPPER_VERTEX_CR_X")) {
+            	if (pblockNameToTiles.get(pblock_name) == null) {
+            		pblockNameToTiles.put(pblock_name, new HashSet<Tile>());
+            	}
+            	pblockNameToTiles.get(pblock_name).addAll(e.getValue().getAllTiles());
+            }
+        }
+        return pblockNameToTiles;
+    }
+
+    private static void getPartitionPins(
+    		Design design,
             String outputTclName) throws IOException {
+        HashMap<String, Set<Tile> > pblockNameToTiles = getPblockNameToTiles(design);
+        Map<SitePinInst, EDIFHierPortInst> anchorRegPins = anchorRegPinsToRoute(design);
 
     	FileWriter myWriter = new FileWriter(outputTclName);
         for(Entry<SitePinInst, EDIFHierPortInst> e : anchorRegPins.entrySet()) {
-            // skip adding partition pins to laguna anchors
-//            if (e.getKey().getSite().getSiteTypeEnum() == SiteTypeEnum.LAGUNA) {
-//              continue;
-//            }
 
             // get the pblock name of the src/sink of the anchor
             SitePinInst anchorPin = e.getKey();
@@ -398,7 +411,37 @@ public class AnchorRegRouterFull {
 
                 // we fail to filed a preferred NN/SS/EE/WW node, use the last node as the part pin
                 if (currNode == null) {
-                	System.out.println(" # WARNING: skip adding part pin to " + e.getValue().toString());
+                	String msg = " # WARNING: skip adding part pin to " + e.getValue().toString() + "\n";
+                	System.out.print(msg);
+                	myWriter.write(msg);
+
+                	// DEBUG
+                	Node currNodeDebug = e.getKey().getConnectedNode();
+                    while(!isValidNodeForPartPin(currNodeDebug, anchorSrcOrSinkPblock, pblockNameToTiles, connections)) {
+                    	currNodeDebug = connections.get(currNodeDebug);
+                    }
+
+                    if(e.getKey().isOutPin()) {
+                        for(PIP pip : net.getPIPs()) {
+                            if (pip.isBidirectional() && pip.isReversed()) {
+                            	connections.put(pip.getEndNode(), pip.getStartNode());
+                            }
+                            else {
+                                connections.put(pip.getStartNode(), pip.getEndNode());
+                            }
+                        }
+                    }else {
+                        for(PIP pip : net.getPIPs()) {
+                            if (pip.isBidirectional() && pip.isReversed()) {
+                                connections.put(pip.getStartNode(), pip.getEndNode());
+                            }
+                            else {
+                                connections.put(pip.getEndNode(), pip.getStartNode());
+                            }
+                        }
+                    }
+                    //------------------
+
                 	break;
                 }
             }
@@ -409,43 +452,36 @@ public class AnchorRegRouterFull {
             			" [get_pins " + e.getValue().toString() +" ]\n");
             	myWriter.write("set_property HD.PARTPIN_LOCS " + currNode.toString() +
             			" [get_pins " + e.getValue().toString() +" ]\n");
-//                design.createPartitionPin(e.getValue(), currNode);
             }
         }
         myWriter.close();
     }
 
     public static void main(String[] args) throws IOException {
-        if(args.length != 2) {
-            System.out.println("USAGE: <overlay_routed.dcp> update_partpin.tcl");
+        if(args.length != 3) {
+            System.out.println("USAGE: <overlay_placed.dcp> <overlay_routed.dcp> update_partpin.tcl");
             return;
         }
+        String placedDCP = args[0];
+        String routedDCP = args[1];
+        String partPinTcl = args[2];
 
-        Design design = Design.readCheckpoint(args[0]);
+        Design design = Design.readCheckpoint(placedDCP);
         DesignTools.makePhysNetNamesConsistent(design);
         DesignTools.createPossiblePinsToStaticNets(design);
         DesignTools.createMissingSitePinInsts(design);
 
-        Map<String, PBlock> pblocks = getPBlocksFromXDC(design);
-        HashMap<String, Set<Tile> > pblockNameToTiles = new HashMap<String, Set<Tile> >();
-        for(Entry<String, PBlock> e : pblocks.entrySet()) {
-        	String pblock_name = e.getKey();
-            if(pblock_name.contains("WRAPPER_VERTEX_CR_X")) {
-            	if (pblockNameToTiles.get(pblock_name) == null) {
-            		pblockNameToTiles.put(pblock_name, new HashSet<Tile>());
-            	}
-            	pblockNameToTiles.get(pblock_name).addAll(e.getValue().getAllTiles());
-            }
-        }
+        design = routeOverlay(design);
 
-        Map<SitePinInst, EDIFHierPortInst> anchorRegPins = anchorRegPinsToRoute(design);
+        // create routed checkpoint
+        design.writeCheckpoint(routedDCP);
 
-        // design = routeOverlay(design);
+        // select partition pin
+        // FIXME: we have to write out and read in the checkpoint
+        // otherwise pip.isBidirectional() && pip.isReversed() will be wrong
+        Design routed_design = Design.readCheckpoint(routedDCP);
 
-        createPartitionPins(design, pblockNameToTiles, anchorRegPins, args[1]);
-
-        //write checkpoint
-        // design.writeCheckpoint(args[1]);
+        // FIXME: need to set two partition pins for nets connected to the top IO
+        getPartitionPins(routed_design, partPinTcl);
     }
-
 }
