@@ -84,6 +84,9 @@ def main(
   """Entry point for RapidStream that targets TAPA"""
   tapa_hdl_dir = os.path.abspath(tapa_hdl_dir)
   output_dir = os.path.abspath(output_dir)
+  dummy_abs_shell_dir = os.path.abspath(dummy_abs_shell_dir)
+  hmss_shell_path = os.path.abspath(hmss_shell_path)
+
   os.makedirs(output_dir, exist_ok=True)
 
   setup_logging()
