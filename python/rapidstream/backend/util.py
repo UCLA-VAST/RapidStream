@@ -3,6 +3,9 @@ import os
 import re
 from typing import List, Tuple, Dict
 
+import rapidstream
+RAPIDSTREAM_PYTHON_PATH = os.path.dirname(rapidstream.__file__)
+RAPIDSTREAM_BASE_PATH = f'{RAPIDSTREAM_PYTHON_PATH}/../../'
 
 class ParallelManager:
   def __init__(self):

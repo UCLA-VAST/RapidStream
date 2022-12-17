@@ -6,7 +6,7 @@ import shutil
 from typing import Dict, List
 
 from .floorplan_const import *
-from .util import ParallelManager, get_local_anchor_list, collect_anchor_to_dir_to_locs
+from .util import ParallelManager, get_local_anchor_list, collect_anchor_to_dir_to_locs, RAPIDSTREAM_BASE_PATH
 
 _logger = logging.getLogger().getChild(__name__)
 
@@ -142,7 +142,7 @@ def get_anchor_placement_script(
   script.append(f'add_cells_to_pblock anchor_pblock [get_cells * -filter {{STATUS == UNPLACED}}]')
 
   # add placeholders for pre-used lagunas
-  script.append('source /share/einsx7/vast-lab-tapa/RapidStream/platform/u280/add_laguna_placeholders.tcl')
+  script.append(f'source {RAPIDSTREAM_BASE_PATH}/platform/u280/add_laguna_placeholders.tcl')
 
   # place design
   script.append(f'place_design')

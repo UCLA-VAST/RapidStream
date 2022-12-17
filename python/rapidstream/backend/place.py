@@ -2,7 +2,7 @@ import logging
 import os
 from typing import Dict, List
 
-from .util import ParallelManager, mark_false_paths_to_placeholder_ff
+from .util import ParallelManager, mark_false_paths_to_placeholder_ff, RAPIDSTREAM_BASE_PATH
 from .floorplan_const import *
 
 _logger = logging.getLogger().getChild(__name__)
@@ -86,7 +86,7 @@ def get_init_place_script(
 
   # extract locations of src and dst of each anchor
   script.append(f'set kernel_cell_addr "{kernel_cell_addr}"')
-  script.append(f'source /share/einsx7/vast-lab-tapa/RapidStream/tcl/extractSrcAndDstOfAnchors.tcl')
+  script.append(f'source {RAPIDSTREAM_BASE_PATH}/tcl/extractSrcAndDstOfAnchors.tcl')
 
   script.append(f'write_checkpoint {init_place_dir}/{slot_name}/{slot_name}_place.dcp')
 

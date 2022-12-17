@@ -5,46 +5,9 @@ import shutil
 from collections import defaultdict
 from typing import Dict, List
 
-from .util import ParallelManager, get_local_anchor_list
+from .util import ParallelManager, get_local_anchor_list, RAPIDSTREAM_BASE_PATH
 from .floorplan_const import get_neighbor_slice_site_of_laguna_site
 
-@click.command()
-@click.option(
-  '--config-path',
-  required=True,
-  help='Path to the TAPA configuration file.'
-)
-@click.option(
-  '--init-place-dir',
-  required=True,
-)
-@click.option(
-  '--anchor-place-dir',
-  required=True,
-)
-@click.option(
-  '--place-opt-dir',
-  required=True,
-)
-@click.option(
-  '--top-name',
-  required=True,
-)
-def setup_island_placement_opt(
-    config_path: str,
-    init_place_dir: str,
-    anchor_place_dir: str,
-    place_opt_dir: str,
-    top_name: str,
-):
-  config = json.loads(open(config_path, 'r').read())
-  setup_island_placement_opt_inner(
-    config,
-    init_place_dir,
-    anchor_place_dir,
-    place_opt_dir,
-    top_name,
-  )
 
 def setup_island_placement_opt_inner(
     config: Dict,
@@ -166,7 +129,7 @@ def get_island_opt_script(
 
   # extract locations of src and dst of each anchor
   script.append(f'set kernel_cell_addr "{kernel_cell_addr}"')
-  script.append(f'source /share/einsx7/vast-lab-tapa/RapidStream/tcl/extractSrcAndDstOfAnchors.tcl')
+  script.append(f'source {RAPIDSTREAM_BASE_PATH}/tcl/extractSrcAndDstOfAnchors.tcl')
 
   script.append(f'write_checkpoint {place_opt_dir}/{slot_name}/{slot_name}_island_and_anchor_place.dcp')
 
@@ -175,6 +138,3 @@ def get_island_opt_script(
   script.append(f'write_checkpoint -cell {kernel_cell}/{slot_name} {place_opt_dir}/{slot_name}/{slot_name}_island_place.dcp')
 
   return script
-
-if __name__ == '__main__':
-  setup_island_placement_opt()

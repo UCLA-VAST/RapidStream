@@ -2,7 +2,7 @@ import os
 import shutil
 from typing import Dict, List
 
-from .util import ParallelManager, mark_false_paths_to_placeholder_ff
+from .util import ParallelManager, mark_false_paths_to_placeholder_ff, RAPIDSTREAM_BASE_PATH
 
 
 def setup_island_route(
@@ -12,7 +12,7 @@ def setup_island_route(
     place_opt_dir: str,
     top_name: str,
     re_place_before_routing: bool,
-    vitis_config_dir = '/share/einsx7/vast-lab-tapa/RapidStream/platform/u280/vitis_config_int/int',
+    vitis_config_dir = f'{RAPIDSTREAM_BASE_PATH}/platform/u280/vitis_config_int/int',
 ):
   """"""
   route_dir = os.path.abspath(route_dir)

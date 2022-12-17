@@ -2,37 +2,11 @@ import click
 import json
 import os
 import shutil
-from typing import Dict, List
 
 from .floorplan_const import ISLAND_TO_PBLOCK
-from .util import collect_anchor_to_dir_to_locs
+from .util import RAPIDSTREAM_BASE_PATH
 from .setup_nested_dfx import setup_next_level_partpin
 
-
-@click.command()
-@click.option(
-  '--overlay-generation-dir',
-  required=True,
-)
-@click.option(
-  '--top-name',
-  required=True,
-)
-@click.option(
-  '--island-place-opt-dir',
-  required=True,
-)
-def generate_overlay(
-    overlay_generation_dir: str,
-    top_name: str,
-    anchor_place_dir: str,
-):
-
-  generate_overlay_inner(
-    overlay_generation_dir,
-    top_name,
-    anchor_place_dir,
-  )
 
 def generate_overlay_inner(
     overlay_generation_dir: str,
@@ -75,7 +49,7 @@ def generate_overlay_inner(
   # Directly place_cell instead of place_design
   # the placeholder FF for top-level IOs will be placed on the boundary of the bottom right island
   # the same placement will be reused every time
-  script.append('source /share/einsx7/vast-lab-tapa/RapidStream/platform/u280/place_top_io_placeholder_ff.tcl')
+  script.append(f'source {RAPIDSTREAM_BASE_PATH}/platform/u280/place_top_io_placeholder_ff.tcl')
   script += setup_next_level_partpin()
 
   script.append(f'write_checkpoint {overlay_generation_dir}/overlay_placed.dcp')
@@ -102,7 +76,3 @@ def gen_overlay_bistream_script():
   bitstream_script.append(f'pr_recombine -cell pfm_top_i/dynamic_region')
   bitstream_script.append(f'write_bitstream -cell pfm_top_i/dynamic_region overlay.bit')
   return bitstream_script
-
-
-if __name__ == '__main__':
-  generate_overlay()
