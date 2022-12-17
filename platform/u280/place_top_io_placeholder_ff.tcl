@@ -2,7 +2,7 @@
 # skip invoking place_design during overlay construction
 
 set target_cells [ get_cells pfm_top_i/dynamic_region/gaussian_kernel/inst/CTRL_WRAPPER_VERTEX_CR_X4Y0_To_CR_X7Y3/* -filter { ( STATUS == UNPLACED || STATUS == ASSIGNED) && PRIMITIVE_TYPE !~ OTHERS.*.* } ]
-set free_sites [get_sites -of_objects [get_clock_regions X5Y1] -filter {NAME =~ SLICE* && IS_USED == false}]
+set free_sites [get_sites -of_objects [get_clock_regions {X5Y1 X5Y2}] -filter {NAME =~ SLICE* && IS_USED == false}]
 
 set cell_num [llength $target_cells]
 set ANCHOR_PER_SLICE 4
