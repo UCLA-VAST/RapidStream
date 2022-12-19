@@ -1,5 +1,6 @@
 import click
 import json
+import logging
 import os
 import subprocess
 from pyverilog.vparser.parser import parse
@@ -16,6 +17,9 @@ from rapidstream.backend.overlay import generate_overlay_inner
 from rapidstream.backend.route import setup_island_route
 from rapidstream.backend.setup_nested_dfx import setup_nested_dfx_inner
 from rapidstream.backend.setup_abs_shell import setup_abs_shell
+
+_logger = logging.getLogger().getChild(__name__)
+
 
 @click.command()
 @click.option(
@@ -69,6 +73,11 @@ from rapidstream.backend.setup_abs_shell import setup_abs_shell
   required=False,
   default=False,
 )
+@click.option(
+  '--max-job-number',
+  required=False,
+  default=32,
+)
 def main(
   top_rtl_path: str,
   post_floorplan_config_path: str,
@@ -80,6 +89,7 @@ def main(
   hmss_shell_path: str,
   re_place_before_routing: bool,
   re_place_after_anchor_place: bool,
+  max_job_number: int,
 ):
   """Entry point for RapidStream that targets TAPA"""
   tapa_hdl_dir = os.path.abspath(tapa_hdl_dir)
@@ -90,6 +100,8 @@ def main(
   os.makedirs(output_dir, exist_ok=True)
 
   setup_logging()
+
+  _logger.info('max parallel job number set to %d', max_job_number)
 
   config = json.load(open(post_floorplan_config_path, 'r'))
   ast_root, _ = parse([top_rtl_path])
@@ -147,14 +159,14 @@ def main(
   )
 
   # invoke parallel synthesis
-  os.system(f'parallel < {SYNTH_DIR}/parallel.txt')
+  os.system(f'parallel < {SYNTH_DIR}/parallel.txt -j {max_job_number}')
 
   # invoke parallel placement
-  os.system(f'parallel < {INIT_PLACE_DIR}/parallel.txt')
+  os.system(f'parallel < {INIT_PLACE_DIR}/parallel.txt -j {max_job_number}')
 
   # invoke parallel anchor placement
   setup_anchor_placement_inner(config, INIT_PLACE_DIR, ANCHOR_PLACE_DIR)
-  os.system(f'parallel < {ANCHOR_PLACE_DIR}/parallel.txt')
+  os.system(f'parallel < {ANCHOR_PLACE_DIR}/parallel.txt -j {max_job_number}')
   collect_anchor_placement_result(ANCHOR_PLACE_DIR)
 
   setup_island_placement_opt_inner(
@@ -165,7 +177,7 @@ def main(
     top_name,
     rerun_placement = re_place_after_anchor_place,
   )
-  island_place_opt_process = detached_run(f'parallel < {PLACE_OPT_DIR}/parallel.txt')
+  island_place_opt_process = detached_run(f'parallel < {PLACE_OPT_DIR}/parallel.txt -j {max_job_number}')
 
   # the nested dfx dcp should be ready before overlay generation
   nestd_dfx_process.wait()
@@ -194,7 +206,7 @@ def main(
     ABS_SHELL_DIR,
     top_name,
   )
-  os.system(f'parallel < {ABS_SHELL_DIR}/parallel.txt')
+  os.system(f'parallel < {ABS_SHELL_DIR}/parallel.txt -j {max_job_number}')
 
   island_place_opt_process.wait()
 
@@ -207,7 +219,7 @@ def main(
     top_name,
     re_place_before_routing = re_place_before_routing
   )
-  os.system(f'parallel < {ROUTE_DIR}/parallel.txt')
+  os.system(f'parallel < {ROUTE_DIR}/parallel.txt -j {max_job_number}')
 
   # wait until the bitstream for the overlay is generated
   gen_overlay_bistream_process.wait()
