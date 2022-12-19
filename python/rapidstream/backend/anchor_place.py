@@ -81,7 +81,7 @@ def get_anchor_placement_script(
 ):
   """each anchor in the anchor list must be an individual anchor, not an array"""
   script = []
-  script.append('open_checkpoint /share/einsx7/share/empty_U280.dcp')
+  script.append(f'open_checkpoint {RAPIDSTREAM_BASE_PATH}/platform/u280/empty_U280.dcp')
 
   # create anchors, src/sink cells
   script.append('create_cell -reference FDRE { \\')
