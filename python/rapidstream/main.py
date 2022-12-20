@@ -197,7 +197,7 @@ def main(
   )
 
   # optimize the partition pin
-  os.system(f'java com.xilinx.rapidwright.rwroute.AnchorRegRouterFull {OVERLAY_DIR}/overlay.dcp {OVERLAY_DIR}/rw_update_partpin.tcl')
+  os.system(f'java com.xilinx.rapidwright.rwroute.PartPinSelection {OVERLAY_DIR}/overlay.dcp {OVERLAY_DIR}/rw_update_partpin.tcl')
 
   # generate abstract shell after overlay is generated
   setup_abs_shell(
